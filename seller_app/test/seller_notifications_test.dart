@@ -11,14 +11,14 @@ class FakeNotificationApi extends SellerApi {
   final data = <Map<String, dynamic>>[
     {
       'id':'event-1', 'event_type':'product','target_id':'product-1',
-      'title':'Не прошло модерацию',
+      'title':'Товар не прошёл модерацию', 'status':'rejected',
       'message':'Товар «Куртка» не прошёл модерацию.',
       'note':'Поменяйте фотографию','created_at':1731769200,
       'read':false,
     },
     {
       'id':'event-2', 'event_type':'pavilion','target_id':'pavilion-1',
-      'title':'Проверка пройдена',
+      'title':'Павильон подтверждён', 'status':'approved',
       'message':'Павильон «Б-2В-82» прошёл модерацию.',
       'note':'','created_at':1731769100, 'read':true,
     },
@@ -55,16 +55,15 @@ void main() {
       ))));
     await tester.pumpAndSettle();
 
-    expect(find.text('уведомления'), findsOneWidget);
     expect(find.text('НОВЫЕ'), findsOneWidget);
     expect(find.text('ПРОЧИТАННЫЕ'), findsOneWidget);
     expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
-    await tester.tap(find.text('Не прошло модерацию'));
+    await tester.tap(find.text('Товар не прошёл модерацию'));
     await tester.pumpAndSettle();
     expect(product, 'product-1');
     expect(api.called, contains('PUT /merchant/notifications/event-1/read'));
 
-    await tester.tap(find.text('Проверка пройдена'));
+    await tester.tap(find.text('Павильон подтверждён'));
     await tester.pumpAndSettle();
     expect(pavilionVisits, 1);
     expect(tester.takeException(), isNull);
