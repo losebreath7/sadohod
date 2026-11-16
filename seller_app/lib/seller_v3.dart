@@ -228,29 +228,26 @@ class V3Field extends StatelessWidget {
       borderRadius: BorderRadius.circular(5),
     ),
     padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Stack(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showTitle)
-          Positioned(
-            top: 8,
-            left: 0,
-            child: IgnorePointer(child: label(title, 12, color: muted)),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextField(
-            controller: controller,
-            readOnly: readOnly,
-            keyboardType: keyboard,
-            onChanged: onChanged,
-            maxLines: 1,
-            textAlignVertical: TextAlignVertical.center,
-            style: type(14),
-            decoration: const InputDecoration(
-              isCollapsed: true,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
+        if (showTitle) ...[
+          IgnorePointer(child: label(title, 12, color: muted)),
+          const SizedBox(height: 4),
+        ],
+        TextField(
+          controller: controller,
+          readOnly: readOnly,
+          keyboardType: keyboard,
+          onChanged: onChanged,
+          maxLines: 1,
+          textAlignVertical: TextAlignVertical.center,
+          style: type(14),
+          decoration: const InputDecoration(
+            isCollapsed: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
           ),
         ),
       ],
@@ -1115,15 +1112,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     return value;
   }
 
-  Widget saleModeFields(Set<String> modes) => Row(
-    children: [
-      for (final mode in ['wholesale', 'retail']) ...[
-        tap(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: modes.contains(mode) ? Colors.black : Colors.white,
-              borderRadius: BorderRadius.circular(10),
+  $1BorderRadius.circular(100),
             ),
             child: label(
               mode == 'wholesale' ? 'опт' : 'розница',
@@ -2533,15 +2522,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             }),
             style: type(12, color: Colors.white),
             textAlignVertical: TextAlignVertical.center,
-            expands: true,
-            minLines: null,
-            maxLines: null,
+            maxLines: 1,
+            strutStyle: const StrutStyle(
+              fontSize: 12, height: 1, forceStrutHeight: true,
+            ),
             decoration: InputDecoration(
               hintText: 'поиск',
               hintStyle: type(12, color: Colors.white),
-              isCollapsed: true,
+              isDense: true,
               border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),
@@ -2820,7 +2810,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 );
               },
             ),
-          const SizedBox(height: 100),
+          SizedBox(
+            height: selecting
+                ? 150 + MediaQuery.viewPaddingOf(context).bottom
+                : 100,
+          ),
         ],
       ),
     );
@@ -2976,10 +2970,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 8),
-          // A fixed metadata block prevents card height changes between rows.
+          // Text flows tightly; surrounding card height keeps the grid aligned.
           SizedBox(
             width: width,
-            height: 83,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2996,14 +2989,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       style: type(11, color: muted),
                     ),
                   ),
-                SizedBox(
-                  height: 27,
-                  child: Text(
-                    '${p['title'] ?? ''}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: type(10, color: const Color(0xFF7D7D7D)),
-                  ),
+                Text(
+                  '${p['title'] ?? ''}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: type(10, color: const Color(0xFF7D7D7D)),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -3754,8 +3744,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             V3Field('название', c('title')),
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.fromLTRB(17, 14, 17, 20),
-              constraints: const BoxConstraints(minHeight: 119),
+              padding: const EdgeInsets.fromLTRB(17, 14, 17, 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(5),
