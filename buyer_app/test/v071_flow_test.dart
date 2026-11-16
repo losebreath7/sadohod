@@ -1,4 +1,7 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod/app/app.dart';
 import 'package:sadohod/core/widgets/design.dart';
@@ -41,6 +44,50 @@ void main() {
     expect(find.text('Все товары'), findsNothing);
     expect(find.text('найти по фото'), findsOneWidget);
   });
+  testWidgets('home wordmark is present and mouse drags tag rail', (tester) async {
+    tester.view.physicalSize = const Size(390, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const SadohodApp());
+    appRouter.go('/home');
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is SvgPicture && widget.semanticsLabel == 'садоход',
+      ),
+      findsOneWidget,
+    );
+
+    final tags = find.byType(ListView);
+    expect(tags, findsOneWidget);
+    expect(tester.widget<ListView>(tags).scrollDirection, Axis.horizontal);
+    final horizontal = find.descendant(
+      of: tags,
+      matching: find.byType(Scrollable),
+    );
+    final vertical = find.descendant(
+      of: find.byType(CustomScrollView),
+      matching: find.byType(Scrollable),
+    );
+    final initialVertical = tester.state<ScrollableState>(vertical).position.pixels;
+
+    final drag = await tester.startGesture(
+      tester.getCenter(find.text('верхняя одежда')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(-110, 0));
+    await tester.pump();
+    await drag.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.state<ScrollableState>(horizontal).position.pixels, greaterThan(0));
+    expect(tester.state<ScrollableState>(vertical).position.pixels, initialVertical);
+    expect(tester.takeException(), isNull);
+  });
+
   test('chat delivery updates without a new message ID', () {
     final pending = <Map<String, dynamic>>[
       {'id': 'one', 'delivered': false, 'staff': false},
