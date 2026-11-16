@@ -46,7 +46,7 @@ class FavoriteButton extends StatelessWidget {
         tooltip: saved ? 'Убрать из избранного' : 'В избранное',
         constraints: small
             ? const BoxConstraints(minWidth: 18, minHeight: 17)
-            : const BoxConstraints(minWidth: 44, minHeight: 44),
+            : const BoxConstraints(minWidth: 30, minHeight: 30),
         padding: EdgeInsets.zero,
         alignment: alignRight ? Alignment.centerRight : Alignment.center,
         onPressed: () async {
@@ -58,9 +58,9 @@ class FavoriteButton extends StatelessWidget {
           }
         },
         icon: SizedBox(
-          width: small ? 11 : 28,
-          height: small ? 10 : 26,
-          child: DesignIcon(saved ? 'b2fbd' : 'a17b7'),
+          width: small ? 11 : 23,
+          height: small ? 10 : 21,
+          child: DesignIcon(saved ? 'b2fbd' : 'heart_outline_clean'),
         ),
       );
     },
