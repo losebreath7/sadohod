@@ -15,6 +15,7 @@ def upgrade():
         sa.Column('buyer_id', sa.String(32),
                   sa.ForeignKey('buyers.id', ondelete='CASCADE'), nullable=False),
         sa.Column('event_type', sa.String(32), nullable=False),
+        sa.Column('status', sa.String(16), nullable=False),
         sa.Column('target_id', sa.String(32), nullable=False),
         sa.Column('title', sa.String(160), nullable=False),
         sa.Column('message', sa.Text(), nullable=False),
