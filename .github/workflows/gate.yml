@@ -3,7 +3,7 @@ name: gate
 # CI-ворота R8: проверка версий, изолированного сервера и двух Flutter-приложений.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
