@@ -13,6 +13,7 @@ import 'product_actions.dart';
 import 'draft_store.dart';
 import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
+import 'seller_notifications.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
 
@@ -1491,6 +1492,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         return profileBody();
       case 'editProfile':
         return profileEdit();
+      case 'notifications':
+        return SellerNotificationsPage(
+          api: widget.api,
+          onBack: back,
+          onOpenPavilions: () => go('stores'),
+          onOpenProduct: openNotificationProduct,
+        );
       case 'emptyStores':
         return emptyStores();
       case 'emptyProducts':
@@ -1819,6 +1827,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ],
     ),
   );
+  void openNotificationProduct(String productId) {
+    final matches = products.where((p) => '${p['id']}' == productId);
+    final item = matches.firstOrNull;
+    if (item == null ||
+        item['status'] == 'pending' ||
+        rows(item['listings']).any((l) => l['status'] == 'pending')) {
+      go('catalog');
+      return;
+    }
+    openEditProduct(item);
+  }
+
   Widget profileBody() => scroll(
     Column(
       children: [
@@ -1888,8 +1908,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               if (item[0] == 'профиль') {
                 fillProfile();
                 go('editProfile');
-              } else
+              } else if (item[0] == 'уведомления') {
+                go('notifications');
+              } else {
                 missing(item[0]);
+              }
             },
           ),
         const SizedBox(height: 24),
