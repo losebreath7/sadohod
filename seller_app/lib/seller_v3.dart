@@ -322,6 +322,38 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       draftWarningShown = false,
       draftCompleted = false;
   String activeChatSection = 'поддержка';
+  int unreadNotifications = 0;
+
+  Future<void> refreshUnreadNotifications() async {
+    if (testPreview || !widget.api.signedIn) return;
+    try {
+      final data = await widget.api.call('/merchant/notifications');
+      if (mounted) {
+        setState(() {
+          unreadNotifications = (data['unread'] as num?)?.toInt() ?? 0;
+        });
+      }
+    } catch (error) {
+      debugPrint('Seller notification counter unavailable: $error');
+    }
+  }
+
+  Future<void> openNotificationProduct(String id) async {
+    if (!testPreview && !await reload(navigate: false)) return;
+    if (!mounted) return;
+    final matches = products.where((item) => item['id'] == id);
+    if (matches.isEmpty) {
+      failure(Exception('Товар больше не найден в вашем магазине.'));
+      return;
+    }
+    final item = matches.first;
+    if (item['status'] == 'pending' ||
+        rows(item['listings']).any((l) => l['status'] == 'pending')) {
+      go('catalog');
+      return;
+    }
+    await openEditProduct(item);
+  }
   // Explicit initialFrame is a visual-test/preview entry point. No API calls
   // or draft writes should occur when rendering these static design frames.
   bool get testPreview => preview || widget.initialFrame != null;
@@ -921,6 +953,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         }
       }
     });
+    if (screen == 'profile') refreshUnreadNotifications();
   }
 
   void returnToStores() {
@@ -962,6 +995,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 : 'capture')
           : home;
     });
+    if (index == 2) refreshUnreadNotifications();
     if (index == 1 && pavilions.isNotEmpty && !testPreview) {
       setState(() => busy = true);
       try {
@@ -1441,7 +1475,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ),
       );
     final authScreen = ['welcome', 'email', 'code', 'name'].contains(screen);
-    final index = ['profile', 'editProfile', 'sellerChat'].contains(screen)
+    final index = ['profile', 'editProfile', 'sellerChat', 'notifications'].contains(screen)
         ? 2
         : ['capture', 'newProduct', 'editProduct'].contains(screen)
         ? 1
@@ -1493,12 +1527,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'editProfile':
         return profileEdit();
       case 'notifications':
-        return SellerNotificationsPage(
+        return page('уведомления', SellerNotificationsPage(
+          key: const ValueKey('seller-notifications'),
           api: widget.api,
-          onBack: back,
-          onOpenPavilions: () => go('stores'),
-          onOpenProduct: openNotificationProduct,
-        );
+          onOpenPavilions: returnToStores,
+          onOpenProduct: (id) { openNotificationProduct(id); },
+        ));
       case 'emptyStores':
         return emptyStores();
       case 'emptyProducts':
@@ -1827,18 +1861,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ],
     ),
   );
-  void openNotificationProduct(String productId) {
-    final matches = products.where((p) => '${p['id']}' == productId);
-    final item = matches.firstOrNull;
-    if (item == null ||
-        item['status'] == 'pending' ||
-        rows(item['listings']).any((l) => l['status'] == 'pending')) {
-      go('catalog');
-      return;
-    }
-    openEditProduct(item);
-  }
-
   Widget profileBody() => scroll(
     Column(
       children: [
@@ -1893,11 +1915,28 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 children: [
                   SizedBox(
                     width: 30,
-                    child: asset(
-                      item[1],
-                      width: item[0] == 'профиль' ? 34.621 : 24,
-                      height: item[0] == 'профиль' ? 34.621 : 24,
-                    ),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      asset(
+                        item[1],
+                        width: item[0] == 'профиль' ? 34.621 : 24,
+                        height: item[0] == 'профиль' ? 34.621 : 24,
+                      ),
+                      if (item[0] == 'уведомления' && unreadNotifications > 0)
+                        Positioned(
+                          left: 14, top: -5,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: const BoxDecoration(color: Color(0xFF5F0F10),
+                              borderRadius: BorderRadius.all(Radius.circular(10))),
+                            child: Text(unreadNotifications > 99 ? '99+' : '$unreadNotifications',
+                              style: const TextStyle(fontFamily: 'Helvetica',
+                                fontSize: 8, fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                          ),
+                        ),
+                    ]),
                   ),
                   const SizedBox(width: 14),
                   label(item[0], 14, color: const Color(0xFF2C1B15)),

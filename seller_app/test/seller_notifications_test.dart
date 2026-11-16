@@ -11,14 +11,14 @@ class FakeNotificationApi extends SellerApi {
   final data = <Map<String, dynamic>>[
     {
       'id':'event-1', 'event_type':'product','target_id':'product-1',
-      'title':'Не прошло модерацию',
+      'title':'Товар не прошёл модерацию', 'status':'rejected',
       'message':'Товар «Куртка» не прошёл модерацию.',
       'note':'Поменяйте фотографию','created_at':1731769200,
       'read':false,
     },
     {
       'id':'event-2', 'event_type':'pavilion','target_id':'pavilion-1',
-      'title':'Проверка пройдена',
+      'title':'Павильон подтверждён', 'status':'approved',
       'message':'Павильон «Б-2В-82» прошёл модерацию.',
       'note':'','created_at':1731769100, 'read':true,
     },
@@ -38,61 +38,83 @@ class FakeNotificationApi extends SellerApi {
 }
 
 void main() {
-  testWidgets('profile opens real notification page and back restores profile',
-      (tester) async {
+  testWidgets('pending notification never opens a mutable product editor', (tester) async {
     final api = FakeNotificationApi();
-    tester.view.physicalSize = const Size(402, 874);
+    tester.view.physicalSize = const Size(390, 874);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
-        home: SellerV3(api: api, initialFrame: '366:15805')));
+      home: SellerV3(api: api, initialFrame: '366:15805')));
     await tester.pumpAndSettle();
-
+    final dynamic state = tester.state(find.byType(SellerV3));
+    state.setState(() {
+      state.products = <Map<String, dynamic>>[{
+        'id': 'product-1', 'title': 'Товар на проверке',
+        'status': 'pending', 'images': <String>[],
+        'listings': <Map<String, dynamic>>[{
+          'pavilion_id': 'p1', 'status': 'pending', 'price': null,
+          'sale_modes': <String>['retail'],
+        }],
+      }];
+    });
+    await tester.pumpAndSettle();
     await tester.tap(find.text('уведомления'));
     await tester.pumpAndSettle();
-    expect(find.text('НОВЫЕ'), findsOneWidget);
-    expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+    await tester.tap(find.text('Товар не прошёл модерацию'));
     await tester.pumpAndSettle();
-    expect(find.text('НОВЫЕ'), findsNothing);
-    expect(find.text('уведомления'), findsOneWidget);
+    expect(state.screen, 'catalog');
+    expect(state.screen, isNot('editProduct'));
     expect(tester.takeException(), isNull);
   });
-
 
   testWidgets('seller moderation inbox shows reasons and navigates to product',
       (tester) async {
     final api = FakeNotificationApi();
     String? product;
     var pavilionVisits = 0;
-    var backVisits = 0;
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(home: Scaffold(body:
       SellerNotificationsPage(
-        api:api, onBack:()=>backVisits++,
+        api:api,
         onOpenPavilions:()=>pavilionVisits++,
         onOpenProduct:(id)=>product=id,
       ))));
     await tester.pumpAndSettle();
 
-    expect(find.text('уведомления'), findsOneWidget);
     expect(find.text('НОВЫЕ'), findsOneWidget);
     expect(find.text('ПРОЧИТАННЫЕ'), findsOneWidget);
     expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
-    await tester.tap(find.text('Не прошло модерацию'));
+    await tester.tap(find.text('Товар не прошёл модерацию'));
     await tester.pumpAndSettle();
     expect(product, 'product-1');
     expect(api.called, contains('PUT /merchant/notifications/event-1/read'));
 
-    await tester.tap(find.text('Проверка пройдена'));
+    await tester.tap(find.text('Павильон подтверждён'));
     await tester.pumpAndSettle();
     expect(pavilionVisits, 1);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
-    expect(backVisits, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile opens notifications inside existing seller navigation', (tester) async {
+    final api = FakeNotificationApi();
+    tester.view.physicalSize = const Size(390, 874);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      home: SellerV3(api: api, initialFrame: '366:15805')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('уведомления'));
+    await tester.pumpAndSettle();
+    expect(find.text('НОВЫЕ'), findsOneWidget);
+    expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('поддержка'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -100,7 +122,7 @@ void main() {
     final api = FakeNotificationApi();
     api.data.clear();
     await tester.pumpWidget(MaterialApp(home: Scaffold(body:
-      SellerNotificationsPage(api:api, onBack:(){},
+      SellerNotificationsPage(api:api,
         onOpenPavilions:(){},onOpenProduct:(_){},
       ))));
     await tester.pumpAndSettle();

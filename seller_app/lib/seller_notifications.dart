@@ -12,13 +12,11 @@ class SellerNotificationsPage extends StatefulWidget {
   const SellerNotificationsPage({
     super.key,
     required this.api,
-    required this.onBack,
     required this.onOpenPavilions,
     required this.onOpenProduct,
   });
 
   final SellerApi api;
-  final VoidCallback onBack;
   final VoidCallback onOpenPavilions;
   final ValueChanged<String> onOpenProduct;
 
@@ -131,9 +129,10 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     final note = (item['note'] ?? '').toString().trim();
     final title = (item['title'] ?? '').toString();
     final description = (item['message'] ?? '').toString();
-    final status = title == 'Не прошло модерацию'
+    final moderationStatus = item['status']?.toString() ?? '';
+    final statusIcon = moderationStatus == 'rejected'
         ? Icons.error_outline
-        : title == 'Проверка пройдена'
+        : moderationStatus == 'approved'
             ? Icons.check_circle_outline
             : Icons.schedule_outlined;
     return Semantics(
@@ -148,7 +147,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
             children: [
               SizedBox(
                 width: 32,
-                child: Icon(status, size: 23, color: sellerBrown),
+                child: Icon(statusIcon, size: 23, color: sellerBrown),
               ),
               const SizedBox(width: 13),
               Expanded(child: Column(
@@ -184,7 +183,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                   Text(date(item['created_at']),
                     style: const TextStyle(fontFamily: 'Helvetica',
                       fontSize: 10, color: Color(0xFF92908B))),
-                  if (title == 'Не прошло модерацию')
+                  if (moderationStatus == 'rejected')
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text('посмотреть и исправить ›',
@@ -219,22 +218,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
   Widget build(BuildContext context) {
     final fresh = items.where((item) => item['read'] != true).toList();
     final seen = items.where((item) => item['read'] == true).toList();
-    return Column(children: [
-      Container(
-        height: 100, color: Colors.white,
-        child: SafeArea(bottom: false, child: Stack(children: [
-          const SizedBox.expand(),
-          const Positioned(left: 65, right: 65, bottom: 20,
-            child: Text('уведомления', textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'Helvetica', fontSize: 16,
-                fontWeight: FontWeight.w700))),
-          Positioned(left: 18, bottom: 3, width: 42, height: 42,
-            child: IconButton(
-              onPressed: widget.onBack,
-              icon: const Icon(Icons.arrow_back_ios_new, size: 16))),
-        ])),
-      ),
-      Expanded(child: RefreshIndicator(
+    return RefreshIndicator(
         onRefresh: load,
         child: loading
           ? const Center(child: CircularProgressIndicator(
@@ -267,7 +251,6 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                 group('ПРОЧИТАННЫЕ', seen),
               ],
             ),
-      )),
-    ]);
+    );
   }
 }
