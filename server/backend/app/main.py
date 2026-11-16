@@ -15,6 +15,7 @@ from .buyer_reviews_v082 import router as buyer_reviews_router
 from .merchant import router as merchant_router, admin_router as merchant_admin_router
 from .merchant_operations import router as merchant_operations_router
 from .merchant_chat import router as merchant_chat_router
+from .moderation import router as moderation_router, admin_router as moderator_staff_router
 from .config import DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND
 from .database import SessionLocal, init_db
 from .build_info import BUILD_INFO
@@ -72,6 +73,8 @@ app.include_router(merchant_router)
 app.include_router(merchant_admin_router)
 app.include_router(merchant_operations_router)
 app.include_router(merchant_chat_router)
+app.include_router(moderation_router)
+app.include_router(moderator_staff_router)
 
 
 @app.get("/health")
