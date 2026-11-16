@@ -109,7 +109,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install browser automation
-        run: python -m pip install playwright==1.56.0
+        run: python -m pip install playwright==1.56.0 pillow==11.3.0
       - name: Real Chrome screenshots at iPhone 16 Pro width
         run: python tools/visual_smoke.py --app ${{ matrix.app }} --build preview --output chrome-screenshots
       - name: Save screenshots for manual visual review
