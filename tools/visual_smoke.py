@@ -12,17 +12,18 @@ import time
 import urllib.request
 
 from playwright.async_api import async_playwright
+from PIL import Image, ImageChops
 
 
 def cases(app):
     if app == 'buyer_app':
-        return [('buyer-home-mobile', '/', 390, 844),
+        return [('buyer-home-iphone16pro', '/', 402, 874),
                 ('buyer-home-desktop', '/', 1440, 900)]
     return [
-        ('seller-profile', '/?screen=366%3A15805', 390, 844),
-        ('seller-catalog', '/?screen=366%3A16277', 390, 844),
-        ('seller-add-product', '/?screen=366%3A17304', 390, 844),
-        ('seller-edit-product', '/?screen=366%3A16062', 390, 844),
+        ('seller-profile-iphone16pro', '/?screen=366%3A15805', 402, 874),
+        ('seller-catalog-iphone16pro', '/?screen=366%3A16277', 402, 874),
+        ('seller-add-product-iphone16pro', '/?screen=366%3A17304', 402, 874),
+        ('seller-edit-product-iphone16pro', '/?screen=366%3A16062', 402, 874),
     ]
 
 
@@ -56,6 +57,24 @@ async def capture(app, port, output):
                         raise RuntimeError(f'Screenshot is suspiciously small: {image}')
                     print(f'{name}: {image.stat().st_size} bytes, '
                           f'{await page.title()!r}; page errors: {errors[:3]}')
+                    if name == 'buyer-home-iphone16pro':
+                        # Figma header tag rail lives in this narrow strip.
+                        # This is a real mouse pointer drag, not a touch swipe.
+                        await page.mouse.move(320, 375)
+                        await page.mouse.down()
+                        await page.mouse.move(54, 375, steps=24)
+                        await page.mouse.up()
+                        await page.wait_for_timeout(850)
+                        dragged = output / 'buyer-tags-after-mouse-drag.png'
+                        await page.screenshot(path=str(dragged), full_page=True)
+                        before_strip = Image.open(image).convert('RGB').crop(
+                            (30, 362, 372, 392))
+                        after_strip = Image.open(dragged).convert('RGB').crop(
+                            (30, 362, 372, 392))
+                        if ImageChops.difference(before_strip, after_strip).getbbox() is None:
+                            raise AssertionError(
+                                'Mouse drag did not change the visible tag strip')
+                        print('Buyer tag rail changed after real Chrome mouse drag.')
                 finally:
                     await context.close()
         finally:
