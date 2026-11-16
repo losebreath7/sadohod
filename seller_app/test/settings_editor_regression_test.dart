@@ -63,7 +63,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await setUpPreview(tester, '366:16062');
     expect(find.text('изменить товар'), findsOneWidget);
-    expect(find.text('83'), findsOneWidget);
+    expect(find.text('Б-2В-81'), findsOneWidget);
     expect(find.byIcon(Icons.more_horiz), findsOneWidget);
     await tester.tap(find.byIcon(Icons.more_horiz));
     await tester.pumpAndSettle();
