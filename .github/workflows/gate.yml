@@ -5,7 +5,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, integration/buyer-seller-r8-qa]
   workflow_dispatch:
 
 permissions:
