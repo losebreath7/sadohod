@@ -26,6 +26,9 @@ class SellerNotificationsPage extends StatefulWidget {
 }
 
 class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
+  // Synthetic content only in the explicit Figma preview web build.
+  // Production always loads an authenticated inbox from the API.
+  static const _figmaPreview = bool.fromEnvironment('FIGMA_PREVIEW');
   List<Map<String, dynamic>> items = [];
   Timer? timer;
   bool loading = true;
@@ -35,8 +38,37 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
   @override
   void initState() {
     super.initState();
-    load();
-    timer = Timer.periodic(const Duration(seconds: 30), (_) => load());
+    if (_figmaPreview) {
+      final now = DateTime.now().millisecondsSinceEpoch / 1000;
+      items = [
+        {
+          'id': 'preview-pavilion', 'event_type': 'pavilion',
+          'status': 'approved', 'target_id': 'preview-pavilion',
+          'title': 'Павильон подтверждён',
+          'message': 'Павильон «Б-2В-82» прошёл модерацию. Теперь к нему можно добавлять товары.',
+          'note': '', 'created_at': now - 80, 'read': false,
+        },
+        {
+          'id': 'preview-product', 'event_type': 'product',
+          'status': 'rejected', 'target_id': 'preview-product',
+          'title': 'Товар не прошёл модерацию',
+          'message': 'Товар «Укороченная куртка» необходимо исправить.',
+          'note': 'Фотография слишком размыта. Загрузите более чёткое изображение товара.',
+          'created_at': now - 3600, 'read': false,
+        },
+        {
+          'id': 'preview-approved', 'event_type': 'product',
+          'status': 'approved', 'target_id': 'preview-approved',
+          'title': 'Товар опубликован',
+          'message': 'Товар «Сумка с короткими ручками» прошёл проверку и доступен покупателям.',
+          'note': '', 'created_at': now - 86400, 'read': true,
+        },
+      ];
+      loading = false;
+    } else {
+      load();
+      timer = Timer.periodic(const Duration(seconds: 30), (_) => load());
+    }
   }
 
   @override
@@ -82,6 +114,10 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
   }
 
   Future<void> open(Map<String, dynamic> item) async {
+    if (_figmaPreview) {
+      setState(() => item['read'] = true);
+      return;
+    }
     final id = item['id']?.toString();
     if (id == null || id.isEmpty) return;
 
