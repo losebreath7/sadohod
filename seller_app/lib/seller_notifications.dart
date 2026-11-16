@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'seller_features.dart';
 
 /// Seller moderation history. The shell/nav remain owned by SellerV3.
 /// Only the existing seller API is used; local UI state is never treated
