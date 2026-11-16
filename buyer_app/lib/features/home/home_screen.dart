@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -184,9 +186,9 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 58),
-                Center(child: SizedBox(width: 98, height: 13,
-                  child: SvgPicture.asset('assets/figma/sadohod_wordmark.svg',
-                    width: 98, height: 13, fit: BoxFit.contain))),
+                // Keep the logo's space in the scroll flow. The artwork itself
+                // is painted in a foreground layer below, above the pin mask.
+                const SizedBox(height: 13),
                 const SizedBox(height: 16),
                 const Text('находи и забирай   //   без посредников',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -226,7 +228,16 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
                 const Text('найти по тегам', style: TextStyle(
                   fontSize: 12, color: Color(0xff6c6c6c))),
                 const SizedBox(height: 9),
-                SizedBox(height: 22, child: ListView(
+                SizedBox(height: 22, child: ScrollConfiguration(
+                  // Flutter Web excludes mouse dragging by default. Add it
+                  // only to the tags, preserving the vertical page scroll.
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      ...ScrollConfiguration.of(context).dragDevices,
+                      PointerDeviceKind.mouse,
+                    },
+                  ),
+                  child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [for (final tag in [
                     'брюки', 'верхняя одежда', 'головные уборы', 'футболки', 'обувь'
@@ -244,6 +255,7 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
                       ),
                     ),
                   )],
+                ),
                 )),
               ],
             ),
@@ -257,6 +269,32 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
           Positioned(left: -4, right: -4, top: -39, height: 114,
             child: IgnorePointer(child: Opacity(opacity: pinnedCover,
               child: SvgPicture.asset('assets/figma/388b2.svg', fit: BoxFit.fill)))),
+        // Original Figma wordmark (98 x 13, x centered, y = 58 at rest).
+        // Foreground painting prevents the white pinned-header mask from
+        // hiding the logo while the opening header is still visible.
+        if (offset < 71)
+          Positioned(
+            top: 58 - offset, left: 30, right: 30, height: 13,
+            child: IgnorePointer(
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/figma/sadohod_wordmark.svg',
+                  width: 98, height: 13, fit: BoxFit.contain,
+                  colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                  semanticsLabel: 'садоход',
+                  // If an older local bundle lacks the SVG, don't leave an
+                  // unexplained blank area in the opening header.
+                  errorBuilder: (_, __, ___) => const Text(
+                    'садоход',
+                    style: TextStyle(
+                      fontSize: 17, height: 0.8, letterSpacing: -1,
+                      fontWeight: FontWeight.w900, color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         // Exact source emblem from Figma's collapsed header (25x25).
         Positioned(top: 39, left: 30, width: 25, height: 25,
           child: IgnorePointer(
