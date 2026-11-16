@@ -40,8 +40,17 @@ def test_durable_delivery_topics_and_inbound_reply(setup, monkeypatch):
         outbox = db.scalars(select(tg.TelegramOutbox)).all()
         assert len(outbox) == 4
         assert not any(o.delivered for o in outbox)
+    before = client.get('/api/v1/account/messages?kind=support', headers=alice).json()['items']
+    assert [m.get('delivered') for m in before if not m['staff']] == [False, False]
+    assert all('delivered' not in m for m in before if m['staff'])
     assert tg.send_pending() == 4
     assert tg.send_pending() == 0
+    support = client.get('/api/v1/account/messages?kind=support', headers=alice).json()['items']
+    assert [m['delivered'] for m in support if not m['staff']] == [True, True]
+    cooperation = client.get('/api/v1/account/messages?kind=cooperation', headers=alice).json()['items']
+    assert [m['delivered'] for m in cooperation if not m['staff']] == [True]
+    other = client.get('/api/v1/account/messages?kind=support', headers=bob).json()['items']
+    assert [m['delivered'] for m in other if not m['staff']] == [True]
     assert len([m for m,a in actions if m == 'createForumTopic']) == 3
     topics = [a for m,a in actions if m == 'createForumTopic']
     assert any('Анна Иванова' in a['name'] for a in topics)
@@ -107,6 +116,8 @@ def test_retry_if_telegram_is_unreachable(setup, monkeypatch):
         raise RuntimeError('Offline')
     monkeypatch.setattr(tg,'tg_api',offline)
     assert tg.send_pending()==0
+    pending = c.get('/api/v1/account/messages?kind=support', headers=user).json()['items']
+    assert [m['delivered'] for m in pending if not m['staff']] == [False]
     with sessions() as db:
         rows=db.scalars(select(tg.TelegramOutbox)).all()
         assert len(rows)==1 and rows[0].attempts == 1 and rows[0].delivered is False
