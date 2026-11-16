@@ -33,6 +33,11 @@ jobs:
       - name: Подписи версий в админке (JavaScript)
         working-directory: server/preview
         run: node test_build_label.cjs
+      - name: Проверка JavaScript панели модерации
+        working-directory: server/preview
+        run: |
+          node --check moderation.js
+          node --check moderation-team.js
 
   server:
     name: сервер (SQLite + PostgreSQL)
