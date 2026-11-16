@@ -126,6 +126,13 @@ class ProductActions {
         body: {...finalBody, 'request_id': finalKey},
       );
     }
+    if (current['status'] == 'approved' &&
+        dataRows(current['listings']).any((l) => l['status'] == 'pending')) {
+      throw SellerApiException(
+        409,
+        'Предложение на проверке. Обновите список после решения модератора.',
+      );
+    }
     if (current['status'] == 'approved') {
       current = await api.call(
         '/merchant/products/$id',

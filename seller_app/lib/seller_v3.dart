@@ -1418,7 +1418,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           (l) => (l['sale_modes'] as List? ?? []).contains(saleFilter),
         ))
       return false;
-    if (!hidden &&
+    if (screen == 'shop' &&
+        !hidden &&
         local.isNotEmpty &&
         local.every((l) => l['status'] == 'paused'))
       return false;
@@ -3694,6 +3695,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           () => setState(() {
                             final id = '${p['id']}';
                             if (!destinations.add(id)) destinations.remove(id);
+                            if (edit && !listingModes.containsKey(id)) {
+                              listingModes[id] = Set.of(saleModes);
+                              c('price:$id').text = c('price').text;
+                            }
                             if (destinations.isNotEmpty)
                               pavilionValidationError = false;
                           }),

@@ -602,3 +602,4 @@ tools/gate.ps1
 ВОРОТА.bat
 server/backend/migrations/versions/20261116_03_optional_price.py
 server/backend/tests/test_product_lifecycle.py
+seller_app/test/product_lifecycle_test.dart
