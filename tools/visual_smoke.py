@@ -16,6 +16,17 @@ from PIL import Image, ImageChops
 
 
 def cases(app):
+    if app == 'buyer_shell':
+        # Real desktop-hosted phone preview injects a 62 px iOS SafeArea,
+        # unlike FIGMA_PREVIEW which removes the phone frame.
+        return [
+            ('buyer-shell-home', '/#/home', 1440, 1000),
+            ('buyer-shell-favorites', '/#/favorites', 1440, 1000),
+            ('buyer-shell-favorite-sellers', '/#/favorite-sellers', 1440, 1000),
+            ('buyer-shell-product', '/#/product/p01', 1440, 1000),
+            ('buyer-shell-seller', '/#/seller/s01', 1440, 1000),
+            ('buyer-shell-profile', '/#/account', 1440, 1000),
+        ]
     if app == 'buyer_app':
         return [('buyer-home-iphone16pro', '/', 402, 874),
                 ('buyer-home-desktop', '/', 1440, 900)]
@@ -57,6 +68,21 @@ async def capture(app, port, output):
                         raise RuntimeError(f'Screenshot is suspiciously small: {image}')
                     print(f'{name}: {image.stat().st_size} bytes, '
                           f'{await page.title()!r}; page errors: {errors[:3]}')
+                    if name == 'buyer-shell-home':
+                        # Scroll inside the simulated phone to exercise
+                        # the 402→75 px pinned header, not the desktop page.
+                        await page.mouse.move(724, 540)
+                        await page.mouse.wheel(0, 460)
+                        await page.wait_for_timeout(1100)
+                        compact = output / 'buyer-shell-home-compact.png'
+                        await page.screenshot(path=str(compact), full_page=True)
+                        head_before = Image.open(image).convert('RGB').crop(
+                            (590, 165, 870, 420))
+                        head_after = Image.open(compact).convert('RGB').crop(
+                            (590, 165, 870, 420))
+                        if ImageChops.difference(head_before, head_after).getbbox() is None:
+                            raise AssertionError('Pinned home header did not react to scroll')
+                        print('Buyer device-shell pinned header changed after real mouse wheel.')
                     if name == 'buyer-home-iphone16pro':
                         # Figma header tag rail lives in this narrow strip.
                         # This is a real mouse pointer drag, not a touch swipe.
@@ -83,7 +109,7 @@ async def capture(app, port, output):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--app', choices=['buyer_app', 'seller_app'], required=True)
+    parser.add_argument('--app', choices=['buyer_app', 'seller_app', 'buyer_shell'], required=True)
     parser.add_argument('--build', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()

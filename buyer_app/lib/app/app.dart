@@ -121,7 +121,11 @@ class _AppShell extends StatelessWidget {
   final StatefulNavigationShell shell;
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(bottom: false, child: shell),
+    // Figma top bars (75 px, home header 402→75 px) already include the
+    // Dynamic Island/status-bar region. Adding the device's top SafeArea here
+    // shifts every buyer screen down a second time (62 px on iPhone 16 Pro).
+    // Keep the bottom SafeArea below unchanged for the system gesture area.
+    body: SafeArea(top: false, bottom: false, child: shell),
     bottomNavigationBar: SafeArea(
       top: false,
       child: Container(
