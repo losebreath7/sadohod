@@ -4,12 +4,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sadohod/app/app.dart';
 import 'package:sadohod/features/account/favorites_screen.dart';
 import 'package:sadohod/features/home/home_screen.dart';
+import 'package:sadohod/core/widgets/common.dart';
+import 'package:sadohod/data/catalog.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('nested product grid never repeats iOS top safe padding',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: MediaQuery(
+          data: const MediaQueryData(
+            padding: EdgeInsets.only(top: 62),
+            viewPadding: EdgeInsets.only(top: 62),
+          ),
+          child: SingleChildScrollView(
+            child: ProductGrid(products: DemoCatalog.products.take(2).toList()),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    expect(grid.padding, EdgeInsets.zero);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('buyer header starts at Figma y=0 without adding a top inset',
