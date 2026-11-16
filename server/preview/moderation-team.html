@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<title>Садоход — команда модерации</title><link rel="stylesheet" href="moderation.css">
+<script src="moderation-team.js" defer></script></head>
+<body class="team-page">
+<header class="team-header"><a class="logo" href="moderation.html">садоход<span>.</span></a><div class="team-header-label">УПРАВЛЕНИЕ КОМАНДОЙ</div><a class="secondary back-link" href="moderation.html">← К модерации</a></header>
+<main class="team-wrap">
+  <div class="kicker">ТОЛЬКО ДЛЯ ВЛАДЕЛЬЦА</div><h1>Команда модерации</h1>
+  <p class="subtle">Создавайте индивидуальные доступы, отключайте сотрудников и сбрасывайте пароли. Главный код администратора сотрудникам передавать не нужно.</p>
+  <form id="adminAccess" class="team-access">
+    <label>Код главного администратора<input type="password" id="adminSecret" required autocomplete="off" placeholder="Локальный код из Docker"></label>
+    <button class="primary" type="submit">Открыть управление</button>
+  </form>
+  <p id="teamError" class="error-line" role="alert" hidden></p>
+  <div id="teamContent" hidden>
+    <section class="team-card">
+      <div class="team-card-head"><h2>Новый модератор</h2><span class="tag">ПАРОЛЬ ГЕНЕРИРУЕТ СЕРВЕР</span></div>
+      <form id="newStaff" class="team-create">
+        <label>Логин<input id="username" placeholder="moderator-1" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9._-]+"></label>
+        <label>Имя сотрудника<input id="displayName" placeholder="Имя и фамилия" required minlength="2" maxlength="80"></label>
+        <button class="primary" type="submit">Создать доступ</button>
+      </form>
+      <div id="newPassword" class="password-box" hidden>
+        <strong>Одноразовый пароль</strong><p>Он появится здесь только сейчас. Скопируйте и передайте сотруднику по защищённому каналу.</p>
+        <code id="passwordValue"></code>
+        <div class="team-actions"><button type="button" id="copyPassword" class="secondary">Скопировать пароль</button><button type="button" id="hidePassword" class="secondary">Скрыть</button></div>
+      </div>
+    </section>
+    <section class="team-card">
+      <div class="team-card-head"><h2>Сотрудники <small id="staffCount"></small></h2><button type="button" id="reloadStaff" class="secondary">↻ Обновить</button></div>
+      <div id="staffList" class="team-list"></div>
+    </section>
+  </div>
+  <div id="teamNotice" class="notice" role="status" hidden></div>
+</main></body></html>
