@@ -4,7 +4,7 @@ import 'package:sadohod/app/app.dart';
 import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/features/home/home_screen.dart';
-import 'package:sadohod/features/product/product_screen.dart';
+import 'package:sadohod/core/widgets/common.dart';
 
 void main() {
   test('selected offer modes are decoded from API', () {
@@ -19,17 +19,16 @@ void main() {
     expect(product.saleModes, ['wholesale', 'retail']);
   });
 
-  testWidgets('one favorite on product: sale tags replace seller heart', (tester) async {
+  testWidgets('product tile has one favorite and preserves offer modes', (tester) async {
+    // SellerDetails was removed. Test the actual product tile and the
+    // corresponding offer model without introducing a second seller heart.
+    final product = DemoCatalog.products[2];
+    expect(product.saleModes, containsAll(['wholesale', 'retail']));
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: SellerDetails(
-        id: 's03', initial: DemoCatalog.sellers[2],
-        saleModes: const ['wholesale', 'retail'],
-      )),
+      home: Scaffold(body: SizedBox(width: 150, child: ProductTile(product: product))),
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Опт'), findsOneWidget);
-    expect(find.text('Розница'), findsOneWidget);
-    expect(find.byTooltip('В избранное'), findsNothing);
+    expect(find.byType(FavoriteButton), findsOneWidget);
   });
 
   testWidgets('home renders one pinned search header, no all products button', (tester) async {
@@ -39,6 +38,6 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(SliverPersistentHeader), findsOneWidget);
     expect(find.text('Все товары'), findsNothing);
-    expect(find.byTooltip('Поиск по фотографии'), findsOneWidget);
+    expect(find.text('найти по фото'), findsOneWidget);
   });
 }

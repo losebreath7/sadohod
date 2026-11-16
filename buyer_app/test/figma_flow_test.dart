@@ -46,7 +46,7 @@ void main() {
       'https://example.com/b.jpg',
     ]);
   });
-  testWidgets('tile hides title and price, heart saves item', (tester) async {
+  testWidgets('tile shows title, hides price, heart saves item', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -58,7 +58,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text(DemoCatalog.products.first.title), findsNothing);
+    expect(find.text(DemoCatalog.products.first.title), findsOneWidget);
     expect(
       find.text(formatRubles(DemoCatalog.products.first.price)),
       findsNothing,

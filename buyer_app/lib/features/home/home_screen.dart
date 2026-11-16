@@ -189,9 +189,11 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
                     width: 98, height: 13, fit: BoxFit.contain))),
                 const SizedBox(height: 16),
                 const Text('находи и забирай   //   без посредников',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: Color(0xff6c6c6c))),
                 const SizedBox(height: 2),
                 const Text('11 тыс. магазинов садовода в одном месте',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: Color(0xff6c6c6c))),
                 const SizedBox(height: 15),
                 Material(

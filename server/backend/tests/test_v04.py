@@ -10,7 +10,17 @@ from backend.app.seed import seed_demo
 from backend.app.photo_seed import seed_photos
 
 
-def test_photo_migration_is_additive_and_idempotent():
+def test_photo_migration_is_additive_and_idempotent(monkeypatch, tmp_path):
+    # Keep the fixture hermetic: real catalog photos aren't stored in Git.
+    import json
+    from backend.app import photo_seed
+    manifest = json.loads((photo_seed.ROOT / 'demo_data/photo_catalog.json').read_text(encoding='utf-8'))
+    data = BytesIO()
+    Image.new('RGB', (32, 32), (90, 140, 185)).save(data, format='JPEG')
+    for row in manifest:
+        if row['split'] == 'catalog':
+            (tmp_path / row['filename']).write_bytes(data.getvalue())
+    monkeypatch.setattr(photo_seed, 'MEDIA', tmp_path)
     engine=create_engine('sqlite://')
     Base.metadata.create_all(engine)
     with Session(engine) as db:
@@ -22,6 +32,17 @@ def test_photo_migration_is_additive_and_idempotent():
         assert db.scalar(select(func.count(Product.id)))==252
         assert db.get(Product,'p01').title=='Existing custom title'
 
+
+def test_optional_photo_dataset_absent_keeps_seed_products(monkeypatch, tmp_path):
+    from backend.app import photo_seed
+    monkeypatch.setattr(photo_seed, 'MEDIA', tmp_path)
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        seed_demo(db)
+        assert seed_photos(db) == 0
+        assert seed_photos(db) == 0
+        assert db.scalar(select(func.count(Product.id))) == 12
 
 def test_threshold_category_and_crop_reach_search(monkeypatch, client):
     from backend.app import api, ml_index

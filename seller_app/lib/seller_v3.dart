@@ -302,6 +302,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   String? draftToken;
   bool restoringDraft = false, draftWarningShown = false, draftCompleted = false;
   String activeChatSection = 'поддержка';
+  // Explicit initialFrame is a visual-test/preview entry point. No API calls
+  // or draft writes should occur when rendering these static design frames.
+  bool get testPreview => preview || widget.initialFrame != null;
   bool get isProductForm => screen == 'newProduct' || screen == 'editProduct';
 
   @override
@@ -311,7 +314,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   void scheduleDraft() {
-    if (preview || restoringDraft || !isProductForm || activeDraftKey == null || !widget.api.signedIn) return;
+    if (testPreview || restoringDraft || !isProductForm || activeDraftKey == null || !widget.api.signedIn) return;
     draftTimer?.cancel();
     draftTimer = Timer(const Duration(seconds: 1), () { persistDraft().catchError(draftFailure); });
   }
@@ -324,7 +327,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   Future<void> persistDraft() {
     draftTimer?.cancel();
-    if (preview || restoringDraft || activeDraftKey == null || !isProductForm || !widget.api.signedIn) return Future.value();
+    if (testPreview || restoringDraft || activeDraftKey == null || !isProductForm || !widget.api.signedIn) return Future.value();
     final key = activeDraftKey!;
     final completed = draftCompleted;
     final session = ProductSaveSession()..productId = saveSession.productId..createKey = saveSession.createKey;
@@ -355,7 +358,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   Future<bool> restoreDraft(String form) async {
-    if (preview) return false;
+    if (testPreview) return false;
     await draftWrites;
     final token = widget.api.token;
     final key = formKey(form);
@@ -391,7 +394,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       await persistDraft();
       fillProduct(value);
       go('editProduct');
-      if (!preview) {
+      if (!testPreview) {
         setState(() => busy = true);
         try { await restoreDraft('edit:${value['id']}'); }
         finally { if (mounted) setState(() => busy = false); }
@@ -426,7 +429,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) persistDraft().catchError(draftFailure);
-    if (state == AppLifecycleState.resumed && widget.api.signedIn && !preview &&
+    if (state == AppLifecycleState.resumed && widget.api.signedIn && !testPreview &&
         !busy && !loading && ['stores', 'pending', 'rejected', 'approved', 'emptyStores'].contains(screen)) {
       reload(navigate: false);
     }
@@ -448,7 +451,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     c('title').addListener(scheduleDraft);
     c('price').addListener(scheduleDraft);
-    if (preview) {
+    if (testPreview) {
       seed();
     } else if (widget.api.signedIn) {
       reload();
@@ -620,7 +623,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   Future<bool> reload({bool navigate = true}) async {
-    if (preview) return true;
+    if (testPreview) return true;
     if (loading) return false;
     setState(() => loading = true);
     final token = widget.api.token;
@@ -686,8 +689,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   void go(String next) {
-    if (!preview && next == 'address' && merchant['shop'] == null && requests.isNotEmpty) next = 'stores';
-    if (!preview && next == 'capture' && !pavilions.any(isApprovedPavilion)) {
+    if (!testPreview && next == 'address' && merchant['shop'] == null && requests.isNotEmpty) next = 'stores';
+    // Pavilion approval is mandatory in both production and design previews.
+    if (next == 'capture' && !pavilions.any(isApprovedPavilion)) {
       next = requests.isNotEmpty ? 'stores' : 'address';
     }
     if (next == 'address') {
@@ -709,7 +713,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       selecting = false;
       actions = false;
     });
-    if (!preview && !busy && !loading &&
+    if (!testPreview && !busy && !loading &&
         ['stores', 'pending', 'rejected', 'approved'].contains(next)) {
       reload(navigate: false);
     }
@@ -737,7 +741,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           actions = previous.actions;
           c('search').text = previous.query;
         } else {
-          screen = widget.api.signedIn || preview ? home : 'welcome';
+          screen = widget.api.signedIn || testPreview ? home : 'welcome';
         }
       }
     });
@@ -751,13 +755,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       selecting = false;
       actions = false;
     });
-    if (!preview && !busy && !loading) reload(navigate: false);
+    if (!testPreview && !busy && !loading) reload(navigate: false);
   }
 
   Future<void> tab(int index) async {
     if (busy) return;
     try { await persistDraft(); } catch (error) { draftFailure(error); return; }
-    if (!preview && index != 2 && !await reload(navigate: false)) return;
+    if (!testPreview && index != 2 && !await reload(navigate: false)) return;
     if (!mounted) return;
     setState(() {
       history.clear();
@@ -773,7 +777,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           ? (pavilions.isEmpty ? (requests.isNotEmpty ? 'stores' : 'address') : 'capture')
           : home;
     });
-    if (index == 1 && pavilions.isNotEmpty && !preview) {
+    if (index == 1 && pavilions.isNotEmpty && !testPreview) {
       setState(() => busy = true);
       try { await restoreDraft('new'); } catch (error) { draftFailure(error); }
       finally { if (mounted) setState(() => busy = false); }
@@ -817,25 +821,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
       ).hasMatch(c('email').text.trim()))
         return;
-      if (!preview) await widget.api.requestCode(c('email').text);
+      if (!testPreview) await widget.api.requestCode(c('email').text);
       go('code');
     } else if (screen == 'code') {
       if (c('code').text.length != 6) return;
-      if (!preview) {
+      if (!testPreview) {
         await widget.api.verify(c('email').text, c('code').text);
         await reload();
       } else
         go('name');
     } else if (screen == 'name') {
       if (c('name').text.trim().isEmpty) return;
-      if (!preview)
+      if (!testPreview)
         await widget.api.call(
           '/account/profile',
           method: 'POST',
           body: {'name': c('name').text.trim()},
         );
       account['name'] = c('name').text.trim();
-      if (preview)
+      if (testPreview)
         go('emptyStores');
       else
         await reload();
@@ -882,10 +886,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       throw Exception('Укажите торговую зону и номер павильона.');
     }
     final application = fixing ? pavilion['_requestType'] != 'pavilion' : merchant['shop'] == null;
-    if (fixing && pavilion['id'] == null && !preview) throw Exception('Заявка не найдена. Откройте её из списка магазинов.');
+    if (fixing && pavilion['id'] == null && !testPreview) throw Exception('Заявка не найдена. Откройте её из списка магазинов.');
     final payload = {'zone': zone, 'code': code};
     RowData result = {};
-    if (!preview) {
+    if (!testPreview) {
       result = await widget.api.call(
         fixing
             ? (application ? '/merchant/applications/${pavilion['id']}' : '/merchant/pavilions/requests/${pavilion['id']}')
@@ -902,7 +906,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
     pavilion = {...payload, ...result, 'status': 'pending',
       '_requestType': application ? 'application' : 'pavilion'};
-    if (!preview) await reload(navigate: false);
+    if (!testPreview) await reload(navigate: false);
     if (mounted) setState(() {
       history.clear();
       screen = 'pending';
@@ -923,7 +927,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photos.addAll(chosen);
     if (mounted) {
       if (screen == 'capture') {
-        if (!preview) activeDraftKey = formKey('new');
+        if (!testPreview) activeDraftKey = formKey('new');
         product = {};
         originalProduct = {};
         saveSession = ProductSaveSession();
@@ -992,7 +996,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   Future<void> deleteProducts({bool single = false}) async => run(() async {
     final ids = single ? ['${product['id']}'] : selected.toList()..sort();
     if (ids.isEmpty || ids.contains('null')) throw Exception('Выберите товары.');
-    if (preview) {
+    if (testPreview) {
       products.removeWhere((p) => ids.contains('${p['id']}'));
     } else {
       await productActions.batch('delete', {'product_ids': ids});
@@ -1018,7 +1022,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final source = sourcePavilionId;
     if (source.isEmpty) throw Exception('Откройте исходный магазин и выберите товары в нём.');
     if (!duplicate && targets.single == source) throw Exception('Выберите другой магазин.');
-    if (!preview) {
+    if (!testPreview) {
       await productActions.batch(duplicate ? 'copy' : 'move', {
         'product_ids': ids, 'source_pavilion_id': source,
         if (duplicate) 'destination_pavilion_ids': targets else 'destination_pavilion_id': targets.single,
@@ -1036,7 +1040,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (price == null || price < 0 || price > 100000000) {
       throw Exception('Укажите цену целым числом от 0 до 100 000 000 ₽.');
     }
-    if (preview) {
+    if (testPreview) {
       final id = product['id'] ?? 'preview-${DateTime.now().microsecondsSinceEpoch}';
       products.removeWhere((p) => p['id'] == id);
       products.insert(0, {'id': id, 'title': c('title').text, 'images': [], 'status': 'pending',
@@ -1060,7 +1064,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ? ls.where((l) => l['pavilion_id'] == pavilion['id']).toList()
         : ls;
     if (screen == 'shop' && local.isEmpty) return false;
-    if (hidden && !local.any((l) => l['status'] == 'paused')) return preview;
+    if (hidden && !local.any((l) => l['status'] == 'paused')) return testPreview;
     if (!hidden &&
         local.isNotEmpty &&
         local.every((l) => l['status'] == 'paused'))
@@ -1285,7 +1289,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 child: tap(
                   label('отправить код ещё раз', 13, color: brown),
                   () => run(() async {
-                    if (!preview) await widget.api.requestCode(c('email').text);
+                    if (!testPreview) await widget.api.requestCode(c('email').text);
                     if (mounted)
                       await showDialog<void>(
                         context: context,
@@ -1550,7 +1554,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           children: [
                             asset('5c616.svg', width: 93, height: 93),
                             asset('9b01f.svg', width: 60, height: 60),
-                            if (preview)
+                            if (testPreview)
                               ClipOval(
                                 child: SizedBox(
                                   width: 93,
@@ -1677,7 +1681,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 );
                 return;
               }
-              if (c('phone2').text.trim().isNotEmpty && !preview) {
+              if (c('phone2').text.trim().isNotEmpty && !testPreview) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text(
                     'Сервер пока не поддерживает второй номер. Изменения не сохранены.',
@@ -1686,7 +1690,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 return;
               }
               if (['telegram', 'vk', 'whatsapp', 'avito', 'website']
-                  .any((k) => c(k).text.trim().isNotEmpty) && !preview) {
+                  .any((k) => c(k).text.trim().isNotEmpty) && !testPreview) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text(
                     'Сервер пока не поддерживает сохранение ссылок. Изменения не сохранены.',
@@ -1696,7 +1700,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               }
               setState(() => busy = true);
               try {
-                if (!preview) {
+                if (!testPreview) {
                   await widget.api.call(
                     '/account/profile',
                     method: 'POST',
@@ -2599,7 +2603,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         muted,
                         () => run(() async {
                           if (selected.isEmpty) return;
-                          if (!preview) {
+                          if (!testPreview) {
                             for (final p in products.where(
                               (p) => selected.contains('${p['id']}'),
                             )) {
@@ -3022,7 +3026,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         history.clear();
         setState(() => screen = 'capture');
       } finally { restoringDraft = false; }
-      if (!preview) activeDraftKey = formKey('new');
+      if (!testPreview) activeDraftKey = formKey('new');
     });
   }
 
@@ -3073,7 +3077,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           missing();
                           return;
                         }
-                        if (!preview) {
+                        if (!testPreview) {
                           for (final listing in rows(product['listings'])) {
                             if ([
                               'approved',
