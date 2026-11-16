@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_notifications.dart';
+import 'package:sadohod_seller/seller_v3.dart';
 
 class FakeNotificationApi extends SellerApi {
   FakeNotificationApi() { token = 'test-only-session'; }
@@ -42,14 +43,13 @@ void main() {
     final api = FakeNotificationApi();
     String? product;
     var pavilionVisits = 0;
-    var backVisits = 0;
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(home: Scaffold(body:
       SellerNotificationsPage(
-        api:api, onBack:()=>backVisits++,
+        api:api,
         onOpenPavilions:()=>pavilionVisits++,
         onOpenProduct:(id)=>product=id,
       ))));
@@ -67,8 +67,25 @@ void main() {
     await tester.tap(find.text('Проверка пройдена'));
     await tester.pumpAndSettle();
     expect(pavilionVisits, 1);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
-    expect(backVisits, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile opens notifications inside existing seller navigation', (tester) async {
+    final api = FakeNotificationApi();
+    tester.view.physicalSize = const Size(390, 874);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      home: SellerV3(api: api, initialFrame: '366:15805')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('уведомления'));
+    await tester.pumpAndSettle();
+    expect(find.text('НОВЫЕ'), findsOneWidget);
+    expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('поддержка'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -76,7 +93,7 @@ void main() {
     final api = FakeNotificationApi();
     api.data.clear();
     await tester.pumpWidget(MaterialApp(home: Scaffold(body:
-      SellerNotificationsPage(api:api, onBack:(){},
+      SellerNotificationsPage(api:api,
         onOpenPavilions:(){},onOpenProduct:(_){},
       ))));
     await tester.pumpAndSettle();
