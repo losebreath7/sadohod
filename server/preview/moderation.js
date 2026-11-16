@@ -168,6 +168,15 @@ function addPictures(parent,pictures){
     a.appendChild(img);grid.appendChild(a);
   }s.appendChild(grid);
 }
+function loadReviewPhotos(body,row){
+  const path=row._kind==='reviews'?'/reviews/'+encodeURIComponent(row.id):
+    '/reports/'+encodeURIComponent(row.id);
+  api(path).then(data=>{
+    if(state.selected!==row._key||!body.isConnected)return;
+    addPictures(body,data.item?.photos||[]);
+  }).catch(e=>{if(body.isConnected)
+    body.appendChild(node('p','error-line','Не удалось загрузить фото: '+e.message));});
+}
 function renderDetail(){
   const r=state.items.find(x=>x._key===state.selected);
   if(!r){showEmptyDetail();return;}
@@ -198,7 +207,7 @@ function renderDetail(){
     dl(info,[['Продавец',r.seller_name],['Рейтинг',r.rating+' из 5'],
       ['Автор',r.name],['ID',r.id]]);
     section(body,'Текст отзыва').appendChild(node('div','detail-text',r.text||'Отзыв без текста'));
-    addPictures(body,r.photos||[]);
+    if(r.photo_count)loadReviewPhotos(body,r);
   }
   if(r._kind==='reports'){
     dl(info,[['Продавец',r.seller_name],['Отзыв',r.review_id],['ID жалобы',r.id]]);
@@ -207,8 +216,13 @@ function renderDetail(){
       dl(s,[['Оценка',r.review.rating+' из 5'],['Автор',r.review.name],
         ['Статус',r.review.moderation_status]]);
       s.appendChild(node('div','detail-text',r.review.text||'Без текста'));
-      addPictures(body,r.review.photos||[]);
+      if(r.review.photo_count)loadReviewPhotos(body,r);
     }
+  }
+  if(r._kind==='history'){
+    dl(info,[['Модератор',r.moderator],['Тип',typeName[r.kind]||r.kind],
+      ['Действие',r.decision],['ID заявки',r.target_id]]);
+    if(r.note)section(body,'Комментарий').appendChild(node('p','detail-text',r.note));
   }
   if(r._kind==='chats'){
     dl(info,[['Email',r.email],['Имя',r.name||'Не указано'],['Раздел',chatName(r.kind)]]);
