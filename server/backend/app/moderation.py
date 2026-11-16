@@ -182,17 +182,21 @@ def record_action(db: Session, staff: ModeratorUser, kind: str, item_id: str,
         decision=decision, note=note, created_at=time.time()))
 
 
+def review_summary(db: Session, review: SellerReview):
+    item = review_view(review, db)
+    item['photo_count'] = len(item.pop('photos', []))
+    seller = db.get(Seller, review.seller)
+    item['seller_name'] = seller.name if seller else ''
+    return item
+
+
 def report_json(db: Session, report: ReviewReport):
     review = db.get(SellerReview, report.review_id)
-    if review is None:
-        return {'id': report.id, 'review_id': report.review_id,
-                'reason': report.reason, 'created_at': report.created_at}
-    item = review_view(review, db)
-    seller = db.get(Seller, review.seller)
     return {'id': report.id, 'review_id': report.review_id,
             'reason': report.reason, 'created_at': report.created_at,
-            'seller_name': seller.name if seller else '',
-            'review': item}
+            'seller_name': (db.get(Seller, review.seller).name
+                            if review and db.get(Seller, review.seller) else ''),
+            'review': review_summary(db, review) if review else None}
 
 
 @router.get('/queue')
@@ -204,11 +208,30 @@ def queue(staff: ModeratorUser = Depends(require_moderator),
         SellerReview.hidden.is_(False)).order_by(SellerReview.created_at.desc()).limit(150)).all()
     reports = db.scalars(select(ReviewReport).where(ReviewReport.resolved_at == 0)
         .order_by(ReviewReport.created_at.desc()).limit(150)).all()
-    data['reviews'] = [dict(review_view(r, db),
-        seller_name=(db.get(Seller, r.seller).name if db.get(Seller, r.seller) else ''))
-        for r in pending]
+    # Never transfer full base64 photos on every 45-second queue poll.
+    # Staff loads photos only when opening a specific review/report.
+    data['reviews'] = [review_summary(db, r) for r in pending]
     data['reports'] = [report_json(db, r) for r in reports]
     return data
+
+
+@router.get('/reviews/{review_id}')
+def review_detail(review_id: str, staff: ModeratorUser = Depends(require_moderator),
+                  db: Session = Depends(get_db)):
+    row = db.get(SellerReview, review_id)
+    if row is None:
+        raise HTTPException(404, 'Отзыв не найден')
+    return {'item': review_view(row, db)}
+
+
+@router.get('/reports/{report_id}')
+def report_detail(report_id: str, staff: ModeratorUser = Depends(require_moderator),
+                  db: Session = Depends(get_db)):
+    row = db.get(ReviewReport, report_id)
+    if row is None:
+        raise HTTPException(404, 'Жалоба не найдена')
+    review = db.get(SellerReview, row.review_id)
+    return {'item': review_view(review, db) if review else None}
 
 
 @router.post('/{kind}/{item_id}/decision')
