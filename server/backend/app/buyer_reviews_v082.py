@@ -38,6 +38,7 @@ class SellerReview(Base):
     text: Mapped[str] = mapped_column(Text, default='')
     photos: Mapped[list] = mapped_column(JSON, default=list)
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    moderation_status: Mapped[str] = mapped_column(String(16), default='pending', nullable=False)
     reply: Mapped[str] = mapped_column(Text, default='')
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
     updated_at: Mapped[float] = mapped_column(Float, default=time.time)
@@ -50,6 +51,8 @@ class ReviewReport(Base):
     review_id: Mapped[str] = mapped_column(ForeignKey('seller_reviews_v082.id'), index=True)
     reason: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
+    resolved_at: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    resolution: Mapped[str] = mapped_column(String(16), default='', nullable=False)
 
 class NoteInput(BaseModel):
     text: str = Field(max_length=100)
@@ -116,13 +119,15 @@ def view(review, db):
     return {'id':review.id, 'seller_id':review.seller, 'rating':review.rating,
             'text':review.text, 'photos':review.photos or [],
             'name':author.name.strip() if author and author.name.strip() else 'Пользователь',
-            'reply':review.reply, 'created_at':review.created_at}
+            'reply':review.reply, 'created_at':review.created_at,
+            'moderation_status':review.moderation_status}
 
 @router.get('/sellers/{seller_id}/reviews')
 def list_reviews(seller_id: str, db: Session = Depends(get_db)):
     require_seller(db, seller_id)
     rows = db.scalars(select(SellerReview).where(
-        SellerReview.seller == seller_id, SellerReview.hidden.is_(False))
+        SellerReview.seller == seller_id, SellerReview.hidden.is_(False),
+        SellerReview.moderation_status == 'approved')
         .order_by(SellerReview.created_at.desc())).all()
     return {'count':len(rows),
             'average':round(sum(row.rating for row in rows)/len(rows), 2) if rows else None,
@@ -148,6 +153,9 @@ def upsert_review(seller_id: str, body: ReviewInput, buyer: Buyer = Depends(curr
     row.text=body.text.strip()
     row.photos=clean_photos(body.photos)
     row.updated_at=time.time()
+    # Editing an approved review returns it to moderation.
+    row.moderation_status = 'pending'
+    row.reply = ''
     db.commit()
     return {'saved':True, 'item':view(row,db)}
 
@@ -155,7 +163,7 @@ def upsert_review(seller_id: str, body: ReviewInput, buyer: Buyer = Depends(curr
 def report_review(seller_id: str, review_id: str, body: ReportInput,
                   buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     row=db.get(SellerReview, review_id)
-    if row is None or row.seller != seller_id:
+    if row is None or row.seller != seller_id or row.hidden or row.moderation_status != 'approved':
         raise HTTPException(404, 'Отзыв не найден')
     already=db.scalar(select(ReviewReport).where(ReviewReport.buyer==buyer.id,ReviewReport.review_id==review_id))
     if already:
@@ -169,7 +177,7 @@ def reply_review(review_id: str, body: ReplyInput, buyer: Buyer = Depends(curren
     from .merchant import shop_for
     shop=shop_for(buyer,db)
     row=db.get(SellerReview,review_id)
-    if row is None or row.seller!=shop.id or row.hidden:
+    if row is None or row.seller!=shop.id or row.hidden or row.moderation_status != 'approved':
         raise HTTPException(404,'Отзыв не найден')
     row.reply=body.text.strip()
     row.updated_at=time.time()

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f3">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>Садоход — рабочее место модератора</title>
+  <link rel="stylesheet" href="moderation.css">
+  <script src="moderation.js" defer></script>
+</head>
+<body>
+  <section id="loginScreen" class="auth-screen">
+    <div class="auth-mark">садоход<span>.</span></div>
+    <div class="auth-card">
+      <div class="kicker">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+      <h1>Модерация<br>без лишних действий.</h1>
+      <p class="subtle">Заявки продавцов, павильоны, товары и отзывы — в одной очереди.</p>
+      <form id="loginForm" class="auth-form">
+        <label>Логин<input id="loginUser" required autocomplete="username" placeholder="Логин модератора"></label>
+        <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Введите пароль"></label>
+        <button class="primary" type="submit" id="loginButton">Войти <span aria-hidden="true">↗</span></button>
+      </form>
+      <p id="loginError" role="alert" class="error-line" hidden></p>
+    </div>
+    <div class="auth-footer">Доступ только для сотрудников · <a href="moderation-team.html">Управление командой</a></div>
+  </section>
+
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar" aria-label="Разделы модерации">
+      <div class="logo">садоход<span>.</span></div>
+      <div class="side-overline">МОДЕРАЦИЯ</div>
+      <div class="side-group" id="navigation">
+        <button type="button" class="nav-item active" data-section="all"><span class="nav-glyph">◫</span>Все заявки <span data-count="all" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="applications"><span class="nav-glyph">♙</span>Продавцы <span data-count="applications" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="pavilions"><span class="nav-glyph">⌖</span>Павильоны <span data-count="pavilions" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="products"><span class="nav-glyph">▦</span>Товары <span data-count="products" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="listings"><span class="nav-glyph">≡</span>Предложения <span data-count="listings" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="reviews"><span class="nav-glyph">✳</span>Отзывы <span data-count="reviews" class="count">0</span></button>
+        <button type="button" class="nav-item" data-section="reports"><span class="nav-glyph">⚑</span>Жалобы <span data-count="reports" class="count">0</span></button>
+      </div>
+      <div class="side-divider"></div>
+      <div class="side-group">
+        <button type="button" class="nav-item" data-section="chats"><span class="nav-glyph">☷</span>Обращения <span data-count="chats" class="count">·</span></button>
+        <button type="button" class="nav-item" data-section="history"><span class="nav-glyph">◷</span>История решений</button>
+      </div>
+      <div class="side-bottom">
+        <div class="staff-avatar" id="staffInitial">М</div>
+        <div class="staff-text"><strong id="staffName">Модератор</strong><small>Рабочая сессия</small></div>
+        <button id="logout" class="icon-action" type="button" aria-label="Выйти из аккаунта" title="Выйти">↗</button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <span class="breadcrumb">САДОХОД <span>/</span> <b>МОДЕРАЦИЯ</b></span>
+        <div class="top-actions"><span id="updatedAt" class="updated-at"></span><button id="refresh" class="secondary compact" type="button">↻ Обновить</button></div>
+      </header>
+      <div class="page-content">
+        <div class="page-heading">
+          <div><div class="kicker">РАБОЧАЯ ОЧЕРЕДЬ</div><h1 id="pageTitle">Все заявки</h1><p id="pageDescription" class="subtle">Выберите заявку, чтобы проверить детали и принять решение.</p></div>
+          <span id="liveState" class="live-state"><i></i> На связи с сервером</span>
+        </div>
+        <div class="metrics" id="metrics">
+          <div class="metric"><span>Всего ожидают</span><b id="metricAll">0</b><small>Во всех разделах</small></div>
+          <div class="metric"><span>Продавцы и павильоны</span><b id="metricSellers">0</b><small>Новые торговые точки</small></div>
+          <div class="metric"><span>Товары и предложения</span><b id="metricProducts">0</b><small>Перед публикацией</small></div>
+          <div class="metric"><span>Отзывы и жалобы</span><b id="metricReviews">0</b><small>Контроль качества</small></div>
+        </div>
+        <div class="queue-toolbar">
+          <label class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Поиск по названию, ID, продавцу или адресу" autocomplete="off" aria-label="Поиск заявок"></label>
+          <div class="total-label" id="resultCount">0 заявок</div>
+        </div>
+        <div class="split">
+          <section class="queue-list" aria-label="Очередь заявок">
+            <div id="items" class="items"></div>
+            <div id="empty" class="empty" hidden><span class="empty-icon">✓</span><h3>На этом всё</h3><p>Заявок по выбранному фильтру пока нет.</p></div>
+          </section>
+          <section id="details" class="details" aria-label="Подробности заявки">
+            <div class="detail-placeholder"><span class="placeholder-art">⌗</span><h3>Выберите заявку</h3><p>Здесь появятся фотографии, данные продавца и решение модератора.</p></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="confirmOverlay" class="overlay" hidden>
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <button id="closeConfirm" class="dialog-close" type="button" aria-label="Закрыть">×</button>
+      <div class="kicker" id="confirmKicker">РЕШЕНИЕ ПО ЗАЯВКЕ</div>
+      <h2 id="confirmTitle">Подтвердить действие?</h2>
+      <p id="confirmDescription" class="subtle">Изменение сохранится на сервере.</p>
+      <label id="reasonWrap" hidden>Причина отклонения<textarea id="reason" maxlength="500" rows="4" placeholder="Что нужно исправить? Причину увидит продавец."></textarea><small>Не менее 3 символов</small></label>
+      <label id="categoryWrap" hidden>Категория товара<input id="categoryInput" maxlength="80" placeholder="Укажите категорию"></label>
+      <div id="confirmError" class="error-line" role="alert" hidden></div>
+      <div class="confirm-actions"><button id="cancelConfirm" type="button" class="secondary">Отмена</button><button id="submitConfirm" type="button" class="primary">Подтвердить</button></div>
+    </section>
+  </div>
+</body>
+</html>

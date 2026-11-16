@@ -51,7 +51,7 @@ def revision(engine):
 def test_fresh_database_matches_models_and_repeat_is_noop():
     engine = sa.create_engine('sqlite://')
     upgrade_database(engine)
-    assert revision(engine) == '20261115_02'
+    assert revision(engine) == '20261116_03'
     with engine.connect() as c:
         assert compare_metadata(MigrationContext.configure(c), Base.metadata) == []
     before = contents(engine)
@@ -73,7 +73,7 @@ def test_copy_of_existing_database_preserves_every_row(tmp_path):
     assert contents(target) == before
     assert 'alembic_version' not in sa.inspect(source).get_table_names()
     assert contents(source) == before
-    assert revision(target) == '20261115_02'
+    assert revision(target) == '20261116_03'
 
 
 @pytest.mark.parametrize('change', [
@@ -99,7 +99,7 @@ def test_older_partial_schema_adds_missing_tables_and_indexes():
     with engine.begin() as c:
         c.execute(metadata.tables['pavilions'].insert(), {'id':'keep', 'code':'81', 'zone':'Б'})
     upgrade_database(engine)
-    assert revision(engine) == '20261115_02'
+    assert revision(engine) == '20261116_03'
     with engine.connect() as c:
         assert c.scalar(sa.text('SELECT code FROM pavilions')) == '81'
     assert len(sa.inspect(engine).get_table_names()) == len(Base.metadata.tables) + 1
@@ -117,7 +117,7 @@ def test_concurrent_startup_serializes_migrations(tmp_path):
     for process in processes:
         out, err = process.communicate(timeout=30)
         assert process.returncode == 0, (out, err)
-    assert revision(engine) == '20261115_02'
+    assert revision(engine) == '20261116_03'
 
 
 def test_baseline_downgrade_refuses_to_delete_data():
@@ -131,4 +131,25 @@ def test_baseline_downgrade_refuses_to_delete_data():
         with pytest.raises(RuntimeError, match='downgrade is disabled'):
             command.downgrade(config, 'base')
     assert contents(engine) == before
-    assert revision(engine) == '20261115_02'
+    assert revision(engine) == '20261116_03'
+
+
+def test_existing_published_reviews_stay_visible_after_moderation_migration():
+    engine = sa.create_engine('sqlite://')
+    populate_legacy(engine)
+    with engine.begin() as c:
+        c.execute(metadata.tables['seller_reviews_v082'].insert(), {
+            'id': 'original-review', 'buyer': 'buyer', 'seller': 'seller',
+            'rating': 5, 'text': 'Старый опубликованный отзыв',
+            'photos': [], 'hidden': False, 'reply': 'Спасибо!',
+            'created_at': 100.0, 'updated_at': 100.0,
+        })
+    upgrade_database(engine)
+    with engine.connect() as c:
+        values = c.execute(sa.text(
+            'SELECT moderation_status, text, reply, rating '
+            'FROM seller_reviews_v082 WHERE id=:id'),
+            {'id':'original-review'}).one()
+        assert tuple(values) == (
+            'approved', 'Старый опубликованный отзыв', 'Спасибо!', 5)
+    engine.dispose()
