@@ -18,7 +18,16 @@ void main() {
         ))));
         final field = tester.getRect(find.byType(V3Field));
         final edit = tester.getRect(find.byType(EditableText));
-        expect((field.center.dy - edit.center.dy).abs(), lessThan(5));
+        if (showTitle) {
+          // The label/value group, not the value alone, is vertically centered.
+          final caption = tester.getRect(find.text('название'));
+          final topInset = caption.top - field.top;
+          final bottomInset = field.bottom - edit.bottom;
+          expect((topInset - bottomInset).abs(), lessThan(5));
+          expect(edit.top, greaterThan(caption.bottom));
+        } else {
+          expect((field.center.dy - edit.center.dy).abs(), lessThan(5));
+        }
       });
     }
   }
