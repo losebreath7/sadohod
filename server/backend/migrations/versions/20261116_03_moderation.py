@@ -19,8 +19,7 @@ def upgrade():
         sa.Column('display_name', sa.String(80), nullable=False),
         sa.Column('secret_digest', sa.String(160), nullable=False),
         sa.Column('enabled', sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column('created_at', sa.Float(), nullable=False),
-        sa.UniqueConstraint('username'))
+        sa.Column('created_at', sa.Float(), nullable=False))
     op.create_index('ix_moderator_users_username', 'moderator_users', ['username'], unique=True)
     op.create_table('moderator_sessions',
         sa.Column('digest', sa.String(64), primary_key=True),
