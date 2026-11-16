@@ -117,7 +117,7 @@ def _capture_merchant_decisions(db, flush_context, instances):
         obj.product_id for obj in list(db.new) + list(db.dirty)
         if isinstance(obj, MerchantProduct)
         and _status_transition(db, obj, obj.status)
-        and obj.status in ('approved', 'rejected')
+        and obj.status in ('pending', 'approved', 'rejected')
     }
     for obj in list(db.new) + list(db.dirty):
         if isinstance(obj, MerchantListing) and obj.product_id in changed_products:
