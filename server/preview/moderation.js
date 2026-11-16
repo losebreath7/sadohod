@@ -131,10 +131,14 @@ function renderList(){
   renderDetail();
 }
 function historyCard(row){
-  const card=node('div','history-card');const line=node('div','queue-top');
+  const card=node('button','history-card'+(row._key===state.selected?' selected':''));
+  card.type='button';card.setAttribute('aria-label','История решения '+row.target_id);
+  const line=node('div','queue-top');
   append(line,node('b','',row.moderator||'Модератор'),node('span','queue-time',fmt(row.created_at)));
-  append(card,line,node('p','',typeName[row.kind]+' · '+row.decision+' · '+short(row.target_id,18)));
+  const decisionText=({approved:'Одобрено',rejected:'Отклонено',hide:'Скрыто',dismiss:'Жалоба отклонена'})[row.decision]||row.decision;
+  append(card,line,node('p','',(typeName[row.kind]||'ЗАПИСЬ')+' · '+decisionText+' · '+short(row.target_id,18)));
   if(row.note)card.appendChild(node('div','minor',row.note));
+  card.addEventListener('click',()=>{state.selected=row._key;renderList();});
   return card;
 }
 function showEmptyDetail(){
