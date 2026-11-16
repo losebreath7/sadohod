@@ -145,7 +145,7 @@ void main() {
     )));
     await tester.pumpAndSettle();
     final time = find.byWidgetPredicate((widget) =>
-      widget is Text && RegExp(r'^\\d{2}:\\d{2}).hasMatch(widget.data ?? ''));
+      widget is Text && RegExp(r'^\d{2}:\d{2}$').hasMatch(widget.data ?? ''));
     expect(time, findsOneWidget);
     final textBottom = tester.getRect(find.text('Привет!')).bottom;
     final timeBottom = tester.getRect(time).bottom;
