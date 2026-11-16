@@ -133,6 +133,10 @@ class ProductGrid extends StatelessWidget {
         final tileWidth = (constraints.maxWidth - (count - 1) * 30) / count;
         final tileHeight = tileWidth + 34;
         return GridView.builder(
+          // This is a nested grid in our screen scroll views, not an
+          // independent safe-area scroll view. Flutter's implicit top padding
+          // would otherwise reintroduce the iPhone's 62 px notch inset here.
+          padding: EdgeInsets.zero,
           itemCount: products.length,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
