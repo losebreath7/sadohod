@@ -1,0 +1,58 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+**/key.properties
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Database, uploaded user files, and backups
+**/*.db
+**/*.db-journal
+**/*.sqlite
+**/*.sqlite3
+*.sql
+backups/
+state/
+gate-logs/
+server/backend/media/products/uploads/
+media/products/uploads/
+uploads/
+.first-install.pending
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Flutter, Dart and build artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+**/build/
+**/.dart_tool/
+**/android/.gradle/
+**/ios/Pods/
+
+# Editor, OS and logs
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
