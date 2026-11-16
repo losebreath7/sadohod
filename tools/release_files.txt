@@ -610,3 +610,8 @@ server/backend/migrations/versions/20261116_04_optional_price.py
 server/backend/tests/test_product_lifecycle.py
 server/backend/tests/test_migration_graph.py
 seller_app/test/product_lifecycle_test.dart
+seller_app/lib/seller_notifications.dart
+seller_app/test/seller_notifications_test.dart
+server/backend/app/seller_notifications.py
+server/backend/migrations/versions/20261116_05_seller_notifications.py
+server/backend/tests/test_seller_notifications.py
