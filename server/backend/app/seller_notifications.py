@@ -40,7 +40,8 @@ def _status_transition(db: Session, row, status: str):
     state = inspect(row)
     history = state.attrs.status.history
     if state.pending:
-        return status == 'pending'
+        # SQLAlchemy column defaults are applied at INSERT, not beforehand.
+        return status in (None, 'pending')
     return bool(history.has_changes() and status != (history.deleted[0]
         if history.deleted else None))
 
@@ -91,6 +92,8 @@ def _capture_merchant_decisions(db, flush_context, instances):
         status = obj.status
         if not _status_transition(db, obj, status):
             continue
+        if status is None:
+            status = 'pending'
         if isinstance(obj, ShopApplication):
             _record(db, obj.buyer_id, 'application', obj.id, status,
                     f'{obj.zone}-{obj.code}', obj.note)
