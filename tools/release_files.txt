@@ -7,7 +7,6 @@ buyer_app/android/.gitignore
 buyer_app/android/app/build.gradle.kts
 buyer_app/android/app/src/debug/AndroidManifest.xml
 buyer_app/android/app/src/main/AndroidManifest.xml
-buyer_app/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 buyer_app/android/app/src/main/kotlin/ru/sadohod/sadohod/MainActivity.kt
 buyer_app/android/app/src/main/res/drawable-v21/launch_background.xml
 buyer_app/android/app/src/main/res/drawable/launch_background.xml
@@ -21,10 +20,7 @@ buyer_app/android/app/src/main/res/values/styles.xml
 buyer_app/android/app/src/profile/AndroidManifest.xml
 buyer_app/android/build.gradle.kts
 buyer_app/android/gradle.properties
-buyer_app/android/gradle/wrapper/gradle-wrapper.jar
 buyer_app/android/gradle/wrapper/gradle-wrapper.properties
-buyer_app/android/gradlew
-buyer_app/android/gradlew.bat
 buyer_app/android/settings.gradle.kts
 buyer_app/assets/figma/045c1.svg
 buyer_app/assets/figma/1fc53.svg
@@ -118,8 +114,6 @@ buyer_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png
 buyer_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md
 buyer_app/ios/Runner/Base.lproj/LaunchScreen.storyboard
 buyer_app/ios/Runner/Base.lproj/Main.storyboard
-buyer_app/ios/Runner/GeneratedPluginRegistrant.h
-buyer_app/ios/Runner/GeneratedPluginRegistrant.m
 buyer_app/ios/Runner/Info.plist
 buyer_app/ios/Runner/Runner-Bridging-Header.h
 buyer_app/ios/Runner/SceneDelegate.swift
@@ -612,3 +606,12 @@ tools/test_version.py
 ПРОВЕРИТЬ САДОХОД.bat
 ПРОВЕРИТЬ СЕРВЕРНЫЕ ТЕСТЫ.bat
 УПРАВЛЕНИЕ МОДЕРАТОРАМИ.bat
+server/backend/migrations/versions/20261116_04_optional_price.py
+server/backend/tests/test_product_lifecycle.py
+server/backend/tests/test_migration_graph.py
+seller_app/test/product_lifecycle_test.dart
+server/backend/app/seller_notifications.py
+server/backend/migrations/versions/20261116_05_seller_notifications.py
+server/backend/tests/test_seller_notifications.py
+seller_app/lib/seller_notifications.dart
+seller_app/test/seller_notifications_test.dart

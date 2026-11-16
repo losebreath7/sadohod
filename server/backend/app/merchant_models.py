@@ -92,7 +92,7 @@ class MerchantListing(Base):
     product_id: Mapped[str] = mapped_column(ForeignKey('products.id'), index=True)
     seller_id: Mapped[str] = mapped_column(ForeignKey('sellers.id'), index=True)
     pavilion_id: Mapped[str] = mapped_column(ForeignKey('pavilions.id'))
-    price: Mapped[int] = mapped_column(Integer)
+    price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     wholesale: Mapped[bool] = mapped_column(Boolean, default=False)
     retail: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default='draft')

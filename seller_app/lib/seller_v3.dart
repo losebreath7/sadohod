@@ -1,16 +1,20 @@
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+
 import 'api.dart';
 import 'product_actions.dart';
 import 'draft_store.dart';
 import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
+import 'seller_notifications.dart';
+
 import 'package:sadohod_shared_core/chat_widgets.dart';
 
 const beige = Color(0xFFF0EFEB), brown = Color(0xFF48352D);
@@ -26,6 +30,7 @@ bool isApprovedPavilion(RowData pavilion) {
   final status = '${pavilion['status'] ?? 'approved'}'.trim().toLowerCase();
   return status == 'approved' || status == 'active';
 }
+
 List<RowData> rows(dynamic value) => (value is List ? value : const [])
     .whereType<Map>()
     .map((e) => Map<String, dynamic>.from(e))
@@ -228,30 +233,38 @@ class V3Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: height,
-    decoration: BoxDecoration(color: Colors.white,
-      borderRadius: BorderRadius.circular(5)),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(5),
+    ),
     padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Stack(children: [
-      if (showTitle) Positioned(top: 8, left: 0,
-        child: IgnorePointer(child: label(title, 12, color: muted))),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextField(
-          controller: controller,
-          readOnly: readOnly,
-          keyboardType: keyboard,
-          onChanged: onChanged,
-          maxLines: 1,
-          textAlignVertical: TextAlignVertical.center,
-          style: type(14),
-          decoration: const InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
+    child: Stack(
+      children: [
+        if (showTitle)
+          Positioned(
+            top: 8,
+            left: 0,
+            child: IgnorePointer(child: label(title, 12, color: muted)),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextField(
+            controller: controller,
+            readOnly: readOnly,
+            keyboardType: keyboard,
+            onChanged: onChanged,
+            maxLines: 1,
+            textAlignVertical: TextAlignVertical.center,
+            style: type(14),
+            decoration: const InputDecoration(
+              isCollapsed: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ),
-      ),
-    ]),
+      ],
+    ),
   );
 }
 
@@ -294,14 +307,48 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   final photoReplacements = <XFile, String>{};
   RowData originalProduct = {};
   String initialPrice = '';
+  final saleModes = <String>{'retail'};
+  final listingModes = <String, Set<String>>{};
+  final photoPages = <String, int>{};
+  String? selectionPavilionId;
+  String? saleFilter;
   final draftStore = DraftStore();
   final draftPhotoCache = <XFile, Future<String>>{};
   Future<void> draftWrites = Future.value();
   Timer? draftTimer;
   String? activeDraftKey;
   String? draftToken;
-  bool restoringDraft = false, draftWarningShown = false, draftCompleted = false;
+  bool restoringDraft = false,
+      draftWarningShown = false,
+      draftCompleted = false;
   String activeChatSection = 'поддержка';
+  int unreadNotifications = 0;
+
+  Future<void> refreshUnreadNotifications() async {
+    if (testPreview || !widget.api.signedIn) return;
+    try {
+      final data = await widget.api.call('/merchant/notifications');
+      if (mounted) {
+        setState(() {
+          unreadNotifications = (data['unread'] as num?)?.toInt() ?? 0;
+        });
+      }
+    } catch (error) {
+      debugPrint('Seller notification counter unavailable: $error');
+    }
+  }
+
+  Future<void> openNotificationProduct(String id) async {
+    if (!testPreview && !await reload(navigate: false)) return;
+    if (!mounted) return;
+    final matches = products.where((item) => item['id'] == id);
+    if (matches.isEmpty) {
+      failure(Exception('Товар больше не найден в вашем магазине.'));
+      return;
+    }
+    fillProduct(matches.first);
+    go('editProduct');
+  }
   // Explicit initialFrame is a visual-test/preview entry point. No API calls
   // or draft writes should occur when rendering these static design frames.
   bool get testPreview => preview || widget.initialFrame != null;
@@ -314,46 +361,94 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   void scheduleDraft() {
-    if (testPreview || restoringDraft || !isProductForm || activeDraftKey == null || !widget.api.signedIn) return;
+    if (testPreview ||
+        restoringDraft ||
+        !isProductForm ||
+        activeDraftKey == null ||
+        !widget.api.signedIn)
+      return;
     draftTimer?.cancel();
-    draftTimer = Timer(const Duration(seconds: 1), () { persistDraft().catchError(draftFailure); });
+    draftTimer = Timer(const Duration(seconds: 1), () {
+      persistDraft().catchError(draftFailure);
+    });
   }
 
   void draftFailure(Object error) {
     if (!mounted || draftWarningShown) return;
     draftWarningShown = true;
-    failure(Exception('Не удалось сохранить форму на устройстве. Не закрывайте её до успешной отправки.'));
+    failure(
+      Exception(
+        'Не удалось сохранить форму на устройстве. Не закрывайте её до успешной отправки.',
+      ),
+    );
   }
 
   Future<void> persistDraft() {
     draftTimer?.cancel();
-    if (testPreview || restoringDraft || activeDraftKey == null || !isProductForm || !widget.api.signedIn) return Future.value();
+    if (testPreview ||
+        restoringDraft ||
+        activeDraftKey == null ||
+        !isProductForm ||
+        !widget.api.signedIn)
+      return Future.value();
     final key = activeDraftKey!;
     final completed = draftCompleted;
-    final session = ProductSaveSession()..productId = saveSession.productId..createKey = saveSession.createKey;
+    final session = ProductSaveSession()
+      ..productId = saveSession.productId
+      ..createKey = saveSession.createKey;
     session.photoKeys.addAll(saveSession.photoKeys);
     session.finishedPhotos.addAll(saveSession.finishedPhotos);
     session.requestKeys.addAll(saveSession.requestKeys);
-    final form = DraftForm(title: c('title').text, price: c('price').text, initialPrice: initialPrice,
-      product: Map<String,dynamic>.from(jsonDecode(jsonEncode(product)) as Map),
-      original: Map<String,dynamic>.from(jsonDecode(jsonEncode(originalProduct)) as Map),
-      destinations: Set.of(destinations), deleted: Set.of(deletedPhotos), photos: List.of(photos),
-      replacements: Map.of(photoReplacements), session: session);
+    final form = DraftForm(
+      title: c('title').text,
+      price: c('price').text,
+      initialPrice: initialPrice,
+      product: Map<String, dynamic>.from(
+        jsonDecode(jsonEncode(product)) as Map,
+      ),
+      original: Map<String, dynamic>.from(
+        jsonDecode(jsonEncode(originalProduct)) as Map,
+      ),
+      destinations: Set.of(destinations),
+      deleted: Set.of(deletedPhotos),
+      photos: List.of(photos),
+      replacements: Map.of(photoReplacements),
+      session: session,
+      saleModes: saleModes.toList(),
+      listingEdits: {
+        for (final id in listingModes.keys)
+          id: {
+            'priceText': c('price:$id').text,
+            'sale_modes': listingModes[id]!.toList(),
+          },
+      },
+    );
     final next = draftWrites.then((_) async {
-      await draftStore.write(key, {...await form.encode(draftPhotoCache), 'completed': completed});
+      await draftStore.write(key, {
+        ...await form.encode(draftPhotoCache),
+        'completed': completed,
+      });
       draftWarningShown = false;
     });
-    draftWrites = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    draftWrites = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
     return next;
   }
 
   Future<void> checkpointDraft() async {
-    try { await persistDraft(); } catch (error) { draftFailure(error); }
+    try {
+      await persistDraft();
+    } catch (error) {
+      draftFailure(error);
+    }
   }
 
   String formKey(String form) {
     final email = '${account['email'] ?? ''}'.trim();
-    if (email.isEmpty || !widget.api.signedIn) throw StateError('Сначала войдите в аккаунт.');
+    if (email.isEmpty || !widget.api.signedIn)
+      throw StateError('Сначала войдите в аккаунт.');
     return draftStore.key(widget.api.baseUrl, email, form);
   }
 
@@ -364,7 +459,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final key = formKey(form);
     activeDraftKey = key;
     final data = await draftStore.read(key);
-    if (!mounted || token != widget.api.token || activeDraftKey != key || data == null) return false;
+    if (!mounted ||
+        token != widget.api.token ||
+        activeDraftKey != key ||
+        data == null)
+      return false;
     if (data['completed'] == true) {
       await draftStore.delete(key);
       return false;
@@ -373,33 +472,73 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     draftCompleted = false;
     restoringDraft = true;
     try {
-      product = restored.product; originalProduct = restored.original;
+      product = restored.product;
+      originalProduct = restored.original;
       initialPrice = restored.initialPrice;
-      c('title').text = restored.title; c('price').text = restored.price;
-      photos..clear()..addAll(restored.photos);
-      destinations..clear()..addAll(restored.destinations);
-      deletedPhotos..clear()..addAll(restored.deleted);
-      photoReplacements..clear()..addAll(restored.replacements);
+      saleModes
+        ..clear()
+        ..addAll(restored.saleModes);
+      initializeListingFields();
+      for (final entry in restored.listingEdits.entries) {
+        c('price:${entry.key}').text = '${entry.value['priceText'] ?? ''}';
+        listingModes[entry.key] = Set<String>.from(
+          entry.value['sale_modes'] ?? ['retail'],
+        );
+      }
+      c('title').text = restored.title;
+      c('price').text = restored.price;
+      photos
+        ..clear()
+        ..addAll(restored.photos);
+      destinations
+        ..clear()
+        ..addAll(restored.destinations);
+      deletedPhotos
+        ..clear()
+        ..addAll(restored.deleted);
+      photoReplacements
+        ..clear()
+        ..addAll(restored.replacements);
       saveSession = restored.session;
       setState(() => screen = form == 'new' ? 'newProduct' : 'editProduct');
-    } finally { restoringDraft = false; }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      duration: Duration(seconds: 2), content: Text('Незавершённый товар восстановлен')));
+    } finally {
+      restoringDraft = false;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        duration: Duration(seconds: 2),
+        content: Text('Незавершённый товар восстановлен'),
+      ),
+    );
     return true;
   }
 
   Future<void> openEditProduct(RowData value) async {
     if (busy) return;
+    if (value['status'] == 'pending' ||
+        rows(value['listings']).any((l) => l['status'] == 'pending')) {
+      failure(
+        Exception(
+          'Товар на проверке. Изменения будут доступны после решения модератора.',
+        ),
+      );
+      return;
+    }
     try {
       await persistDraft();
       fillProduct(value);
       go('editProduct');
       if (!testPreview) {
         setState(() => busy = true);
-        try { await restoreDraft('edit:${value['id']}'); }
-        finally { if (mounted) setState(() => busy = false); }
+        try {
+          await restoreDraft('edit:${value['id']}');
+        } finally {
+          if (mounted) setState(() => busy = false);
+        }
       }
-    } catch (error) { draftFailure(error); }
+    } catch (error) {
+      draftFailure(error);
+    }
   }
 
   Future<void> forgetDraft() async {
@@ -416,29 +555,59 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     draftToken = widget.api.token;
     // Captured queued writes retain their original account key. No new snapshot
     // may be written with another account's credentials.
-    draftTimer?.cancel(); activeDraftKey = null;
+    draftTimer?.cancel();
+    activeDraftKey = null;
     restoringDraft = true;
-    account = {}; product = {}; originalProduct = {};
-    photos.clear(); destinations.clear(); deletedPhotos.clear(); photoReplacements.clear();
-    draftPhotoCache.clear(); saveSession = ProductSaveSession();
-    c('title').clear(); c('price').clear();
+    account = {};
+    product = {};
+    originalProduct = {};
+    photos.clear();
+    destinations.clear();
+    deletedPhotos.clear();
+    photoReplacements.clear();
+    draftPhotoCache.clear();
+    saveSession = ProductSaveSession();
+    c('title').clear();
+    c('price').clear();
+    saleModes
+      ..clear()
+      ..add('retail');
+    listingModes.clear();
     restoringDraft = false;
-    if (mounted && !widget.api.signedIn) setState(() { screen = 'welcome'; history.clear(); });
+    if (mounted && !widget.api.signedIn)
+      setState(() {
+        screen = 'welcome';
+        history.clear();
+      });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) persistDraft().catchError(draftFailure);
-    if (state == AppLifecycleState.resumed && widget.api.signedIn && !testPreview &&
-        !busy && !loading && ['stores', 'pending', 'rejected', 'approved', 'emptyStores'].contains(screen)) {
+    if (state != AppLifecycleState.resumed)
+      persistDraft().catchError(draftFailure);
+    if (state == AppLifecycleState.resumed &&
+        widget.api.signedIn &&
+        !testPreview &&
+        !busy &&
+        !loading &&
+        [
+          'stores',
+          'pending',
+          'rejected',
+          'approved',
+          'emptyStores',
+        ].contains(screen)) {
       reload(navigate: false);
     }
   }
 
   bool showSecondPhone = false;
   bool pavilionValidationError = false;
-  TextEditingController c(String key) =>
-      controllers.putIfAbsent(key, () => TextEditingController());
+  TextEditingController c(String key) => controllers.putIfAbsent(key, () {
+    final controller = TextEditingController();
+    if (key.startsWith('price:')) controller.addListener(scheduleDraft);
+    return controller;
+  });
   String get name => '${account['name'] ?? merchant['shop']?['name'] ?? ''}';
   String get home => !pavilions.any(isApprovedPavilion)
       ? (requests.isNotEmpty ? 'stores' : 'emptyStores')
@@ -631,7 +800,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       final loadedAccount = await widget.api.call('/account');
       final loadedMerchant = await widget.api.call('/merchant/me');
       if (!mounted || token != widget.api.token) return false;
-      account = loadedAccount; merchant = loadedMerchant;
+      account = loadedAccount;
+      merchant = loadedMerchant;
       if (merchant['shop'] != null) {
         final r = await Future.wait([
           widget.api.call('/merchant/pavilions'),
@@ -642,13 +812,17 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         // Only confirmed trading locations unlock the product home screen.
         // Pending/rejected locations belong to the applications flow.
         pavilions = pavilions.where(isApprovedPavilion).toList();
-        requests = rows(r[0]['requests']).where((r) => r['status'] != 'approved')
-            .map((r) => {...r, '_requestType': 'pavilion'}).toList();
+        requests = rows(r[0]['requests'])
+            .where((r) => r['status'] != 'approved')
+            .map((r) => {...r, '_requestType': 'pavilion'})
+            .toList();
         products = rows(r[1]['items']);
       } else {
         pavilions = [];
-        requests = rows(merchant['applications']).where((r) => r['status'] != 'approved')
-            .map((r) => {...r, '_requestType': 'application'}).toList();
+        requests = rows(merchant['applications'])
+            .where((r) => r['status'] != 'approved')
+            .map((r) => {...r, '_requestType': 'application'})
+            .toList();
         products = [];
       }
       if (mounted)
@@ -658,15 +832,24 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             history.clear();
             screen = name.trim().isEmpty ? 'name' : home;
           } else if (['pending', 'rejected', 'approved'].contains(screen)) {
-            final matches = requests.where((r) => r['id'] == pavilion['id'] &&
-                r['_requestType'] == pavilion['_requestType']);
+            final matches = requests.where(
+              (r) =>
+                  r['id'] == pavilion['id'] &&
+                  r['_requestType'] == pavilion['_requestType'],
+            );
             if (matches.isNotEmpty) {
               pavilion = matches.first;
-              screen = pavilion['status'] == 'rejected' ? 'rejected' : 'pending';
+              screen = pavilion['status'] == 'rejected'
+                  ? 'rejected'
+                  : 'pending';
             } else {
-              final confirmed = pavilions.where((p) =>
-                  '${p['zone']}'.trim().toLowerCase() == '${pavilion['zone']}'.trim().toLowerCase() &&
-                  '${p['code']}'.trim().toLowerCase() == '${pavilion['code']}'.trim().toLowerCase());
+              final confirmed = pavilions.where(
+                (p) =>
+                    '${p['zone']}'.trim().toLowerCase() ==
+                        '${pavilion['zone']}'.trim().toLowerCase() &&
+                    '${p['code']}'.trim().toLowerCase() ==
+                        '${pavilion['code']}'.trim().toLowerCase(),
+              );
               if (confirmed.isNotEmpty) {
                 pavilion = confirmed.first;
                 screen = 'approved';
@@ -689,13 +872,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   void go(String next) {
-    if (!testPreview && next == 'address' && merchant['shop'] == null && requests.isNotEmpty) next = 'stores';
+    if (!testPreview &&
+        next == 'address' &&
+        merchant['shop'] == null &&
+        requests.isNotEmpty)
+      next = 'stores';
     // Pavilion approval is mandatory in both production and design previews.
     if (next == 'capture' && !pavilions.any(isApprovedPavilion)) {
       next = requests.isNotEmpty ? 'stores' : 'address';
     }
     if (next == 'address') {
-      for (final key in ['zone', 'building', 'floor', 'line', 'number', 'manual']) c(key).clear();
+      for (final key in [
+        'zone',
+        'building',
+        'floor',
+        'line',
+        'number',
+        'manual',
+      ])
+        c(key).clear();
     }
     if (isProductForm) persistDraft().catchError(draftFailure);
     FocusManager.instance.primaryFocus?.unfocus();
@@ -709,11 +904,19 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         query: c('search').text,
       ));
       screen = next;
+      if (['shop', 'catalog', 'stores'].contains(next)) {
+        selected.clear();
+        selectionPavilionId = null;
+        saleFilter = null;
+        hidden = false;
+      }
       searching = false;
       selecting = false;
       actions = false;
     });
-    if (!testPreview && !busy && !loading &&
+    if (!testPreview &&
+        !busy &&
+        !loading &&
         ['stores', 'pending', 'rejected', 'approved'].contains(next)) {
       reload(navigate: false);
     }
@@ -745,6 +948,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         }
       }
     });
+    if (screen == 'profile') refreshUnreadNotifications();
   }
 
   void returnToStores() {
@@ -760,7 +964,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   Future<void> tab(int index) async {
     if (busy) return;
-    try { await persistDraft(); } catch (error) { draftFailure(error); return; }
+    try {
+      await persistDraft();
+    } catch (error) {
+      draftFailure(error);
+      return;
+    }
     if (!testPreview && index != 2 && !await reload(navigate: false)) return;
     if (!mounted) return;
     setState(() {
@@ -769,26 +978,40 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       searching = false;
       actions = false;
       hidden = false;
+      saleFilter = null;
+      selectionPavilionId = null;
       selected.clear();
       c('search').clear();
       screen = index == 2
           ? 'profile'
           : index == 1
-          ? (pavilions.isEmpty ? (requests.isNotEmpty ? 'stores' : 'address') : 'capture')
+          ? (pavilions.isEmpty
+                ? (requests.isNotEmpty ? 'stores' : 'address')
+                : 'capture')
           : home;
     });
+    if (index == 2) refreshUnreadNotifications();
     if (index == 1 && pavilions.isNotEmpty && !testPreview) {
       setState(() => busy = true);
-      try { await restoreDraft('new'); } catch (error) { draftFailure(error); }
-      finally { if (mounted) setState(() => busy = false); }
+      try {
+        await restoreDraft('new');
+      } catch (error) {
+        draftFailure(error);
+      } finally {
+        if (mounted) setState(() => busy = false);
+      }
     }
   }
 
   void failure(Object error) {
     debugPrint('Seller V3: $error');
     if (!mounted) return;
-    final message = error.toString().replaceFirst(RegExp(r'^(Exception|Bad state): '), '');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final message = error.toString().replaceFirst(
+      RegExp(r'^(Exception|Bad state): '),
+      '',
+    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> run(Future<void> Function() work) async {
@@ -797,6 +1020,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     try {
       await work();
     } catch (e) {
+      if (e is SellerApiException && e.statusCode == 409)
+        await reload(navigate: false);
       failure(e);
     } finally {
       if (mounted) setState(() => busy = false);
@@ -811,15 +1036,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       go('missing');
     }
   }
+
   Future<void> auth() async => run(() async {
     if (screen == 'welcome') {
       go('email');
       return;
     }
     if (screen == 'email') {
-      if (!RegExp(
-        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-      ).hasMatch(c('email').text.trim()))
+      if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+          .hasMatch(c('email').text.trim()))
         return;
       if (!testPreview) await widget.api.requestCode(c('email').text);
       go('code');
@@ -859,16 +1084,74 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     originalProduct = Map<String, dynamic>.from(p);
     saveSession = ProductSaveSession();
     draftCompleted = false;
-    deletedPhotos.clear(); photoReplacements.clear();
+    deletedPhotos.clear();
+    photoReplacements.clear();
     photos.clear();
     c('title').text = '${p['title'] ?? ''}';
     final ls = rows(p['listings']);
-    c('price').text = ls.isEmpty ? '' : '${ls.first['price']}';
+    c('price').text = ls.isEmpty ? '' : '${ls.first['price'] ?? ''}';
+    saleModes
+      ..clear()
+      ..addAll(
+        ls.isEmpty
+            ? ['retail']
+            : List<String>.from(ls.first['sale_modes'] ?? ['retail']),
+      );
+    initializeListingFields();
     initialPrice = c('price').text;
     destinations
       ..clear()
       ..addAll(ls.map((l) => '${l['pavilion_id']}'));
   }
+
+  void initializeListingFields() {
+    listingModes.clear();
+    for (final l in rows(originalProduct['listings'])) {
+      final id = '${l['pavilion_id']}';
+      c('price:$id').text = '${l['price'] ?? ''}';
+      listingModes[id] = Set<String>.from(l['sale_modes'] ?? ['retail']);
+    }
+  }
+
+  int? parsePrice(String text) {
+    if (text.trim().isEmpty) return null;
+    final value = int.tryParse(text.trim());
+    if (value == null || value < 0 || value > 100000000) {
+      throw Exception(
+        'Цена: целое число от 0 до 100 000 000 ₽ или пустое поле.',
+      );
+    }
+    return value;
+  }
+
+  Widget saleModeFields(Set<String> modes) => Row(
+    children: [
+      for (final mode in ['wholesale', 'retail']) ...[
+        tap(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: modes.contains(mode) ? Colors.black : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: label(
+              mode == 'wholesale' ? 'опт' : 'розница',
+              12,
+              color: modes.contains(mode) ? Colors.white : Colors.black,
+            ),
+          ),
+          () => setState(() {
+            if (modes.contains(mode)) {
+              if (modes.length > 1) modes.remove(mode);
+            } else {
+              modes.add(mode);
+            }
+          }),
+        ),
+        const SizedBox(width: 8),
+      ],
+    ],
+  );
 
   String address(RowData p) => '${p['code'] ?? ''}';
   Future<void> sendAddress() async => run(() async {
@@ -885,14 +1168,19 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (zone.isEmpty || c('number').text.trim().isEmpty) {
       throw Exception('Укажите торговую зону и номер павильона.');
     }
-    final application = fixing ? pavilion['_requestType'] != 'pavilion' : merchant['shop'] == null;
-    if (fixing && pavilion['id'] == null && !testPreview) throw Exception('Заявка не найдена. Откройте её из списка магазинов.');
+    final application = fixing
+        ? pavilion['_requestType'] != 'pavilion'
+        : merchant['shop'] == null;
+    if (fixing && pavilion['id'] == null && !testPreview)
+      throw Exception('Заявка не найдена. Откройте её из списка магазинов.');
     final payload = {'zone': zone, 'code': code};
     RowData result = {};
     if (!testPreview) {
       result = await widget.api.call(
         fixing
-            ? (application ? '/merchant/applications/${pavilion['id']}' : '/merchant/pavilions/requests/${pavilion['id']}')
+            ? (application
+                  ? '/merchant/applications/${pavilion['id']}'
+                  : '/merchant/pavilions/requests/${pavilion['id']}')
             : (application ? '/merchant/applications' : '/merchant/pavilions'),
         method: fixing ? 'PUT' : 'POST',
         body: application
@@ -904,23 +1192,30 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             : payload,
       );
     }
-    pavilion = {...payload, ...result, 'status': 'pending',
-      '_requestType': application ? 'application' : 'pavilion'};
+    pavilion = {
+      ...payload,
+      ...result,
+      'status': 'pending',
+      '_requestType': application ? 'application' : 'pavilion',
+    };
     if (!testPreview) await reload(navigate: false);
-    if (mounted) setState(() {
-      history.clear();
-      screen = 'pending';
-    });
+    if (mounted)
+      setState(() {
+        history.clear();
+        screen = 'pending';
+      });
   });
   Future<void> pick({bool camera = false}) async => run(() async {
     if (screen != 'capture' && saveSession.photoKeys.isNotEmpty) {
-      throw Exception('Сначала повторите сохранение начатой загрузки. Фотографии можно изменить после её завершения.');
+      throw Exception(
+        'Сначала повторите сохранение начатой загрузки. Фотографии можно изменить после её завершения.',
+      );
     }
     final picker = ImagePicker();
     final chosen = camera
-        ? [
-            await picker.pickImage(source: ImageSource.camera),
-          ].whereType<XFile>().toList()
+        ? [await picker.pickImage(source: ImageSource.camera)]
+              .whereType<XFile>()
+              .toList()
         : await picker.pickMultiImage();
     if (chosen.isEmpty) return;
     if (screen == 'capture') photos.clear();
@@ -932,11 +1227,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         originalProduct = {};
         saveSession = ProductSaveSession();
         draftCompleted = false;
-        deletedPhotos.clear(); photoReplacements.clear();
+        deletedPhotos.clear();
+        photoReplacements.clear();
         initialPrice = '';
         draftId = null;
         c('title').clear();
         c('price').clear();
+        saleModes
+          ..clear()
+          ..add('retail');
+        listingModes.clear();
         destinations.clear();
         go('newProduct');
       } else
@@ -945,31 +1245,47 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   });
   void removePhoto(int index, int existingCount) {
     if (busy) return;
-    if (saveSession.photoKeys.isNotEmpty) { failure(Exception('Сначала повторите сохранение начатой загрузки.')); return; }
+    if (saveSession.photoKeys.isNotEmpty) {
+      failure(Exception('Сначала повторите сохранение начатой загрузки.'));
+      return;
+    }
     if (index >= existingCount) {
       setState(() => photos.removeAt(index - existingCount));
       return;
     }
     final items = rows(product['image_items']);
     if (items.length != existingCount) {
-      failure(Exception('Обновите сервер до пакета 18 и откройте товар заново.'));
+      failure(
+        Exception('Обновите сервер до пакета 18 и откройте товар заново.'),
+      );
       return;
     }
     deletedPhotos.add('${items[index]['id']}');
     final urls = List<String>.from(product['images'] ?? []);
     urls.removeAt(index);
     items.removeAt(index);
-    setState(() { product['images'] = urls; product['image_items'] = items; });
+    setState(() {
+      product['images'] = urls;
+      product['image_items'] = items;
+    });
   }
 
   Future<void> replaceProductPhoto(int index, int existingCount) async {
     if (busy) return;
-    if (saveSession.photoKeys.isNotEmpty) { failure(Exception('Сначала повторите сохранение начатой загрузки.')); return; }
-    final replacement = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (saveSession.photoKeys.isNotEmpty) {
+      failure(Exception('Сначала повторите сохранение начатой загрузки.'));
+      return;
+    }
+    final replacement = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (replacement == null || !mounted) return;
     if (index < existingCount) {
       final items = rows(product['image_items']);
-      if (items.length != existingCount) { failure(Exception('Обновите сервер и откройте товар заново.')); return; }
+      if (items.length != existingCount) {
+        failure(Exception('Обновите сервер и откройте товар заново.'));
+        return;
+      }
       photoReplacements[replacement] = '${items[index]['id']}';
       removePhoto(index, existingCount);
       setState(() => photos.add(replacement));
@@ -985,17 +1301,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     // Complete the operation before refreshing; a refresh error must not repeat it.
     if (!mounted) return;
     setState(() {
-      selected.clear(); destinations.clear(); actions = false; selecting = false;
-      history.clear(); screen = 'catalog';
+      selected.clear();
+      destinations.clear();
+      actions = false;
+      selecting = false;
+      history.clear();
+      screen = 'catalog';
     });
     await reload(navigate: false);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 2), content: Text(message)));
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(duration: const Duration(seconds: 2), content: Text(message)),
+      );
   }
 
   Future<void> deleteProducts({bool single = false}) async => run(() async {
-    final ids = single ? ['${product['id']}'] : selected.toList()..sort();
-    if (ids.isEmpty || ids.contains('null')) throw Exception('Выберите товары.');
+    final ids = single ? ['${product['id']}'] : selected.toList()
+      ..sort();
+    if (ids.isEmpty || ids.contains('null'))
+      throw Exception('Выберите товары.');
     if (testPreview) {
       products.removeWhere((p) => ids.contains('${p['id']}'));
     } else {
@@ -1005,10 +1329,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   });
 
   String get sourcePavilionId {
-    if (pavilion['id'] != null) return '${pavilion['id']}';
+    if (selectionPavilionId != null) return selectionPavilionId!;
     Set<String>? common;
     for (final p in products.where((p) => selected.contains('${p['id']}'))) {
-      final locations = rows(p['listings']).map((l) => '${l['pavilion_id']}').toSet();
+      final locations = rows(p['listings'])
+          .map((l) => '${l['pavilion_id']}')
+          .toSet();
       common = common == null ? locations : common.intersection(locations);
     }
     return common != null && common.length == 1 ? common.single : '';
@@ -1018,17 +1344,30 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final duplicate = screen == 'duplicate';
     final ids = selected.toList()..sort();
     final targets = destinations.toList()..sort();
-    if (ids.isEmpty || targets.isEmpty) throw Exception('Выберите товары и магазин назначения.');
+    if (ids.isEmpty || targets.isEmpty)
+      throw Exception('Выберите товары и магазин назначения.');
     final source = sourcePavilionId;
-    if (source.isEmpty) throw Exception('Откройте исходный магазин и выберите товары в нём.');
-    if (!duplicate && targets.single == source) throw Exception('Выберите другой магазин.');
+    if (source.isEmpty)
+      throw Exception('Откройте исходный магазин и выберите товары в нём.');
+    if (duplicate && targets.length > 10)
+      throw Exception('Можно выбрать не больше 10 павильонов.');
+    if (!duplicate && targets.single == source)
+      throw Exception('Выберите другой магазин.');
     if (!testPreview) {
       await productActions.batch(duplicate ? 'copy' : 'move', {
-        'product_ids': ids, 'source_pavilion_id': source,
-        if (duplicate) 'destination_pavilion_ids': targets else 'destination_pavilion_id': targets.single,
+        'product_ids': ids,
+        'source_pavilion_id': source,
+        if (duplicate)
+          'destination_pavilion_ids': targets
+        else
+          'destination_pavilion_id': targets.single,
       });
     }
-    await finishAction(duplicate ? 'Копии созданы в черновиках' : 'Товары перенесены');
+    await finishAction(
+      duplicate
+          ? 'Копии опубликованы'
+          : 'Товары перенесены. Публикация — после проверки',
+    );
   });
 
   Future<void> saveProduct() async => run(() async {
@@ -1036,25 +1375,56 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       setState(() => pavilionValidationError = true);
       return;
     }
-    final price = int.tryParse(c('price').text.trim());
-    if (price == null || price < 0 || price > 100000000) {
-      throw Exception('Укажите цену целым числом от 0 до 100 000 000 ₽.');
-    }
+    final price = parsePrice(c('price').text);
+    final edits = <String, RowData>{
+      for (final id in destinations.where(listingModes.containsKey))
+        id: {
+          'price': parsePrice(c('price:$id').text),
+          'sale_modes': listingModes[id]!.toList(),
+        },
+    };
     if (testPreview) {
-      final id = product['id'] ?? 'preview-${DateTime.now().microsecondsSinceEpoch}';
+      final id =
+          product['id'] ?? 'preview-${DateTime.now().microsecondsSinceEpoch}';
       products.removeWhere((p) => p['id'] == id);
-      products.insert(0, {'id': id, 'title': c('title').text, 'images': [], 'status': 'pending',
-        'listings': [for (final destination in destinations) {'pavilion_id': destination, 'price': price, 'status': 'pending'}]});
+      products.insert(0, {
+        'id': id,
+        'title': c('title').text,
+        'images': [],
+        'status': 'pending',
+        'listings': [
+          for (final destination in destinations)
+            {'pavilion_id': destination, 'price': price, 'status': 'pending'},
+        ],
+      });
     } else {
-      final saved = await productActions.save(session: saveSession, original: originalProduct,
-        title: c('title').text, price: price, priceChanged: c('price').text != initialPrice,
-        destinations: Set.of(destinations), photos: List.of(photos), deletedPhotos: Set.of(deletedPhotos), replacements: Map.of(photoReplacements), checkpoint: checkpointDraft);
+      final saved = await productActions.save(
+        session: saveSession,
+        original: originalProduct,
+        title: c('title').text,
+        price: price,
+        saleModes: saleModes.toList(),
+        listingEdits: edits,
+        priceChanged: c('price').text != initialPrice,
+        destinations: Set.of(destinations),
+        photos: List.of(photos),
+        deletedPhotos: Set.of(deletedPhotos),
+        replacements: Map.of(photoReplacements),
+        checkpoint: checkpointDraft,
+      );
       product = saved;
     }
     draftCompleted = true;
     await checkpointDraft();
-    try { await forgetDraft(); } catch (error) { draftFailure(error); }
-    photos.clear(); deletedPhotos.clear(); photoReplacements.clear(); draftId = null;
+    try {
+      await forgetDraft();
+    } catch (error) {
+      draftFailure(error);
+    }
+    photos.clear();
+    deletedPhotos.clear();
+    photoReplacements.clear();
+    draftId = null;
     saveSession = ProductSaveSession();
     await finishAction('Товар отправлен на модерацию');
   });
@@ -1064,8 +1434,22 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ? ls.where((l) => l['pavilion_id'] == pavilion['id']).toList()
         : ls;
     if (screen == 'shop' && local.isEmpty) return false;
-    if (hidden && !local.any((l) => l['status'] == 'paused')) return testPreview;
-    if (!hidden &&
+    if (hidden && !local.any((l) => l['status'] == 'paused'))
+      return testPreview;
+    if (screen == 'shop' &&
+        !hidden &&
+        !(p['status'] == 'approved' &&
+            local.any(
+              (l) => l['published'] == true || l['status'] == 'approved',
+            )))
+      return false;
+    if (saleFilter != null &&
+        !local.any(
+          (l) => (l['sale_modes'] as List? ?? []).contains(saleFilter),
+        ))
+      return false;
+    if (screen == 'shop' &&
+        !hidden &&
         local.isNotEmpty &&
         local.every((l) => l['status'] == 'paused'))
       return false;
@@ -1086,7 +1470,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ),
       );
     final authScreen = ['welcome', 'email', 'code', 'name'].contains(screen);
-    final index = ['profile', 'editProfile', 'sellerChat'].contains(screen)
+    final index = ['profile', 'editProfile', 'sellerChat', 'notifications'].contains(screen)
         ? 2
         : ['capture', 'newProduct', 'editProduct'].contains(screen)
         ? 1
@@ -1101,13 +1485,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         resizeToAvoidBottomInset: true,
         bottomNavigationBar: authScreen || selecting && selected.isEmpty
             ? null
-            : SellerTabBar(index: index, onSelect: (index) { if (!busy) tab(index); }),
+            : SellerTabBar(
+                index: index,
+                onSelect: (index) {
+                  if (!busy) tab(index);
+                },
+              ),
         body: loading
-            ? const SizedBox.expand()
+            ? const Center(child: CircularProgressIndicator())
             : Stack(
                 children: [
                   AbsorbPointer(absorbing: busy, child: body()),
                   if (actions) actionPanel(),
+                  if (busy)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(),
+                    ),
                 ],
               ),
       ),
@@ -1125,6 +1521,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         return profileBody();
       case 'editProfile':
         return profileEdit();
+      case 'notifications':
+        return page('уведомления', SellerNotificationsPage(
+          key: const ValueKey('seller-notifications'),
+          api: widget.api,
+          onOpenPavilions: returnToStores,
+          onOpenProduct: (id) { openNotificationProduct(id); },
+        ));
       case 'emptyStores':
         return emptyStores();
       case 'emptyProducts':
@@ -1148,12 +1551,20 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'duplicate':
         return bulkBody();
       case 'sellerChat':
-        return Column(children: [
-          SadohodChatHeader(title: activeChatSection, onBack: back),
-          Expanded(child: SellerTelegramChat(
-            key: ValueKey(activeChatSection), api: widget.api,
-            kind: activeChatSection == 'поддержка' ? 'support' : 'cooperation')),
-        ]);
+        return Column(
+          children: [
+            SadohodChatHeader(title: activeChatSection, onBack: back),
+            Expanded(
+              child: SellerTelegramChat(
+                key: ValueKey(activeChatSection),
+                api: widget.api,
+                kind: activeChatSection == 'поддержка'
+                    ? 'support'
+                    : 'cooperation',
+              ),
+            ),
+          ],
+        );
       case 'delete':
         return Center(child: deleteDialog());
       default:
@@ -1289,7 +1700,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 child: tap(
                   label('отправить код ещё раз', 13, color: brown),
                   () => run(() async {
-                    if (!testPreview) await widget.api.requestCode(c('email').text);
+                    if (!testPreview)
+                      await widget.api.requestCode(c('email').text);
                     if (mounted)
                       await showDialog<void>(
                         context: context,
@@ -1498,11 +1910,28 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 children: [
                   SizedBox(
                     width: 30,
-                    child: asset(
-                      item[1],
-                      width: item[0] == 'профиль' ? 34.621 : 24,
-                      height: item[0] == 'профиль' ? 34.621 : 24,
-                    ),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      asset(
+                        item[1],
+                        width: item[0] == 'профиль' ? 34.621 : 24,
+                        height: item[0] == 'профиль' ? 34.621 : 24,
+                      ),
+                      if (item[0] == 'уведомления' && unreadNotifications > 0)
+                        Positioned(
+                          left: 14, top: -5,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: const BoxDecoration(color: Color(0xFF5F0F10),
+                              borderRadius: BorderRadius.all(Radius.circular(10))),
+                            child: Text(unreadNotifications > 99 ? '99+' : '$unreadNotifications',
+                              style: const TextStyle(fontFamily: 'Helvetica',
+                                fontSize: 8, fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                          ),
+                        ),
+                    ]),
                   ),
                   const SizedBox(width: 14),
                   label(item[0], 14, color: const Color(0xFF2C1B15)),
@@ -1513,8 +1942,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               if (item[0] == 'профиль') {
                 fillProfile();
                 go('editProfile');
-              } else
+              } else if (item[0] == 'уведомления') {
+                go('notifications');
+              } else {
                 missing(item[0]);
+              }
             },
           ),
         const SizedBox(height: 24),
@@ -1670,75 +2102,81 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 31),
-          pill(
-            'сохранить',
-            () async {
-              if (busy) return;
-              final newName = c('profileName').text.trim();
-              if (newName.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Укажите имя продавца')),
-                );
-                return;
-              }
-              if (c('phone2').text.trim().isNotEmpty && !testPreview) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text(
+          pill('сохранить', () async {
+            if (busy) return;
+            final newName = c('profileName').text.trim();
+            if (newName.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Укажите имя продавца')),
+              );
+              return;
+            }
+            if (c('phone2').text.trim().isNotEmpty && !testPreview) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
                     'Сервер пока не поддерживает второй номер. Изменения не сохранены.',
-                  )),
-                );
-                return;
-              }
-              if (['telegram', 'vk', 'whatsapp', 'avito', 'website']
-                  .any((k) => c(k).text.trim().isNotEmpty) && !testPreview) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text(
+                  ),
+                ),
+              );
+              return;
+            }
+            if ([
+                  'telegram',
+                  'vk',
+                  'whatsapp',
+                  'avito',
+                  'website',
+                ].any((k) => c(k).text.trim().isNotEmpty) &&
+                !testPreview) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
                     'Сервер пока не поддерживает сохранение ссылок. Изменения не сохранены.',
-                  )),
+                  ),
+                ),
+              );
+              return;
+            }
+            setState(() => busy = true);
+            try {
+              if (!testPreview) {
+                await widget.api.call(
+                  '/account/profile',
+                  method: 'POST',
+                  body: {'name': newName},
                 );
-                return;
-              }
-              setState(() => busy = true);
-              try {
-                if (!testPreview) {
+                if (merchant['shop'] != null) {
                   await widget.api.call(
-                    '/account/profile',
-                    method: 'POST',
-                    body: {'name': newName},
-                  );
-                  if (merchant['shop'] != null) {
-                    await widget.api.call(
-                      '/merchant/shop',
-                      method: 'PUT',
-                      body: {
-                        'name': newName,
-                        'contact': c('phone').text.trim(),
-                      },
-                    );
-                  }
-                  await reload(navigate: false);
-                }
-                if (!mounted) return;
-                FocusManager.instance.primaryFocus?.unfocus();
-                setState(() {
-                  account['name'] = newName;
-                  history.clear();
-                  screen = 'profile';
-                });
-              } catch (error) {
-                debugPrint('Ошибка сохранения профиля: $error');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text(
-                      'Не удалось сохранить профиль. Проверьте соединение и повторите попытку.',
-                    )),
+                    '/merchant/shop',
+                    method: 'PUT',
+                    body: {'name': newName, 'contact': c('phone').text.trim()},
                   );
                 }
-              } finally {
-                if (mounted) setState(() => busy = false);
+                await reload(navigate: false);
               }
-            },
-          ),
+              if (!mounted) return;
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() {
+                account['name'] = newName;
+                history.clear();
+                screen = 'profile';
+              });
+            } catch (error) {
+              debugPrint('Ошибка сохранения профиля: $error');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Не удалось сохранить профиль. Проверьте соединение и повторите попытку.',
+                    ),
+                  ),
+                );
+              }
+            } finally {
+              if (mounted) setState(() => busy = false);
+            }
+          }),
           const SizedBox(height: 30),
         ],
       ),
@@ -1928,11 +2366,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         return;
                       }
                       if (reject) {
-                        for (final key in ['building', 'floor', 'line', 'number']) c(key).clear();
+                        for (final key in [
+                          'building',
+                          'floor',
+                          'line',
+                          'number',
+                        ])
+                          c(key).clear();
                         c('zone').text = '${pavilion['zone'] ?? ''}';
                         final parts = address(pavilion).split('-');
                         final floorLine = parts.length == 3
-                            ? RegExp(r'^(\d+)(.*)$').firstMatch(parts[1]) : null;
+                            ? RegExp(r'^(\d+)(.*)$').firstMatch(parts[1])
+                            : null;
                         if (parts.length == 3 && floorLine != null) {
                           c('building').text = parts[0];
                           c('floor').text = floorLine.group(1)!;
@@ -2062,7 +2507,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         Expanded(
           child: TextField(
             controller: c('search'),
-            onChanged: (_) => setState(() => searching = true),
+            onChanged: (_) => setState(() {
+              searching = true;
+              selected.clear();
+            }),
             style: type(12, color: Colors.white),
             textAlignVertical: TextAlignVertical.center,
             decoration: InputDecoration(
@@ -2135,7 +2583,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 if (selected.length == items.length) {
                   selected.clear();
                 } else {
-                  selected.addAll(items.map((p) => '${p['id']}'));
+                  selected
+                    ..clear()
+                    ..addAll(items.take(20).map((p) => '${p['id']}'));
+                  if (items.length > 20)
+                    failure(
+                      Exception('За один раз можно выбрать до 20 товаров.'),
+                    );
                 }
               }),
             ),
@@ -2150,35 +2604,30 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     () => go('approved'),
                   ),
                 ),
-                tap(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                for (final mode in ['wholesale', 'retail']) ...[
+                  tap(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: saleFilter == mode ? Colors.black : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: label(
+                        mode == 'wholesale' ? 'опт' : 'розница',
+                        10,
+                        color: saleFilter == mode ? Colors.white : Colors.black,
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: label('опт', 10),
+                    () => setState(() {
+                      saleFilter = saleFilter == mode ? null : mode;
+                      selected.clear();
+                    }),
                   ),
-                  missing,
-                ),
-                const SizedBox(width: 4),
-                tap(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: label('розница', 10, color: Colors.white),
-                  ),
-                  missing,
-                ),
+                  const SizedBox(width: 4),
+                ],
               ],
             ),
             const SizedBox(height: 10),
@@ -2247,12 +2696,24 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                  () => setState(() => selecting = true),
+                  () => setState(() {
+                    selecting = true;
+                    selected.clear();
+                    selectionPavilionId = screen == 'shop'
+                        ? '${pavilion['id']}'
+                        : null;
+                  }),
                 ),
                 if (shop)
                   tap(
                     label('···', 20, bold: true),
-                    () => setState(() => selecting = true),
+                    () => setState(() {
+                      selecting = true;
+                      selected.clear();
+                      selectionPavilionId = screen == 'shop'
+                          ? '${pavilion['id']}'
+                          : null;
+                    }),
                   ),
               ],
             ),
@@ -2278,7 +2739,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                             color: const Color(0xFF7D7D7D),
                           ),
                         ),
-                        () => setState(() => hidden = isHidden),
+                        () => setState(() {
+                          hidden = isHidden;
+                          selected.clear();
+                        }),
                       ),
                     ),
                     if (!isHidden) const SizedBox(width: 30),
@@ -2387,9 +2851,24 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     );
   }
 
+  String productStatus(RowData p, List<RowData> listings) {
+    if (p['status'] == 'pending') return 'на проверке';
+    if (p['status'] == 'rejected') return 'отклонён';
+    if (p['status'] == 'draft') return 'не отправлен';
+    if (listings.any(
+      (l) => l['published'] == true || l['status'] == 'approved',
+    ))
+      return 'опубликован';
+    if (listings.any((l) => l['status'] == 'pending')) return 'на проверке';
+    if (listings.any((l) => l['status'] == 'rejected')) return 'отклонён';
+    return 'скрыт';
+  }
+
   Widget productCard(RowData p, double width) {
     final images = (p['images'] as List? ?? []).cast<String>();
-    final ls = rows(p['listings']);
+    final ls = rows(p['listings'])
+        .where((l) => screen != 'shop' || l['pavilion_id'] == pavilion['id'])
+        .toList();
     return tap(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2404,6 +2883,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   child: images.isEmpty
                       ? Container(color: const Color(0xFFD9D9D9))
                       : PageView(
+                          key: ValueKey('gallery:${p['id']}'),
+                          onPageChanged: (index) =>
+                              setState(() => photoPages['${p['id']}'] = index),
                           children: [
                             for (final url in images) productImage(url, width),
                           ],
@@ -2423,7 +2905,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                             width: 4,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: i == 0
+                              color: i == (photoPages['${p['id']}'] ?? 0)
                                   ? Colors.white
                                   : const Color(0xFFD9D9D9),
                               shape: BoxShape.circle,
@@ -2484,7 +2966,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 ),
               ),
               if (screen == 'shop' && ls.isNotEmpty)
-                label('≈ ${ls.first['price']} ₽', 10, color: muted),
+                label(
+                  ls.first['price'] == null
+                      ? 'цена не указана'
+                      : '≈ ${ls.first['price']} ₽',
+                  10,
+                  color: muted,
+                ),
+              label(productStatus(p, ls), 10, color: muted),
             ],
           ),
         ],
@@ -2493,7 +2982,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         if (selecting) {
           setState(() {
             final id = '${p['id']}';
-            if (!selected.add(id)) selected.remove(id);
+            if (selected.contains(id)) {
+              selected.remove(id);
+            } else if (selected.length < 20) {
+              selected.add(id);
+            } else {
+              failure(Exception('За один раз можно выбрать до 20 товаров.'));
+            }
           });
         } else {
           openEditProduct(p);
@@ -2604,29 +3099,24 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         () => run(() async {
                           if (selected.isEmpty) return;
                           if (!testPreview) {
-                            for (final p in products.where(
-                              (p) => selected.contains('${p['id']}'),
-                            )) {
-                              for (final l in rows(p['listings']).where(
-                                (l) =>
-                                    screen != 'shop' ||
-                                    l['pavilion_id'] == pavilion['id'],
-                              )) {
-                                if (hidden
-                                    ? l['status'] != 'paused'
-                                    : ![
-                                        'approved',
-                                        'pending',
-                                      ].contains(l['status']))
-                                  continue;
-                                await widget.api.call(
-                                  '/merchant/listings/${l['id']}/${hidden ? 'resume' : 'pause'}',
-                                  method: 'POST',
-                                );
-                              }
-                            }
+                            await productActions.batch(
+                              hidden ? 'resume' : 'pause',
+                              {
+                                'product_ids': selected.toList()..sort(),
+                                if (selectionPavilionId != null)
+                                  'pavilion_id': selectionPavilionId,
+                              },
+                            );
                             await reload(navigate: false);
                           }
+                          if (hidden && mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Товары отправлены на проверку перед публикацией',
+                                ),
+                              ),
+                            );
                           setState(() {
                             actions = false;
                             selecting = false;
@@ -2774,14 +3264,22 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 const SizedBox(height: 25),
                 label('Выбрано ${selected.length} товара', 12, color: muted),
                 const SizedBox(height: 25),
-                if (!duplicate) ...[
+                ...[
                   label('Из магазина', 12, color: muted),
                   const SizedBox(height: 12),
                   Container(
                     height: 60,
                     padding: const EdgeInsets.all(20),
                     color: Colors.white,
-                    child: label(address(pavilions.where((p) => '${p['id']}' == sourcePavilionId).firstOrNull ?? pavilion), 14),
+                    child: label(
+                      address(
+                        pavilions
+                                .where((p) => '${p['id']}' == sourcePavilionId)
+                                .firstOrNull ??
+                            pavilion,
+                      ),
+                      14,
+                    ),
                   ),
                   const SizedBox(height: 28),
                 ],
@@ -3002,30 +3500,74 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   );
   Future<void> clearDraftForm() async {
     if (busy) return;
-    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => Center(
-      child: Material(color: Colors.white, borderRadius: BorderRadius.circular(16),
-        child: SizedBox(width: 330, child: Padding(padding: const EdgeInsets.all(20), child: Column(
-          mainAxisSize: MainAxisSize.min, children: [
-            label('Очистить форму?', 16, bold: true),
-            const SizedBox(height: 14),
-            label('Несохранённые данные и выбранные фото будут удалены с устройства. Уже загруженный серверный черновик останется в каталоге.', 12, color: muted),
-            const SizedBox(height: 22),
-            tap(Padding(padding: const EdgeInsets.all(12), child: label('отмена', 14)), () => Navigator.pop(ctx, false)),
-            tap(Padding(padding: const EdgeInsets.all(12), child: label('очистить форму', 14, color: red)), () => Navigator.pop(ctx, true)),
-          ])),)),
-    ));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Center(
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: 330,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  label('Очистить форму?', 16, bold: true),
+                  const SizedBox(height: 14),
+                  label(
+                    'Несохранённые данные и выбранные фото будут удалены с устройства. Уже загруженный серверный черновик останется в каталоге.',
+                    12,
+                    color: muted,
+                  ),
+                  const SizedBox(height: 22),
+                  tap(
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: label('отмена', 14),
+                    ),
+                    () => Navigator.pop(ctx, false),
+                  ),
+                  tap(
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: label('очистить форму', 14, color: red),
+                    ),
+                    () => Navigator.pop(ctx, true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     if (confirmed != true || !mounted) return;
     await run(() async {
       await forgetDraft();
       restoringDraft = true;
       try {
-        photos.clear(); deletedPhotos.clear(); photoReplacements.clear();
-        destinations.clear(); product = {}; originalProduct = {};
-        saveSession = ProductSaveSession(); draftCompleted = false; initialPrice = ''; draftId = null;
-        c('title').clear(); c('price').clear();
+        photos.clear();
+        deletedPhotos.clear();
+        photoReplacements.clear();
+        destinations.clear();
+        product = {};
+        originalProduct = {};
+        saveSession = ProductSaveSession();
+        draftCompleted = false;
+        initialPrice = '';
+        draftId = null;
+        c('title').clear();
+        c('price').clear();
+        saleModes
+          ..clear()
+          ..add('retail');
+        listingModes.clear();
         history.clear();
         setState(() => screen = 'capture');
-      } finally { restoringDraft = false; }
+      } finally {
+        restoringDraft = false;
+      }
       if (!testPreview) activeDraftKey = formKey('new');
     });
   }
@@ -3066,55 +3608,56 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       pick();
                     },
                   ),
-                  (
-                    'скрыть товар',
-                    103,
-                    const Color(0xFF1A1A1A),
-                    () {
-                      Navigator.pop(dialogContext);
-                      run(() async {
-                        if (product['id'] == null) {
-                          missing();
-                          return;
-                        }
-                        if (!testPreview) {
-                          for (final listing in rows(product['listings'])) {
-                            if ([
-                              'approved',
-                              'pending',
-                            ].contains(listing['status'])) {
-                              await widget.api.call(
-                                '/merchant/listings/${listing['id']}/pause',
-                                method: 'POST',
-                              );
-                            }
+                  if (product['id'] != null &&
+                      rows(product['listings']).any(
+                        (l) =>
+                            l['published'] == true || l['status'] == 'approved',
+                      ))
+                    (
+                      'скрыть товар',
+                      103,
+                      const Color(0xFF1A1A1A),
+                      () {
+                        Navigator.pop(dialogContext);
+                        run(() async {
+                          if (product['id'] == null) {
+                            missing();
+                            return;
                           }
-                          await reload(navigate: false);
-                        }
-                        back();
-                      });
-                    },
-                  ),
-                  (
-                    'удалить товар',
-                    149,
-                    const Color(0xFF5F0F10),
-                    () {
-                      Navigator.pop(dialogContext);
-                      selected
-                        ..clear()
-                        ..add('${product['id'] ?? 'draft'}');
-                      showDialog<void>(
-                        context: context,
-                        builder: (_) => Center(child: singleDeleteDialog()),
-                      );
-                    },
-                  ),
+                          if (!testPreview) {
+                            await productActions.batch('pause', {
+                              'product_ids': ['${product['id']}'],
+                            });
+                            await reload(navigate: false);
+                          }
+                          back();
+                        });
+                      },
+                    ),
+                  if (product['id'] != null && product['status'] != 'pending')
+                    (
+                      'удалить товар',
+                      149,
+                      const Color(0xFF5F0F10),
+                      () {
+                        Navigator.pop(dialogContext);
+                        selected
+                          ..clear()
+                          ..add('${product['id'] ?? 'draft'}');
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => Center(child: singleDeleteDialog()),
+                        );
+                      },
+                    ),
                   (
                     'Очистить форму',
                     195,
                     const Color(0xFF5F0F10),
-                    () { Navigator.pop(dialogContext); clearDraftForm(); },
+                    () {
+                      Navigator.pop(dialogContext);
+                      clearDraftForm();
+                    },
                   ),
                   (
                     'отмена',
@@ -3172,7 +3715,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  label('павильон', 12, color: pavilionValidationError ? red : muted),
+                  label(
+                    'павильон',
+                    12,
+                    color: pavilionValidationError ? red : muted,
+                  ),
                   if (pavilionValidationError) ...[
                     const SizedBox(height: 6),
                     label('Выберите павильон', 12, color: red),
@@ -3201,7 +3748,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           () => setState(() {
                             final id = '${p['id']}';
                             if (!destinations.add(id)) destinations.remove(id);
-                            if (destinations.isNotEmpty) pavilionValidationError = false;
+                            if (edit && !listingModes.containsKey(id)) {
+                              listingModes[id] = Set.of(saleModes);
+                              c('price:$id').text = c('price').text;
+                            }
+                            if (destinations.isNotEmpty)
+                              pavilionValidationError = false;
                           }),
                         ),
                     ],
@@ -3209,9 +3761,30 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            const SizedBox(height: 8),
             if (!edit || rows(originalProduct['listings']).isEmpty) ...[
-              const SizedBox(height: 8),
               V3Field('цена', c('price'), keyboard: TextInputType.number),
+              const SizedBox(height: 8),
+              saleModeFields(saleModes),
+            ] else ...[
+              for (final id in destinations) ...[
+                label(
+                  address(
+                    pavilions.where((p) => '${p['id']}' == id).firstOrNull ??
+                        {},
+                  ),
+                  12,
+                ),
+                const SizedBox(height: 6),
+                V3Field(
+                  'цена',
+                  listingModes.containsKey(id) ? c('price:$id') : c('price'),
+                  keyboard: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                saleModeFields(listingModes[id] ?? saleModes),
+                const SizedBox(height: 12),
+              ],
             ],
             SizedBox(height: edit ? 22 : 8),
             LayoutBuilder(
@@ -3234,9 +3807,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                                 child: i < urls.length
                                     ? productImage(urls[i], width)
                                     : FutureBuilder(
-                                        future: photos[i - urls.length].readAsBytes(),
-                                        builder: (ctx, snapshot) => snapshot.hasData
-                                            ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                                        future: photos[i - urls.length]
+                                            .readAsBytes(),
+                                        builder: (ctx, snapshot) =>
+                                            snapshot.hasData
+                                            ? Image.memory(
+                                                snapshot.data!,
+                                                fit: BoxFit.cover,
+                                              )
                                             : Container(color: muted),
                                       ),
                               ),
@@ -3244,7 +3822,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                                 bottom: 8,
                                 right: 8,
                                 child: tap(
-                                  const Icon(Icons.sync, color: Colors.white, size: 23),
+                                  const Icon(
+                                    Icons.sync,
+                                    color: Colors.white,
+                                    size: 23,
+                                  ),
                                   () => replaceProductPhoto(i, urls.length),
                                   name: 'Заменить фотографию',
                                 ),
@@ -3273,7 +3855,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           child: InkWell(
                             onTap: () => pick(),
                             child: const Center(
-                              child: Icon(Icons.add, size: 30, color: Colors.white),
+                              child: Icon(
+                                Icons.add,
+                                size: 30,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -3310,8 +3896,34 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ),
       trailing: tap(
         asset(edit ? 'f5ab0.svg' : '8cf4e.svg', width: 24, height: 24),
-        productMenu,
-        name: 'Действия с товаром',
+        edit
+            ? () => showDialog<void>(
+                context: context,
+                builder: (ctx) => Dialog(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IgnorePointer(
+                            child: productCard(
+                              product,
+                              math.min(280, MediaQuery.sizeOf(ctx).width - 100),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('закрыть'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : productMenu,
+        name: edit ? 'Просмотр товара' : 'Действия с товаром',
       ),
     );
   }

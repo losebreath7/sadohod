@@ -51,7 +51,7 @@ def revision(engine):
 def test_fresh_database_matches_models_and_repeat_is_noop():
     engine = sa.create_engine('sqlite://')
     upgrade_database(engine)
-    assert revision(engine) == '20261116_03'
+    assert revision(engine) == '20261116_05'
     with engine.connect() as c:
         assert compare_metadata(MigrationContext.configure(c), Base.metadata) == []
     before = contents(engine)
@@ -73,7 +73,7 @@ def test_copy_of_existing_database_preserves_every_row(tmp_path):
     assert contents(target) == before
     assert 'alembic_version' not in sa.inspect(source).get_table_names()
     assert contents(source) == before
-    assert revision(target) == '20261116_03'
+    assert revision(target) == '20261116_05'
 
 
 @pytest.mark.parametrize('change', [
@@ -99,7 +99,7 @@ def test_older_partial_schema_adds_missing_tables_and_indexes():
     with engine.begin() as c:
         c.execute(metadata.tables['pavilions'].insert(), {'id':'keep', 'code':'81', 'zone':'Б'})
     upgrade_database(engine)
-    assert revision(engine) == '20261116_03'
+    assert revision(engine) == '20261116_05'
     with engine.connect() as c:
         assert c.scalar(sa.text('SELECT code FROM pavilions')) == '81'
     assert len(sa.inspect(engine).get_table_names()) == len(Base.metadata.tables) + 1
@@ -117,7 +117,7 @@ def test_concurrent_startup_serializes_migrations(tmp_path):
     for process in processes:
         out, err = process.communicate(timeout=30)
         assert process.returncode == 0, (out, err)
-    assert revision(engine) == '20261116_03'
+    assert revision(engine) == '20261116_05'
 
 
 def test_baseline_downgrade_refuses_to_delete_data():
@@ -131,7 +131,7 @@ def test_baseline_downgrade_refuses_to_delete_data():
         with pytest.raises(RuntimeError, match='downgrade is disabled'):
             command.downgrade(config, 'base')
     assert contents(engine) == before
-    assert revision(engine) == '20261116_03'
+    assert revision(engine) == '20261116_05'
 
 
 def test_existing_published_reviews_stay_visible_after_moderation_migration():

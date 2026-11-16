@@ -73,7 +73,7 @@ class DraftProductInput(BaseModel):
 
 class ListingInput(BaseModel):
     pavilion_id: str = Field(min_length=1, max_length=32)
-    price: int = Field(ge=0, le=100000000, strict=True)
+    price: int | None = Field(default=None, ge=0, le=100000000, strict=True)
     sale_modes: list[Literal['wholesale', 'retail']] = Field(min_length=1, max_length=2)
 
     @field_validator('sale_modes')
@@ -168,7 +168,7 @@ def as_listing(db, row):
     return {'id': row.id, 'product_id': row.product_id, 'pavilion_id': row.pavilion_id,
             'pavilion': {'zone': pavilion.zone, 'code': pavilion.code} if pavilion else None,
             'price': row.price, 'sale_modes': (['wholesale'] if row.wholesale else []) + (['retail'] if row.retail else []),
-            'status': row.status, 'note': row.note}
+            'status': row.status, 'note': row.note, 'published': row.offer_id is not None}
 
 
 def as_product(db, owner):
@@ -487,6 +487,8 @@ def edit_listing(lid: str, data: ListingInput, buyer: Buyer = Depends(current_bu
 def pause_listing(lid: str, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     seller = shop_for(buyer, db)
     row = listing_for(lid, seller, db)
+    if row.status == 'paused':
+        return as_listing(db, row)
     if row.status not in ('approved', 'pending') or row.offer_id is None:
         raise HTTPException(409, 'Снять с продажи можно только ранее опубликованное предложение.')
     if row.offer_id:
@@ -659,12 +661,12 @@ def decide_product(pid: str, body: ProductDecisionInput, db: Session = Depends(g
             mark_manual(db, p)
         if not p.images:
             raise HTTPException(409, 'Нельзя публиковать товар без фотографии.')
-        rows = db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid, MerchantListing.status.in_(['pending','approved']))).all()
+        rows = db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid, MerchantListing.status.in_(['pending','approved','paused']))).all()
         if not rows:
             raise HTTPException(409, 'Нельзя публиковать товар без доступных предложений.')
         for row in rows:
             if row.status == 'pending': publish_listing(db, row)
-        p.details.active = True
+        p.details.active = any(row.offer_id is not None for row in rows)
     else:
         p.details.active = False
         for row in db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid, MerchantListing.status == 'pending')):

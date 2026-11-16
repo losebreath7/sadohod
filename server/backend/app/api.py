@@ -29,7 +29,7 @@ def serialize_sale_modes(offer: Offer) -> list[str]:
 
 
 def serialize_product(product: Product) -> dict:
-    offers = sorted(product.offers, key=lambda item: item.price)
+    offers = sorted(product.offers, key=lambda item: (item.price is None, item.price if item.price is not None else 0, item.id))
     offer = offers[0] if offers else None
     images = sorted(product.images, key=lambda item: (item.ordering.position if item.ordering else -1, item.id))
     return {

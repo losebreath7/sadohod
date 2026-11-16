@@ -5,7 +5,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, integration/buyer-seller-r8-qa]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,8 @@ jobs:
       - name: Проверки синхронизации версий
         working-directory: tools
         run: python test_version.py
+      - name: Релизный ZIP из чистого клона
+        run: python tools/package_release.py "${{ runner.temp }}/sadohod_source_ci.zip"
       - name: Подписи версий в админке (JavaScript)
         working-directory: server/preview
         run: node test_build_label.cjs
@@ -78,11 +80,51 @@ jobs:
         run: flutter test
       - name: Flutter Web build
         run: flutter build web --dart-define=API_BASE_URL=http://localhost:8000
+      - name: Preview web build для визуальной проверки Figma
+        run: flutter build web --dart-define=FIGMA_PREVIEW=true --dart-define=API_BASE_URL=http://localhost:8000
+      - name: Сохранить Flutter Web для проверки в Chrome
+        uses: actions/upload-artifact@v4
+        with:
+          name: figma-preview-${{ matrix.app }}
+          path: ${{ matrix.app }}/build/web/
+          retention-days: 3
+
+
+  visual:
+    name: Chrome screenshots (${{ matrix.app }})
+    needs: flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [seller_app, buyer_app]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: figma-preview-${{ matrix.app }}
+          path: preview
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser automation
+        run: python -m pip install playwright==1.56.0 pillow==11.3.0
+      - name: Real Chrome screenshots at iPhone 16 Pro width
+        run: python tools/visual_smoke.py --app ${{ matrix.app }} --build preview --output chrome-screenshots
+      - name: Save screenshots for manual visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-screenshots-${{ matrix.app }}
+          path: chrome-screenshots/
+          if-no-files-found: warn
+          retention-days: 7
 
   gate:
     name: ворота
     if: always()
-    needs: [versions, server, flutter]
+    needs: [versions, server, flutter, visual]
     runs-on: ubuntu-latest
     steps:
       - name: Проверить результат всех заданий
@@ -90,10 +132,13 @@ jobs:
           VERSIONS: ${{ needs.versions.result }}
           SERVER: ${{ needs.server.result }}
           FLUTTER: ${{ needs.flutter.result }}
+          VISUAL: ${{ needs.visual.result }}
         run: |
           echo "versions: $VERSIONS"
           echo "server:   $SERVER"
           echo "flutter:  $FLUTTER"
+          echo "visual:   $VISUAL"
           test "$VERSIONS" = success
           test "$SERVER" = success
           test "$FLUTTER" = success
+          test "$VISUAL" = success
