@@ -1,6 +1,6 @@
 <svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="ICON / &#208;&#146;&#209;&#139;&#208;&#177;&#208;&#190;&#209;&#128; &#208;&#189;&#208;&#181;&#209;&#129;&#208;&#186;&#208;&#190;&#208;&#187;&#209;&#140;&#208;&#186;&#208;&#184;&#209;&#133; &#209;&#130;&#208;&#190;&#208;&#178;&#208;&#176;&#209;&#128;&#208;&#190;&#208;&#178;">
-<path id="Vector" d="M3.75 1.875H11.25C12.2855 1.875 13.125 2.71447 13.125 3.75V11.25C13.125 12.2855 12.2855 13.125 11.25 13.125H3.75C2.71447 13.125 1.875 12.2855 1.875 11.25V3.75C1.875 2.71447 2.71447 1.875 3.75 1.875Z" stroke-linecap="round" stroke-linejoin="round" stroke="#171717"/>
-<path id="Vector_2" d="M5 7.5L6.875 9.375L10 5.625" stroke-linecap="round" stroke-linejoin="round" stroke="#171717"/>
+<path id="Vector" d="M3.75 1.875H11.25C12.2855 1.875 13.125 2.71447 13.125 3.75V11.25C13.125 12.2855 12.2855 13.125 11.25 13.125H3.75C2.71447 13.125 1.875 12.2855 1.875 11.25V3.75C1.875 2.71447 2.71447 1.875 3.75 1.875Z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#171717"/>
+<path id="Vector_2" d="M5 7.5L6.875 9.375L10 5.625" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#171717"/>
 </g>
 </svg>
