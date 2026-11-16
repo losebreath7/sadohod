@@ -77,14 +77,14 @@ class _ProductScreenState extends State<ProductScreen> {
         child: Column(children: [
           Container(
             height: 75,
-            padding: const EdgeInsets.fromLTRB(30, 37, 30, 7),
+            padding: const EdgeInsets.fromLTRB(30, 41, 30, 9),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [
               const RoundBack(),
               Expanded(child: Text(address, textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-              SizedBox(width: 30, height: 30, child: FavoriteButton(p.id)),
+              SizedBox(width: 30, height: 25, child: FavoriteButton(p.id)),
             ]),
           ),
           Expanded(child: ListView(
