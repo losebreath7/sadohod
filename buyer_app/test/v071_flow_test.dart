@@ -5,6 +5,7 @@ import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/features/home/home_screen.dart';
 import 'package:sadohod/core/widgets/common.dart';
+import 'package:sadohod_shared_core/chat_widgets.dart';
 
 void main() {
   test('selected offer modes are decoded from API', () {
@@ -39,5 +40,16 @@ void main() {
     expect(find.byType(SliverPersistentHeader), findsOneWidget);
     expect(find.text('Все товары'), findsNothing);
     expect(find.text('найти по фото'), findsOneWidget);
+  });
+  test('chat delivery updates without a new message ID', () {
+    final pending = <Map<String, dynamic>>[
+      {'id': 'one', 'delivered': false, 'staff': false},
+    ];
+    final delivered = <Map<String, dynamic>>[
+      {'id': 'one', 'delivered': true, 'staff': false},
+    ];
+    expect(sadohodChatMessagesChanged(pending, pending), isFalse);
+    expect(sadohodChatMessagesChanged(pending, delivered), isTrue);
+    expect(sadohodChatMessagesChanged(delivered, delivered), isFalse);
   });
 }
