@@ -75,14 +75,16 @@ void main() {
       matching: find.byType(Scrollable),
     ).first;
     final initialVertical = tester.state<ScrollableState>(vertical).position.pixels;
-
-    final drag = await tester.startGesture(
-      tester.getCenter(find.text('верхняя одежда')),
-      kind: PointerDeviceKind.mouse,
+    final railPosition = tester.state<ScrollableState>(horizontal).position;
+    expect(railPosition.maxScrollExtent, greaterThan(0));
+    expect(
+      ScrollConfiguration.of(tester.element(horizontal)).dragDevices,
+      contains(PointerDeviceKind.mouse),
     );
-    await drag.moveBy(const Offset(-110, 0));
-    await tester.pump();
-    await drag.up();
+
+    // Test the actual viewport, not an InkWell text child. This also
+    // synthesizes the complete pressed-button mouse gesture.
+    await tester.drag(tags, const Offset(-140, 0), kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
 
     expect(tester.state<ScrollableState>(horizontal).position.pixels, greaterThan(0));
