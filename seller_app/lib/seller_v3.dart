@@ -174,37 +174,26 @@ class V3Header extends StatelessWidget {
               ),
             ),
           ),
+          // All header items align to the same 44px vertical axis.
           Positioned(
-            left: 60,
-            right: 60,
-            bottom: 8,
-            child: label(
-              title,
-              large ? 22 : 16,
-              bold: true,
-              align: TextAlign.center,
-            ),
+            left: 0, right: 0, bottom: 4, height: 44,
+            child: Center(child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 66),
+              child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: type(large ? 22 : 16, bold: true)),
+            )),
           ),
           Positioned(
-            left: 18,
-            bottom: 5,
-            width: 42,
-            height: 42,
+            left: 18, bottom: 4, width: 44, height: 44,
             child: tap(
-              Align(
-                alignment: Alignment.topCenter,
-                child: label('‹', 30, bold: true),
-              ),
-              back,
-              name: 'Назад',
+              const Center(child: Icon(Icons.chevron_left, size: 27)),
+              back, name: 'Назад',
             ),
           ),
           if (trailing != null)
             Positioned(
-              right: 18,
-              bottom: 3,
-              width: 44,
-              height: 44,
+              right: 18, bottom: 4, width: 44, height: 44,
               child: Center(child: trailing!),
             ),
         ],
@@ -2543,10 +2532,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             }),
             style: type(12, color: Colors.white),
             textAlignVertical: TextAlignVertical.center,
+            expands: true,
+            minLines: null,
+            maxLines: null,
             decoration: InputDecoration(
               hintText: 'поиск',
               hintStyle: type(12, color: Colors.white),
-              isDense: true,
+              isCollapsed: true,
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
             ),
@@ -2600,9 +2592,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     height: 12,
                     decoration: BoxDecoration(
                       color: items.isNotEmpty && selected.length == items.length
-                          ? blue
-                          : Colors.white,
+                          ? blue : Colors.white,
                       shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFC8C8C8)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -2719,11 +2711,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     width: 24,
                     height: 24,
                     child: Center(
-                      child: asset(
-                        shop ? 'ac2f9.svg' : 'e36ac.svg',
-                        width: 15,
-                        height: 15,
-                      ),
+                      child: const Icon(Icons.check_box_outlined,
+                          size: 19, color: Colors.black),
                     ),
                   ),
                   () => setState(() {
@@ -2736,14 +2725,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 ),
                 if (shop)
                   tap(
-                    label('···', 20, bold: true),
-                    () => setState(() {
-                      selecting = true;
-                      selected.clear();
-                      selectionPavilionId = screen == 'shop'
-                          ? '${pavilion['id']}'
-                          : null;
-                    }),
+                    const SizedBox(width: 24, height: 24,
+                      child: Center(child: Icon(Icons.more_horiz, size: 22))),
+                    () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Функция в разработке'),
+                        duration: Duration(seconds: 2))),
+                    name: 'Дополнительные действия',
                   ),
               ],
             ),
@@ -2870,7 +2857,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         color: Colors.white,
                       ),
                     ),
-                    label('действия  ⌃', 14, color: Colors.white),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        label('действия', 14, color: Colors.white),
+                        const SizedBox(width: 5),
+                        const Icon(Icons.keyboard_arrow_up, size: 19,
+                          color: Colors.white),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2965,7 +2960,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                             ? blue
                             : Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white),
+                        border: Border.all(
+                          color: selected.contains('${p['id']}')
+                              ? blue : const Color(0xFFC8C8C8),
+                          width: 1,
+                        ),
                       ),
                       child: selected.contains('${p['id']}')
                           ? Center(child: label('✓', 16, color: Colors.white))
@@ -2976,35 +2975,53 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 8),
-          if (screen != 'shop')
-            label(
-              ls.isNotEmpty
-                  ? address(
-                      Map<String, dynamic>.from(ls.first['pavilion'] ?? {}),
-                    )
-                  : '',
-              12,
-            ),
-          const SizedBox(height: 3),
-          Row(
-            children: [
-              Expanded(
-                child: label(
-                  '${p['title']}',
-                  10,
-                  color: const Color(0xFF7D7D7D),
+          // A fixed metadata block prevents card height changes between rows.
+          SizedBox(
+            width: width,
+            height: 83,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (screen != 'shop')
+                  SizedBox(
+                    height: 15,
+                    child: Text(
+                      ls.isNotEmpty
+                          ? address(Map<String, dynamic>.from(
+                              ls.first['pavilion'] ?? {}))
+                          : '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: type(11, color: muted),
+                    ),
+                  ),
+                SizedBox(
+                  height: 27,
+                  child: Text(
+                    '${p['title'] ?? ''}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: type(10, color: const Color(0xFF7D7D7D)),
+                  ),
                 ),
-              ),
-              if (screen == 'shop' && ls.isNotEmpty)
-                label(
-                  ls.first['price'] == null
+                const SizedBox(height: 3),
+                Text(
+                  ls.isEmpty || ls.first['price'] == null
                       ? 'цена не указана'
                       : '≈ ${ls.first['price']} ₽',
-                  10,
-                  color: muted,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type(10, color: muted),
                 ),
-              label(productStatus(p, ls), 10, color: muted),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  productStatus(p, ls),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type(10, color: muted),
+                ),
+              ],
+            ),
           ),
         ],
       ),
