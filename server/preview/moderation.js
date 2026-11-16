@@ -159,7 +159,7 @@ function section(parent,title){
 }
 function addPictures(parent,pictures){
   const safe=pictures.map(source=>{
-    if(/^\/media\/products\/[a-zA-Z0-9_.-]+$/.test(source))return source;
+    if(/^\/media\/products\/(?:uploads\/)?[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp)$/i.test(source))return source;
     if(/^[A-Za-z0-9+/=]{40,650000}$/.test(source))return 'data:image/jpeg;base64,'+source;
     return null;
   }).filter(Boolean);
