@@ -612,3 +612,7 @@ tools/test_version.py
 ПРОВЕРИТЬ САДОХОД.bat
 ПРОВЕРИТЬ СЕРВЕРНЫЕ ТЕСТЫ.bat
 УПРАВЛЕНИЕ МОДЕРАТОРАМИ.bat
+server/backend/migrations/versions/20261116_04_optional_price.py
+server/backend/tests/test_product_lifecycle.py
+server/backend/tests/test_migration_graph.py
+seller_app/test/product_lifecycle_test.dart
