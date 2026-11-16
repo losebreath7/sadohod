@@ -68,7 +68,7 @@ class _SellerTelegramChatState extends State<SellerTelegramChat> {
           .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
       final previousId = _messages.isEmpty ? '' : '${_messages.last['id']}';
       final nextId = next.isEmpty ? '' : '${next.last['id']}';
-      final changed = jumpToLatest || previousId != nextId || _messages.length != next.length;
+      final changed = jumpToLatest || sadohodChatMessagesChanged(_messages, next);
       if (changed || _error == 'Не удалось загрузить переписку') {
         setState(() {
           if (changed) _messages = next;
