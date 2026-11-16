@@ -16,16 +16,18 @@ void main() {
       ),
     ))));
 
-    final first = tester.getSize(find.byType(SadohodChatComposer)).height;
+    // The isolated Align may occupy the whole viewport; measure the
+    // actual editable field, whose intrinsic height must grow with content.
+    final first = tester.getSize(find.byType(TextField)).height;
     await tester.enterText(find.byType(TextField),
         'Первая строка\nВторая строка\nТретья строка\nЧетвёртая строка');
     await tester.pumpAndSettle();
-    final expanded = tester.getSize(find.byType(SadohodChatComposer)).height;
+    final expanded = tester.getSize(find.byType(TextField)).height;
     expect(expanded, greaterThan(first));
     await tester.enterText(find.byType(TextField),
         List.filled(25, 'Длинная строка').join('\n'));
     await tester.pumpAndSettle();
-    final capped = tester.getSize(find.byType(SadohodChatComposer)).height;
+    final capped = tester.getSize(find.byType(TextField)).height;
     expect(capped, lessThan(155));
     expect(find.bySemanticsLabel('Отправить сообщение'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -50,7 +52,7 @@ void main() {
     expect(field.textAlignVertical, TextAlignVertical.center);
     expect(field.minLines, 1);
     expect(field.maxLines, 5);
-    expect(tester.getSize(find.byType(SadohodChatComposer)).height,
+    expect(tester.getSize(find.byType(TextField)).height,
         inInclusiveRange(43, 50));
     expect(tester.takeException(), isNull);
   });
