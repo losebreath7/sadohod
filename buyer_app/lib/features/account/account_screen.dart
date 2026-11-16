@@ -6,8 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/account.dart';
 import '../../data/api.dart';
-import '../../data/catalog.dart';
-import '../../core/widgets/common.dart';
 import '../../core/widgets/design.dart';
 
 class AccountScreen extends StatefulWidget {
