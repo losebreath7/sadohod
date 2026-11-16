@@ -132,3 +132,24 @@ def test_baseline_downgrade_refuses_to_delete_data():
             command.downgrade(config, 'base')
     assert contents(engine) == before
     assert revision(engine) == '20261116_03'
+
+
+def test_existing_published_reviews_stay_visible_after_moderation_migration():
+    engine = sa.create_engine('sqlite://')
+    populate_legacy(engine)
+    with engine.begin() as c:
+        c.execute(metadata.tables['seller_reviews_v082'].insert(), {
+            'id': 'original-review', 'buyer': 'buyer', 'seller': 'seller',
+            'rating': 5, 'text': 'Старый опубликованный отзыв',
+            'photos': [], 'hidden': False, 'reply': 'Спасибо!',
+            'created_at': 100.0, 'updated_at': 100.0,
+        })
+    upgrade_database(engine)
+    with engine.connect() as c:
+        values = c.execute(sa.text(
+            'SELECT moderation_status, text, reply, rating '
+            'FROM seller_reviews_v082 WHERE id=:id'),
+            {'id':'original-review'}).one()
+        assert tuple(values) == (
+            'approved', 'Старый опубликованный отзыв', 'Спасибо!', 5)
+    engine.dispose()
