@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_notifications.dart';
+import 'package:sadohod_seller/seller_v3.dart';
 
 class FakeNotificationApi extends SellerApi {
   FakeNotificationApi() { token = 'test-only-session'; }
@@ -37,6 +38,29 @@ class FakeNotificationApi extends SellerApi {
 }
 
 void main() {
+  testWidgets('profile opens real notification page and back restores profile',
+      (tester) async {
+    final api = FakeNotificationApi();
+    tester.view.physicalSize = const Size(402, 874);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        home: SellerV3(api: api, initialFrame: '366:15805')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('уведомления'));
+    await tester.pumpAndSettle();
+    expect(find.text('НОВЫЕ'), findsOneWidget);
+    expect(find.text('Причина: Поменяйте фотографию'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+    await tester.pumpAndSettle();
+    expect(find.text('НОВЫЕ'), findsNothing);
+    expect(find.text('уведомления'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+
   testWidgets('seller moderation inbox shows reasons and navigates to product',
       (tester) async {
     final api = FakeNotificationApi();
