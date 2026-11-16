@@ -10,11 +10,13 @@ class SellerSettingsPage extends StatefulWidget {
     required this.api,
     required this.onSignedOut,
     required this.onOpenInfo,
+    required this.onOpenSupport,
   });
 
   final SellerApi api;
   final VoidCallback onSignedOut;
   final ValueChanged<String> onOpenInfo;
+  final VoidCallback onOpenSupport;
 
   @override
   State<SellerSettingsPage> createState() => _SellerSettingsPageState();
@@ -54,14 +56,20 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
 
   Future<void> deleteAccount() async {
     if (busy) return;
-    final confirmed = await showDialog<bool>(
+    // Both applications share the same Buyer account. DELETE /account is
+    // destructive for the buyer too and can orphan active merchant data.
+    // Do not call it from the seller app before a dedicated deletion workflow
+    // has been designed and verified.
+    final openSupport = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Удалить аккаунт?'),
+        title: const Text('Удаление кабинета продавца'),
         content: const Text(
-          'Аккаунт связан с вашими торговыми точками и товарами. '
-          'Удаление необратимо и может затронуть их доступность. '
-          'Восстановить аккаунт после удаления нельзя.',
+          'Кабинет продавца связан с общим аккаунтом покупателя. '
+          'Автоматическое удаление сейчас недоступно: можно потерять доступ '
+          'к павильонам, товарам и заявкам. '
+          'Напишите в поддержку для безопасного удаления кабинета. '
+          'До обработки обращения данные не удаляются.',
         ),
         actions: [
           TextButton(
@@ -70,22 +78,15 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Удалить', style: TextStyle(color: accent)),
+            child: const Text(
+              'Написать в поддержку',
+              style: TextStyle(color: accent),
+            ),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    setState(() => busy = true);
-    try {
-      await widget.api.call('/account', method: 'DELETE');
-      await widget.api.logout();
-      if (mounted) widget.onSignedOut();
-    } catch (_) {
-      message('Не удалось удалить аккаунт. Попробуйте позже.');
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
+    if (openSupport == true && mounted) widget.onOpenSupport();
   }
 
   @override

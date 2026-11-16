@@ -1525,6 +1525,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             requests = [];
             unreadNotifications = 0;
           }),
+          onOpenSupport: () => missing('поддержка'),
           onOpenInfo: (kind) => go(kind == 'about'
               ? 'settingsAbout'
               : kind == 'terms' ? 'settingsTerms' : 'settingsPrivacy'),

@@ -266,6 +266,26 @@ def logout(authorization: str = Header(default=''), buyer: Buyer = Depends(curre
 
 @router.delete('/account')
 def remove_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    # Shared buyer credentials may also own a merchant shop. Refuse to remove
+    # the owner while the shop/pavilions/products are still attached: doing so
+    # can revoke the only access to that merchant's records.
+    from .merchant_models import ShopMembership, ShopApplication
+    db.scalar(select(Buyer.id).where(Buyer.id == buyer.id).with_for_update())
+    owns_shop = db.scalar(
+        select(ShopMembership.buyer_id).where(ShopMembership.buyer_id == buyer.id)
+    )
+    has_pending_application = db.scalar(
+        select(ShopApplication.id).where(
+            ShopApplication.buyer_id == buyer.id,
+            ShopApplication.status.in_(('pending', 'approved')),
+        )
+    )
+    if owns_shop is not None or has_pending_application is not None:
+        raise HTTPException(
+            status_code=409,
+            detail='Аккаунт связан с кабинетом продавца или действующей заявкой. '
+                   'Для безопасного удаления обратитесь в поддержку.',
+        )
     db.execute(delete(Favorite).where(Favorite.buyer == buyer.id))
     db.execute(delete(BuyerSession).where(BuyerSession.buyer == buyer.id))
     db.execute(delete(LoginCode).where(LoginCode.email == buyer.email))

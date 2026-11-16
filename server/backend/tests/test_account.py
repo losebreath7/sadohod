@@ -49,6 +49,49 @@ def test_login_favorites_isolation_and_deletion(setup):
         assert db.scalar(select(auth.Buyer).where(auth.Buyer.email=='a@example.com')) is None
         assert len(db.scalars(select(auth.Favorite)).all())==0
 
+def test_shared_account_deletion_blocked_when_seller_owns_shop(setup):
+    from backend.app.models import Pavilion, Seller
+    from backend.app.merchant_models import ShopMembership
+
+    client, codes, sessions = setup
+    auth_headers = login(client, codes, 'seller-guard@example.com')
+    with sessions() as db:
+        buyer = db.scalar(select(auth.Buyer).where(auth.Buyer.email == 'seller-guard@example.com'))
+        db.add(Pavilion(id='p-guard', zone='Б', code='82'))
+        db.flush()
+        db.add(Seller(id='s-guard', name='Seller', pavilion_id='p-guard'))
+        db.flush()
+        db.add(ShopMembership(buyer_id=buyer.id, seller_id='s-guard', role='owner'))
+        db.commit()
+
+    response = client.delete('/api/v1/account', headers=auth_headers)
+    assert response.status_code == 409
+    assert 'поддержк' in response.json()['detail'].lower()
+    assert client.get('/api/v1/account', headers=auth_headers).status_code == 200
+    with sessions() as db:
+        assert db.get(Seller, 's-guard') is not None
+        assert db.get(ShopMembership, buyer.id) is not None
+
+
+def test_shared_account_deletion_blocked_for_pending_shop_application(setup):
+    from backend.app.merchant_models import ShopApplication
+
+    client, codes, sessions = setup
+    auth_headers = login(client, codes, 'pending-shop@example.com')
+    with sessions() as db:
+        buyer = db.scalar(select(auth.Buyer).where(auth.Buyer.email == 'pending-shop@example.com'))
+        db.add(ShopApplication(id='a-guard', buyer_id=buyer.id,
+                               shop_name='Точка', contact='', zone='Б', code='82',
+                               status='pending'))
+        db.commit()
+
+    response = client.delete('/api/v1/account', headers=auth_headers)
+    assert response.status_code == 409
+    assert client.get('/api/v1/account', headers=auth_headers).status_code == 200
+    with sessions() as db:
+        assert db.get(ShopApplication, 'a-guard') is not None
+
+
 def test_otp_replay_wrong_attempts_expiry(setup):
     c,codes,sessions=setup
     a=login(c,codes,'a@example.com')
