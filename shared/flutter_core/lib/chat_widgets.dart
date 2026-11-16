@@ -5,6 +5,22 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 /// Shared presentation for all four Sadohod chats. The account API, message
 /// polling and Telegram routing remain independent in the two applications.
+///
+/// Polls must repaint when Telegram delivery changes even if there is no new
+/// message ID. Both applications use this same comparison.
+bool sadohodChatMessagesChanged(
+  List<Map<String, dynamic>> previous,
+  List<Map<String, dynamic>> next,
+) {
+  if (previous.length != next.length) return true;
+  for (var i = 0; i < next.length; i++) {
+    if (previous[i]['id'] != next[i]['id'] ||
+        (previous[i]['delivered'] == true) != (next[i]['delivered'] == true)) {
+      return true;
+    }
+  }
+  return false;
+}
 class SadohodChatHeader extends StatelessWidget {
   const SadohodChatHeader({
     super.key,
@@ -238,6 +254,7 @@ class SadohodChatConversation extends StatelessWidget {
                         : null,
                     sent: m['sent'] is num
                         ? (m['sent'] as num).toDouble() : null,
+                    delivered: m['delivered'] == true,
                   ),
                 );
               },
@@ -279,17 +296,17 @@ class SadohodChatBubble extends StatelessWidget {
     required this.mine,
     this.attachment,
     this.sent,
-    this.read,
+    this.delivered = false,
   });
 
   final String text;
   final bool mine;
   final Map<String, dynamic>? attachment;
   final double? sent;
-  /// Only true when a future server response explicitly confirms read status.
-  /// The current API does not provide this, so show one sent check, not a fake
-  /// double-read receipt. Incoming staff messages do not show our checks.
-  final bool? read;
+  /// True only after the server confirms Telegram delivery (not read).
+  /// A stored-but-pending message gets one gray check. A delivered message
+  /// gets two gray checks; there is no unsupported blue "read" state.
+  final bool delivered;
 
   String get displayTime {
     if (sent == null) return '';
@@ -315,17 +332,19 @@ class SadohodChatBubble extends StatelessWidget {
 
   Widget _meta() => Row(
     mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.end,
     children: [
       Text(displayTime,
         style: const TextStyle(fontFamily: 'Helvetica', fontSize: 10,
           height: 1.2, color: Color(0xFF929292))),
       if (mine) ...[
         const SizedBox(width: 4),
-        if (read == true)
-          SvgPicture.asset('assets/figma/v083_chat_checks.svg',
-            width: 12, height: 7)
+        if (delivered)
+          const Icon(Icons.done_all, size: 14,
+            color: Color(0xFF929292), semanticLabel: 'Доставлено в Telegram')
         else
-          const Icon(Icons.check, size: 12, color: Color(0xFF929292)),
+          const Icon(Icons.check, size: 12,
+            color: Color(0xFF929292), semanticLabel: 'Отправлено'),
       ],
     ],
   );
@@ -366,6 +385,8 @@ class SadohodChatBubble extends StatelessWidget {
           }
           if (inlineMeta) {
             return Row(
+              // Without this, the time sits halfway up the 18px text line.
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(child: Text(text, style: messageStyle,
                   maxLines: 1, overflow: TextOverflow.ellipsis)),

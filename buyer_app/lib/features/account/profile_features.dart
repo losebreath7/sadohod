@@ -487,7 +487,7 @@ class _BuyerChatScreenState extends State<BuyerChatScreen> {
       final previousLast = _messages.isEmpty ? '' : _messages.last['id']?.toString() ?? '';
       final nextLast = newer.isEmpty ? '' : newer.last['id']?.toString() ?? '';
       // Avoid rebuilding and jumping a chat that hasn't changed.
-      final changed = previousLast != nextLast || _messages.length != newer.length || jumpToLatest;
+      final changed = jumpToLatest || sadohodChatMessagesChanged(_messages, newer);
       // A previously failed GET must not leave a stale red error behind after
       // a successful poll when the number and IDs of messages are unchanged.
       if (changed || _error == 'Не удалось загрузить переписку') {

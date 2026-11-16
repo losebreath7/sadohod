@@ -17,7 +17,7 @@ from .buyer_extras import (
     BuyerMessage, BuyerChatAttachment, attachment_bytes, attachment_infos,
     create_auto_reply, create_first_auto_ack, rate_limit,
 )
-from .telegram_bridge import make_outbox
+from .telegram_bridge import make_outbox, delivered_message_ids
 
 router = APIRouter(prefix='/api/v1/merchant/chat', tags=['Merchant chat'])
 KINDS = {'support': 'm_support', 'cooperation': 'm_cooperation'}
@@ -44,7 +44,9 @@ def messages(kind: Literal['support', 'cooperation'], buyer: Buyer = Depends(cur
     records = db.scalars(select(BuyerMessage).where(BuyerMessage.buyer == buyer.id,
         BuyerMessage.kind == namespace).order_by(BuyerMessage.sent.desc()).limit(100)).all()
     attachments = attachment_infos(db, buyer.id, [m.id for m in records])
+    delivered = delivered_message_ids(db, buyer.id, namespace, records)
     return {'items': [{'id': m.id, 'text': m.text, 'sent': m.sent, 'staff': m.staff,
+        **({'delivered': m.id in delivered} if not m.staff else {}),
         **({'attachment': attachments[m.id]} if m.id in attachments else {})}
         for m in reversed(records)]}
 

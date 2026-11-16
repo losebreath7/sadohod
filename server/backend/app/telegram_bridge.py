@@ -209,6 +209,23 @@ def make_outbox(db: Session, message: 'BuyerMessage') -> None:
         kind=message.kind, message_id=message.id, sent=message.sent))
 
 
+def delivered_message_ids(db: Session, buyer: str, kind: str, records: list) -> set[str]:
+    """Return only this user's outgoing messages confirmed sent to Telegram.
+
+    This is *delivery*, not manager read status. The outbox remains the
+    authoritative source; no new status column or migration is needed.
+    """
+    ids = [m.id for m in records if not m.staff]
+    if not ids:
+        return set()
+    return set(db.scalars(select(TelegramOutbox.message_id).where(
+        TelegramOutbox.buyer == buyer,
+        TelegramOutbox.kind == kind,
+        TelegramOutbox.delivered.is_(True),
+        TelegramOutbox.message_id.in_(ids),
+    )).all())
+
+
 def manager_author_header(buyer: 'Buyer') -> str:
     """Account data for the private Telegram manager group only.
 

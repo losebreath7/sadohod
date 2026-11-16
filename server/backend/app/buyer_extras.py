@@ -342,10 +342,14 @@ def messages(kind: Literal['support', 'cooperation'], with_greeting: bool = Fals
             BuyerMessage.kind == kind).order_by(BuyerMessage.sent.desc()).limit(100)).all()
     rows.reverse()
     attachments = attachment_infos(db, buyer.id, [r.id for r in rows])
+    from .telegram_bridge import delivered_message_ids
+    delivered = delivered_message_ids(db, buyer.id, kind, rows)
     items = []
     for r in rows:
         attachment = attachments.get(r.id)
         msg = {'id':r.id, 'text':r.text, 'sent':r.sent, 'staff':r.staff}
+        if not r.staff:
+            msg['delivered'] = r.id in delivered
         if attachment:
             msg['attachment'] = attachment
         items.append(msg)
