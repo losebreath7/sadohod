@@ -14,6 +14,7 @@ import 'draft_store.dart';
 import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
+import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
 
@@ -1470,7 +1471,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ),
       );
     final authScreen = ['welcome', 'email', 'code', 'name'].contains(screen);
-    final index = ['profile', 'editProfile', 'sellerChat', 'notifications'].contains(screen)
+    final index = ['profile', 'editProfile', 'sellerChat', 'notifications', 'settings', 'settingsAbout', 'settingsTerms', 'settingsPrivacy'].contains(screen)
         ? 2
         : ['capture', 'newProduct', 'editProduct'].contains(screen)
         ? 1
@@ -1521,6 +1522,32 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         return profileBody();
       case 'editProfile':
         return profileEdit();
+      case 'settings':
+        return page('настройки', SellerSettingsPage(
+          api: widget.api,
+          onSignedOut: () => setState(() {
+            history.clear();
+            screen = 'welcome';
+            account = {};
+            merchant = {};
+            pavilions = [];
+            products = [];
+            requests = [];
+            unreadNotifications = 0;
+          }),
+          onOpenInfo: (kind) => go(kind == 'about'
+              ? 'settingsAbout'
+              : kind == 'terms' ? 'settingsTerms' : 'settingsPrivacy'),
+        ));
+      case 'settingsAbout':
+      case 'settingsTerms':
+      case 'settingsPrivacy':
+        return page(screen == 'settingsAbout' ? 'о приложении'
+          : screen == 'settingsTerms' ? 'пользовательское соглашение'
+          : 'конфиденциальность',
+          SellerSettingsInfoPage(kind: screen == 'settingsAbout' ? 'about'
+          : screen == 'settingsTerms' ? 'terms' : 'privacy'));
+
       case 'notifications':
         return page('уведомления', SellerNotificationsPage(
           key: const ValueKey('seller-notifications'),
@@ -1944,6 +1971,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 go('editProfile');
               } else if (item[0] == 'уведомления') {
                 go('notifications');
+              } else if (item[0] == 'настройки') {
+                go('settings');
               } else {
                 missing(item[0]);
               }
@@ -3768,14 +3797,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               saleModeFields(saleModes),
             ] else ...[
               for (final id in destinations) ...[
-                label(
-                  address(
-                    pavilions.where((p) => '${p['id']}' == id).firstOrNull ??
-                        {},
-                  ),
-                  12,
-                ),
-                const SizedBox(height: 6),
                 V3Field(
                   'цена',
                   listingModes.containsKey(id) ? c('price:$id') : c('price'),
@@ -3895,35 +3916,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ),
       ),
       trailing: tap(
-        asset(edit ? 'f5ab0.svg' : '8cf4e.svg', width: 24, height: 24),
-        edit
-            ? () => showDialog<void>(
-                context: context,
-                builder: (ctx) => Dialog(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IgnorePointer(
-                            child: productCard(
-                              product,
-                              math.min(280, MediaQuery.sizeOf(ctx).width - 100),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('закрыть'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            : productMenu,
-        name: edit ? 'Просмотр товара' : 'Действия с товаром',
+        const Icon(Icons.more_horiz, size: 24, color: brown),
+        productMenu,
+        name: 'Действия с товаром',
       ),
     );
   }
