@@ -1112,7 +1112,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     return value;
   }
 
-  $1BorderRadius.circular(100),
+  Widget saleModeFields(Set<String> modes) => Row(
+    children: [
+      for (final mode in ['wholesale', 'retail']) ...[
+        tap(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: modes.contains(mode) ? Colors.black : Colors.white,
+              borderRadius: BorderRadius.circular(100),
             ),
             child: label(
               mode == 'wholesale' ? 'опт' : 'розница',
