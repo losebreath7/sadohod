@@ -1,0 +1,94 @@
+name: gate
+
+# CI-ворота R8: проверка версий, изолированного сервера и двух Flutter-приложений.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  versions:
+    name: версии
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: RELEASE.json, pubspec и константы совпадают
+        run: python tools/sync_version.py --check
+      - name: Проверки синхронизации версий
+        working-directory: tools
+        run: python test_version.py
+      - name: Подписи версий в админке (JavaScript)
+        working-directory: server/preview
+        run: node test_build_label.cjs
+
+  server:
+    name: сервер (SQLite + PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Серверные тесты на изолированной базе
+        run: >
+          docker compose -p sadohod_isolated_qa -f tools/compose.qa.yml
+          up --build --abort-on-container-exit --exit-code-from tests
+      - name: Очистить только QA-контейнеры
+        if: always()
+        run: docker compose -p sadohod_isolated_qa -f tools/compose.qa.yml down
+
+  flutter:
+    name: flutter (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [seller_app, buyer_app]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Analyze — warning и error блокируют сборку
+        run: flutter analyze --no-fatal-infos
+      - name: Flutter tests
+        run: flutter test
+      - name: Flutter Web build
+        run: flutter build web --dart-define=API_BASE_URL=http://localhost:8000
+
+  gate:
+    name: ворота
+    if: always()
+    needs: [versions, server, flutter]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверить результат всех заданий
+        env:
+          VERSIONS: ${{ needs.versions.result }}
+          SERVER: ${{ needs.server.result }}
+          FLUTTER: ${{ needs.flutter.result }}
+        run: |
+          echo "versions: $VERSIONS"
+          echo "server:   $SERVER"
+          echo "flutter:  $FLUTTER"
+          test "$VERSIONS" = success
+          test "$SERVER" = success
+          test "$FLUTTER" = success
