@@ -17,14 +17,14 @@ def test_shop_approval_and_rejection_emit_real_private_events(env):
     assert before['unread'] == 1
     assert before['items'][0]['event_type'] == 'application'
     assert before['items'][0]['target_id'] == aid
-    assert before['items'][0]['title'] == 'На проверке'
+    assert before['items'][0]['title'] == 'Заявка на магазин отправлена'
     assert client.get('/api/v1/merchant/notifications', headers=bob).json()['items'] == []
 
     admin_client(client)
     approve(client, 'applications/' + aid + '/decision')
     inbox = client.get('/api/v1/merchant/notifications', headers=alice).json()
     assert inbox['unread'] == 2
-    assert inbox['items'][0]['title'] == 'Проверка пройдена'
+    assert inbox['items'][0]['title'] == 'Магазин подтверждён'
 
     nid = inbox['items'][0]['id']
     assert client.put('/api/v1/merchant/notifications/' + nid + '/read',
@@ -81,9 +81,10 @@ def test_pavilion_and_product_moderation_keep_reasons_and_isolate_owner(env):
     inbox = client.get('/api/v1/merchant/notifications', headers=seller).json()
     rejected = [n for n in inbox['items']
                 if n['event_type'] == 'product' and n['target_id'] == pid
-                and n['title'] == 'Не прошло модерацию']
+                and n['title'] == 'Товар не прошёл модерацию']
     assert len(rejected) == 1
     assert rejected[0]['note'] == 'Замените основную фотографию'
-    assert any(x['event_type']=='product' and x['title']=='На проверке'
+    assert not any(x['event_type'] == 'listing' and x['status'] == 'rejected' for x in inbox['items'])
+    assert any(x['event_type']=='product' and x['title']=='Товар на проверке'
                for x in inbox['items'])
     assert client.get('/api/v1/merchant/notifications', headers=other).json()['items']==[]
