@@ -25,10 +25,10 @@ class Seller {
 /// A product may have multiple sellers and multiple pavilion offers.
 /// This is not a SKU: the pavilion code is a real-world location field.
 class ProductOffer {
-  const ProductOffer({required this.seller, required this.pavilion, this.price = 0, this.saleModes = const []});
+  const ProductOffer({required this.seller, required this.pavilion, this.price, this.saleModes = const []});
   final Seller seller;
   final String pavilion;
-  final int price;
+  final int? price;
   final List<String> saleModes;
   factory ProductOffer.fromJson(Map<String, dynamic> json) {
     final seller = Seller.fromJson(json['seller'] as Map<String, dynamic>);
@@ -36,7 +36,7 @@ class ProductOffer {
     return ProductOffer(
       seller: seller,
       pavilion: pavilion is Map ? (pavilion['code']?.toString() ?? seller.pavilion) : seller.pavilion,
-      price: (json['price'] as num?)?.toInt() ?? 0,
+      price: (json['price'] as num?)?.toInt(),
       saleModes: (json['sale_modes'] as List? ?? const []).map((v) => v.toString()).toList(),
     );
   }
@@ -61,7 +61,7 @@ class DemoProduct {
   final String id;
   final String title;
   final String category;
-  final int price;
+  final int? price;
   final String sellerId;
   final String image;
   final String description;
@@ -123,7 +123,7 @@ class DemoProduct {
       id: json['id'] as String,
       title: json['title'] as String,
       category: json['category'] as String,
-      price: (json['price'] as num?)?.toInt() ?? 0,
+      price: (json['price'] as num?)?.toInt(),
       sellerId: typedOffers.isNotEmpty ? typedOffers.first.seller.id : (json['seller_id']?.toString() ?? ''),
       image: rawImage.startsWith('/') ? '$baseUrl$rawImage' : rawImage,
       description: (json['description'] ?? '') as String,

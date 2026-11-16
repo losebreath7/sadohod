@@ -60,7 +60,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(DemoCatalog.products.first.title), findsOneWidget);
     expect(
-      find.text(formatRubles(DemoCatalog.products.first.price)),
+      find.text(formatRubles(DemoCatalog.products.first.price!)),
       findsNothing,
     );
     await tester.tap(find.byTooltip('В избранное'));
