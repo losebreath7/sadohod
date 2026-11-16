@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_v3.dart';
+import 'package:sadohod_shared_core/chat_widgets.dart';
 
 void main() {
   setUpAll(() async {
@@ -165,7 +166,7 @@ void main() {
   }
 
   testWidgets('Shop search actually filters products', (tester) async {
-    await openFrame(tester, '366:17044');
+    await openFrame(tester, '440:713');
     await tester.enterText(find.byType(TextField), 'несуществующий товар');
     await tester.pumpAndSettle();
     expect(find.text('ничего не найдено'), findsOneWidget);
@@ -184,15 +185,16 @@ void main() {
     expect(find.text('выбрано : 4'), findsOneWidget);
     expect(find.text('дублировать'), findsOneWidget);
   });
-  testWidgets('System back leaves the design placeholder', (tester) async {
+  testWidgets('System back returns from connected support chat', (tester) async {
     await openFrame(tester, '366:15805');
     await tester.tap(find.text('поддержка'));
     await tester.pumpAndSettle();
-    expect(find.text('дизайн в разработке'), findsOneWidget);
+    // Support now opens the real chat rather than the old design placeholder.
+    expect(find.byType(SadohodChatHeader), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('поддержка'), findsOneWidget);
-    expect(find.text('дизайн в разработке'), findsNothing);
+    expect(find.byType(SadohodChatHeader), findsNothing);
   });
   testWidgets('Existing product actions design opens and cancels', (
     tester,
