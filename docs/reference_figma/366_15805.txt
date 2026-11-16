@@ -1,0 +1,118 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/a48c8359-8583-4285-9a5b-4447eea36285";
+const img = `${assetPathPrefix}/aa629.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/eb441.svg`;
+const imgEllipse9 = `${assetPathPrefix}/5c616.svg`;
+const imgEvaPersonFill = `${assetPathPrefix}/bc604.svg`;
+const imgEvaPersonFill1 = `${assetPathPrefix}/1b285.svg`;
+const imgClaritySettingsSolid = `${assetPathPrefix}/f7cee.svg`;
+const imgVector = `${assetPathPrefix}/2f6e7.svg`;
+const imgGroup = `${assetPathPrefix}/cdb5f.svg`;
+const imgVector1 = `${assetPathPrefix}/1aa37.svg`;
+const imgVector2 = `${assetPathPrefix}/40c2b.svg`;
+const imgEllipse11 = `${assetPathPrefix}/f3b20.svg`;
+
+function NavProfile({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:807" data-name="САДОХОД / nav / profile">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:808" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:813" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:816" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component01() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="366:15805" data-name="01 · Профиль">
+      <div className="-translate-x-1/2 absolute bg-[#48352d] h-[150px] left-1/2 rounded-[10px] top-[39px] w-[330px]" data-node-id="366:15819" />
+      <div className="-translate-x-1/2 absolute left-[calc(50%+0.5px)] size-[93px] top-[127px]" data-node-id="366:15820">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse9} />
+      </div>
+      <div className="-translate-x-1/2 absolute left-1/2 size-[60px] top-[143px]" data-node-id="366:15821" data-name="eva:person-fill">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEvaPersonFill} />
+      </div>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[calc(50%-37px)] not-italic text-[12px] text-black top-[235px] tracking-[-0.24px] whitespace-nowrap" data-node-id="366:15823">
+        martini felesk
+      </p>
+      <a className="absolute contents cursor-pointer left-[24px] top-[297px]" data-node-id="366:15824">
+        <div className="absolute left-[24px] size-[34.621px] top-[297px]" data-node-id="366:15825" data-name="eva:person-fill">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEvaPersonFill1} />
+        </div>
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[75.16px] not-italic text-[#2c1b15] text-[14px] top-[306px] whitespace-nowrap" data-node-id="366:15827">
+          профиль
+        </p>
+      </a>
+      <div className="absolute contents left-[30px] top-[437.44px]" data-node-id="366:15828">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74.44px] not-italic text-[#2c1b15] text-[14px] top-[441.44px] whitespace-nowrap" data-node-id="366:15829">
+          настройки
+        </p>
+        <div className="absolute left-[30px] size-[24.211px] top-[437.44px]" data-node-id="366:15830" data-name="clarity:settings-solid">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgClaritySettingsSolid} />
+        </div>
+      </div>
+      <div className="absolute contents left-[31px] top-[351.62px]" data-node-id="366:15833">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74.41px] not-italic text-[#2c1b15] text-[14px] top-[354.62px] whitespace-nowrap" data-node-id="366:15834">
+          поддержка
+        </p>
+        <div className="absolute inset-[50.23%_86.8%_46.84%_7.95%]" data-node-id="366:15835" data-name="Vector">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgVector} />
+        </div>
+      </div>
+      <div className="absolute contents left-[31px] top-[481.65px]" data-node-id="366:15836">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74.03px] not-italic text-[#2c1b15] text-[14px] top-[485.65px] whitespace-nowrap" data-node-id="366:15837">
+          навигация
+        </p>
+        <div className="absolute inset-[68.81%_87.09%_27.8%_7.95%]" data-node-id="366:15838" data-name="Group">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup} />
+        </div>
+      </div>
+      <div className="absolute contents left-[29px] top-[525.42px]" data-node-id="366:15842">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74.44px] not-italic text-[#2c1b15] text-[14px] top-[525.42px] whitespace-nowrap" data-node-id="366:15843">
+          сотрудничество
+        </p>
+        <div className="absolute inset-[75.06%_86.13%_22.61%_7.44%]" data-node-id="366:15844" data-name="Vector">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgVector1} />
+        </div>
+      </div>
+      <NavProfile className="absolute bg-white h-[60px] left-0 top-[640px] w-[390px]" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[8px] top-[640px] w-[110px]" data-node-id="366:15847" data-name="NAV / Магазины" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[125px] top-[640px] w-[110px]" data-node-id="366:15848" data-name="NAV / Камера" />
+      <div className="absolute contents left-[31px] top-[392.12px]" data-node-id="366:15849">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74.03px] not-italic text-[#2c1b15] text-[14px] top-[397.12px] whitespace-nowrap" data-node-id="366:15850">
+          уведомления
+        </p>
+        <div className="absolute contents left-[31px] top-[392.12px]" data-node-id="366:15851">
+          <div className="absolute inset-[56.71%_86.8%_40.37%_7.95%]" data-node-id="366:15852" data-name="Vector">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgVector2} />
+          </div>
+          <div className="absolute left-[40.65px] size-[12.058px] top-[392.12px]" data-node-id="366:15853">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse11} />
+          </div>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[44.77px] not-italic text-[7.235px] text-white top-[394.69px] whitespace-nowrap" data-node-id="366:15854">
+            1
+          </p>
+        </div>
+      </div>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-0 top-[640px] w-[130px]" data-node-id="379:420" data-name="FLOW / Низ / Магазин" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[130px] top-[640px] w-[130px]" data-node-id="379:422" data-name="FLOW / Низ / Камера" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[260px] top-[640px] w-[130px]" data-node-id="379:424" data-name="FLOW / Низ / Профиль" />
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: brown: #48352D, gray 5: #D9D9D9, dark brown: #2C1B15, black: #000000, test: #AB0216, white: #FFFFFF, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

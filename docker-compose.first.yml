@@ -1,0 +1,10 @@
+volumes:
+  sadohod_uploads:
+    labels:
+      ru.sadohod.install: "${SADOHOD_INSTALL_ID:-legacy}"
+  sadohod_admin_state:
+    labels:
+      ru.sadohod.install: "${SADOHOD_INSTALL_ID:-legacy}"
+  sadohod_pg:
+    labels:
+      ru.sadohod.install: "${SADOHOD_INSTALL_ID:-legacy}"

@@ -1,0 +1,382 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/11d0ab73-a611-4f20-9243-4a5703747a80";
+const img = `${assetPathPrefix}/83ac5.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/a5de6.svg`;
+const imgBackground = `${assetPathPrefix}/bfc4a.png`;
+const imgImage12 = `${assetPathPrefix}/eb9f2.png`;
+const imgImage13 = `${assetPathPrefix}/f46f5.png`;
+const imgImage10 = `${assetPathPrefix}/62cf6.png`;
+const imgGroup12 = `${assetPathPrefix}/ba4c8.svg`;
+const imgVector = `${assetPathPrefix}/b34bb.svg`;
+const imgGroup233 = `${assetPathPrefix}/73b4a.svg`;
+const imgEllipse24 = `${assetPathPrefix}/a9123.svg`;
+const imgGroup238 = `${assetPathPrefix}/bc2a1.svg`;
+const img3 = `${assetPathPrefix}/a030d.svg`;
+const imgGroup215 = `${assetPathPrefix}/8974e.svg`;
+const img4 = `${assetPathPrefix}/d5d93.svg`;
+const imgEllipse15 = `${assetPathPrefix}/77550.svg`;
+const imgEllipse20 = `${assetPathPrefix}/24b0a.svg`;
+const imgIcon = `${assetPathPrefix}/46c91.svg`;
+const imgIcon1 = `${assetPathPrefix}/282b6.svg`;
+const imgGroup229 = `${assetPathPrefix}/a4ab0.svg`;
+const imgVector1 = `${assetPathPrefix}/d6928.svg`;
+
+function NavStores({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:783" data-name="САДОХОД / nav / stores">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:784" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:789" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:792" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="398:18510" data-name="выбор действия карточек">
+      <div className="absolute contents left-[30px] top-[132px]" data-node-id="398:18511">
+        <div className="absolute contents left-[30px] top-[132px]" data-node-id="398:18512">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[12px] text-black top-[288px] whitespace-nowrap" data-node-id="398:18513">
+            Б-2В-81
+          </p>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#7d7d7d] text-[10px] top-[303px] whitespace-nowrap" data-node-id="398:18514">{`alo кроссовки `}</p>
+          <a className="-translate-y-1/2 absolute aspect-[150/150] block cursor-pointer left-[7.69%] right-[53.85%] rounded-[5px] top-[calc(50%-143px)]" data-node-id="398:18515" data-name="Background">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+              <img alt="" className="absolute h-[321.98%] left-[-20.4%] max-w-none top-[-105.51%] w-[148.11%]" src={imgBackground} />
+            </div>
+          </a>
+        </div>
+        <a className="absolute contents cursor-pointer left-[210px] top-[132px]" data-node-id="398:18516" data-name="Товар магазина / 2">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[288px] whitespace-nowrap" data-node-id="398:18517">
+            Б-2В-81
+          </p>
+          <div className="-translate-y-1/2 absolute aspect-[150/150] left-[53.85%] right-[7.69%] rounded-[5px] top-[calc(50%-143px)]" data-node-id="398:18518" data-name="Background">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+              <img alt="" className="absolute h-[321.98%] left-[-20.4%] max-w-none top-[-105.51%] w-[148.11%]" src={imgBackground} />
+            </div>
+          </div>
+          <div className="absolute contents left-[275px] top-[275px]" data-node-id="398:18519">
+            <div className="absolute bg-white left-[283px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18520" />
+            <div className="absolute bg-[#d9d9d9] left-[291px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18521" />
+            <div className="absolute bg-[#d9d9d9] left-[275px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18522" />
+          </div>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[#7d7d7d] text-[10px] top-[303px] whitespace-nowrap" data-node-id="398:18523">{`alo кроссовки `}</p>
+          <div className="absolute contents left-[210px] top-[132px]" data-node-id="398:18524" data-name="Товар магазина / 2">
+            <div className="absolute bg-[#d9d9d9] left-[210px] rounded-[5px] size-[150px] top-[132px]" data-node-id="398:18525" />
+            <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[288px] whitespace-nowrap" data-node-id="398:18526">
+              Б-2В-81
+            </p>
+            <div className="absolute left-[210px] rounded-[5px] size-[150px] top-[132px]" data-node-id="398:18527" data-name="image 12">
+              <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                <img alt="" className="absolute h-[118.79%] left-[-1.43%] max-w-none top-[-3.37%] w-[101.5%]" src={imgImage12} />
+              </div>
+            </div>
+            <div className="absolute contents left-[275px] top-[275px]" data-node-id="398:18528">
+              <div className="absolute bg-white left-[283px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18529" />
+              <div className="absolute bg-[#d9d9d9] left-[291px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18530" />
+              <div className="absolute bg-[#d9d9d9] left-[275px] rounded-[10px] size-[4px] top-[275px]" data-node-id="398:18531" />
+            </div>
+          </div>
+        </a>
+        <a className="absolute contents cursor-pointer left-[30px] top-[334px]" data-node-id="398:18532">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[12px] text-black top-[493px] whitespace-nowrap" data-node-id="398:18533">
+            Б-2В-81
+          </p>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#7d7d7d] text-[10px] top-[508px] whitespace-nowrap" data-node-id="398:18534">{`alo кроссовки `}</p>
+          <div className="absolute left-[30px] rounded-[5px] size-[150px] top-[334px]" data-node-id="398:18535" data-name="image 12">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+              <img alt="" className="absolute h-[156.77%] left-0 max-w-none top-[-56.05%] w-full" src={imgImage13} />
+            </div>
+          </div>
+        </a>
+        <a className="absolute contents cursor-pointer left-[210px] top-[334px]" data-node-id="398:18536">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[493px] whitespace-nowrap" data-node-id="398:18537">
+            Б-2В-81
+          </p>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[#7d7d7d] text-[10px] top-[508px] whitespace-nowrap" data-node-id="398:18538">{`alo кроссовки `}</p>
+          <div className="absolute left-[210px] rounded-[5px] size-[150px] top-[334px]" data-node-id="398:18539" data-name="image 10">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+              <img alt="" className="absolute h-[134%] left-[-0.04%] max-w-none top-[-6%] w-[100.08%]" src={imgImage10} />
+            </div>
+          </div>
+        </a>
+      </div>
+      <div className="absolute bg-[#f0efeb] h-[57px] left-[438.91px] top-[155px] w-[37.174px]" data-node-id="398:18540" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[469px] whitespace-nowrap" data-node-id="398:18543">{` `}</p>
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[125px] top-[895px] w-[110px]" data-node-id="398:18544" data-name="NAV / Камера" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[242px] top-[895px] w-[110px]" data-node-id="398:18545" data-name="NAV / Профиль" />
+      <div className="absolute contents left-[95px] top-[271px]" data-node-id="398:18546">
+        <div className="absolute bg-white left-[103px] rounded-[10px] size-[4px] top-[271px]" data-node-id="398:18547" />
+        <div className="absolute bg-[#d9d9d9] left-[111px] rounded-[10px] size-[4px] top-[271px]" data-node-id="398:18548" />
+        <div className="absolute bg-[#d9d9d9] left-[95px] rounded-[10px] size-[4px] top-[271px]" data-node-id="398:18549" />
+      </div>
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-0 top-[640px] w-[130px]" data-node-id="398:18550" data-name="FLOW / Низ / Магазин" />
+      <div className="-translate-x-1/2 absolute contents left-[calc(50%+0.5px)] top-[63px]" data-node-id="398:18551">
+        <div className="absolute contents left-[31px] top-[63px]" data-node-id="398:18552">
+          <div className="absolute contents left-[31px] top-[63px]" data-node-id="398:18553">
+            <div className="absolute bg-[#d9d9d9] h-[32px] left-[31px] rounded-[20px] top-[63px] w-[276px]" data-node-id="398:18554" />
+            <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[74px] not-italic text-[12px] text-white top-[72px] whitespace-nowrap" data-node-id="398:18555">
+              поиск
+            </p>
+          </div>
+          <div className="absolute left-[46px] size-[20px] top-[69px]" data-node-id="398:18556">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup12} />
+          </div>
+        </div>
+        <div className="absolute inset-[10.29%_7.69%_87.71%_88.72%]" data-node-id="398:18565" data-name="Vector">
+          <div className="absolute inset-[-5.95%]">
+            <img alt="" className="block max-w-none size-full" src={imgVector} />
+          </div>
+        </div>
+        <div className="absolute contents left-[31px] top-[109px]" data-node-id="398:18566">
+          <div className="absolute left-[31px] size-[16px] top-[109px]" data-node-id="398:18567">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup233} />
+          </div>
+          <div className="absolute contents left-[54px] top-[111px]" data-node-id="398:18569">
+            <div className="absolute contents left-[54px] top-[111px]" data-node-id="398:18570">
+              <div className="absolute contents left-[54px] top-[111px]" data-node-id="398:18571">
+                <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[54px] not-italic text-[#7d7d7d] text-[10px] top-[111px] whitespace-nowrap" data-node-id="398:18572">
+                  выбрать все (4)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="absolute left-[34px] size-[10px] top-[112px]" data-node-id="398:18573">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse24} />
+      </div>
+      <div className="absolute left-[333px] size-[25px] top-[136px]" data-node-id="398:18574">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup238} />
+      </div>
+      <div className="absolute left-[152px] size-[25px] top-[136px]" data-node-id="398:18579">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup238} />
+      </div>
+      <div className="absolute left-[152px] size-[25px] top-[338px]" data-node-id="398:18584">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup238} />
+      </div>
+      <div className="absolute left-[333px] size-[25px] top-[338px]" data-node-id="398:18589">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup238} />
+      </div>
+      <div className="-translate-x-1/2 absolute contents left-1/2 top-[630px]" data-node-id="398:18594">
+        <div className="-translate-x-1/2 absolute bg-[#a5bcd6] h-[40px] left-1/2 rounded-[100px] top-[630px] w-[330px]" data-node-id="398:18595" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-49px)] not-italic text-[16px] text-white top-[641px] whitespace-nowrap" data-node-id="398:18596">
+          продолжить
+        </p>
+      </div>
+      <div className="absolute bg-[rgba(0,0,0,0.38)] h-[700px] left-0 top-0 w-[390px]" data-node-id="398:18597" data-name="Затемнение фона карточки" />
+      <NavStores className="-translate-x-1/2 absolute bg-white h-[60px] left-1/2 top-[640px] w-[390px]" />
+      <div className="absolute bg-[#f0efeb] bottom-0 h-[353px] left-0 overflow-clip rounded-tl-[22px] rounded-tr-[22px] w-[390px]" data-node-id="398:19049" data-name="Модальное окно">
+        <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[346.5px] not-italic text-[28px] text-black text-center top-[18px] w-[31px]" data-node-id="398:19050">
+          ×
+        </p>
+        <div className="absolute bg-[#f0efeb] h-[700px] left-[441px] overflow-clip top-[-190px] w-[390px]" data-node-id="398:19051" data-name="главная продавец">
+          <div className="absolute contents left-[30px] top-[263px]" data-node-id="398:19052">
+            <div className="absolute contents left-[30px] top-[263px]" data-node-id="398:19053">
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[12px] text-black top-[419px] whitespace-nowrap" data-node-id="398:19054">
+                Б-2В-81
+              </p>
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#7d7d7d] text-[10px] top-[434px] whitespace-nowrap" data-node-id="398:19055">{`alo кроссовки `}</p>
+              <a className="-translate-y-1/2 absolute aspect-[150/150] block cursor-pointer left-[7.69%] right-[53.85%] rounded-[5px] top-[calc(50%-12px)]" data-node-id="398:19056" data-name="Background">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                  <img alt="" className="absolute h-[321.98%] left-[-20.4%] max-w-none top-[-105.51%] w-[148.11%]" src={imgBackground} />
+                </div>
+              </a>
+            </div>
+            <a className="absolute contents cursor-pointer left-[210px] top-[263px]" data-node-id="398:19057" data-name="Товар магазина / 2">
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[419px] whitespace-nowrap" data-node-id="398:19058">
+                Б-2В-81
+              </p>
+              <div className="-translate-y-1/2 absolute aspect-[150/150] left-[53.85%] right-[7.69%] rounded-[5px] top-[calc(50%-12px)]" data-node-id="398:19059" data-name="Background">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                  <img alt="" className="absolute h-[321.98%] left-[-20.4%] max-w-none top-[-105.51%] w-[148.11%]" src={imgBackground} />
+                </div>
+              </div>
+              <div className="absolute contents left-[275px] top-[406px]" data-node-id="398:19060">
+                <div className="absolute bg-white left-[283px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19061" />
+                <div className="absolute bg-[#d9d9d9] left-[291px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19062" />
+                <div className="absolute bg-[#d9d9d9] left-[275px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19063" />
+              </div>
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[#7d7d7d] text-[10px] top-[434px] whitespace-nowrap" data-node-id="398:19064">{`alo кроссовки `}</p>
+              <div className="absolute contents left-[210px] top-[263px]" data-node-id="398:19065" data-name="Товар магазина / 2">
+                <div className="absolute bg-[#d9d9d9] left-[210px] rounded-[5px] size-[150px] top-[263px]" data-node-id="398:19066" />
+                <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[419px] whitespace-nowrap" data-node-id="398:19067">
+                  Б-2В-81
+                </p>
+                <div className="absolute left-[210px] rounded-[5px] size-[150px] top-[263px]" data-node-id="398:19068" data-name="image 12">
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                    <img alt="" className="absolute h-[118.79%] left-[-1.43%] max-w-none top-[-3.37%] w-[101.5%]" src={imgImage12} />
+                  </div>
+                </div>
+                <div className="absolute contents left-[275px] top-[406px]" data-node-id="398:19069">
+                  <div className="absolute bg-white left-[283px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19070" />
+                  <div className="absolute bg-[#d9d9d9] left-[291px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19071" />
+                  <div className="absolute bg-[#d9d9d9] left-[275px] rounded-[10px] size-[4px] top-[406px]" data-node-id="398:19072" />
+                </div>
+              </div>
+            </a>
+            <a className="absolute contents cursor-pointer left-[30px] top-[465px]" data-node-id="398:19073">
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[12px] text-black top-[624px] whitespace-nowrap" data-node-id="398:19074">
+                Б-2В-81
+              </p>
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#7d7d7d] text-[10px] top-[639px] whitespace-nowrap" data-node-id="398:19075">{`alo кроссовки `}</p>
+              <div className="absolute left-[30px] rounded-[5px] size-[150px] top-[465px]" data-node-id="398:19076" data-name="image 12">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                  <img alt="" className="absolute h-[156.77%] left-0 max-w-none top-[-56.05%] w-full" src={imgImage13} />
+                </div>
+              </div>
+            </a>
+            <a className="absolute contents cursor-pointer left-[210px] top-[465px]" data-node-id="398:19077">
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[12px] text-black top-[624px] whitespace-nowrap" data-node-id="398:19078">
+                Б-2В-81
+              </p>
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[210px] not-italic text-[#7d7d7d] text-[10px] top-[639px] whitespace-nowrap" data-node-id="398:19079">{`alo кроссовки `}</p>
+              <div className="absolute left-[210px] rounded-[5px] size-[150px] top-[465px]" data-node-id="398:19080" data-name="image 10">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[5px]">
+                  <img alt="" className="absolute h-[134%] left-[-0.04%] max-w-none top-[-6%] w-[100.08%]" src={imgImage10} />
+                </div>
+              </div>
+            </a>
+          </div>
+          <div className="absolute bg-[#f0efeb] h-[57px] left-[438.91px] top-[155px] w-[37.174px]" data-node-id="398:19081" />
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[469px] whitespace-nowrap" data-node-id="398:19084">{` `}</p>
+          <NavStores className="absolute bg-white bottom-0 h-[60px] left-0 w-[390px]" />
+          <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[125px] top-[895px] w-[110px]" data-node-id="398:19086" data-name="NAV / Камера" />
+          <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[242px] top-[895px] w-[110px]" data-node-id="398:19087" data-name="NAV / Профиль" />
+          <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[30px] not-italic text-[16px] text-black top-[199px] whitespace-nowrap" data-node-id="398:19088">
+            мои товары
+          </p>
+          <div className="absolute contents left-[95px] top-[404px]" data-node-id="398:19089">
+            <div className="absolute bg-white left-[103px] rounded-[10px] size-[4px] top-[404px]" data-node-id="398:19090" />
+            <div className="absolute bg-[#d9d9d9] left-[111px] rounded-[10px] size-[4px] top-[404px]" data-node-id="398:19091" />
+            <div className="absolute bg-[#d9d9d9] left-[95px] rounded-[10px] size-[4px] top-[404px]" data-node-id="398:19092" />
+          </div>
+          <div className="absolute inset-[28.71%_6.92%_69.14%_89.23%]" data-node-id="398:19093" data-name="поиск иконка">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={img3} />
+          </div>
+          <div className="absolute h-[13px] left-[356px] top-[243px] w-[3px]" data-node-id="398:19094">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup215} />
+          </div>
+          <a className="-translate-x-1/2 absolute contents cursor-pointer left-1/2 top-[68px]" data-node-id="398:19098">
+            <div className="absolute bg-[#a5a5a5] h-[48px] left-[30px] rounded-[100px] top-[68px] w-[330px]" data-node-id="398:19099" />
+            <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-138px)] not-italic text-[16px] text-white top-[83px] whitespace-nowrap" data-node-id="398:19100">
+              мои магазины
+            </p>
+            <div className="absolute flex items-center justify-center left-[331px] top-[74px]" data-node-id="398:19101">
+              <div className="-scale-y-100 flex-none rotate-180">
+                <p className="[word-break:break-word] font-['Helvetica:Bold'] leading-[normal] not-italic relative text-[30px] text-white whitespace-nowrap">‹</p>
+              </div>
+            </div>
+          </a>
+          <a className="-translate-x-1/2 absolute contents cursor-pointer left-1/2 top-[129px]" data-node-id="398:19102">
+            <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[100px] top-[129px] w-[330px]" data-node-id="398:19103" />
+            <div className="absolute contents left-[121px] top-[143px]" data-node-id="398:19104">
+              <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-44px)] not-italic text-[16px] text-white top-[calc(50%-207px)] whitespace-nowrap" data-node-id="398:19105">
+                добавить товар
+              </p>
+              <div className="absolute left-[121px] size-[19px] top-[144px]" data-node-id="398:19106" data-name="Камера">
+                <img alt="" className="absolute block inset-0 max-w-none size-full" src={img4} />
+              </div>
+            </div>
+          </a>
+          <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-0 top-[640px] w-[130px]" data-node-id="398:19109" data-name="FLOW / Низ / Магазин" />
+          <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[130px] top-[640px] w-[130px]" data-node-id="398:19110" data-name="FLOW / Низ / Камера" />
+          <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[260px] top-[640px] w-[130px]" data-node-id="398:19111" data-name="FLOW / Низ / Профиль" />
+          <div className="absolute left-[30px] size-[16px] top-[240px]" data-node-id="398:19112">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse15} />
+          </div>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[52px] not-italic text-[#7d7d7d] text-[10px] top-[242px] whitespace-nowrap" data-node-id="398:19113">
+            выбрать все (4)
+          </p>
+          <div className="absolute left-[159px] size-[16px] top-[269px]" data-node-id="398:19114">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse15} />
+          </div>
+          <div className="absolute left-[159px] size-[16px] top-[472px]" data-node-id="398:19115">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse15} />
+          </div>
+          <div className="absolute left-[340px] size-[16px] top-[269px]" data-node-id="398:19116">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse15} />
+          </div>
+          <div className="absolute left-[340px] size-[16px] top-[472px]" data-node-id="398:19117">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse15} />
+          </div>
+          <div className="absolute left-[343px] size-[10px] top-[272px]" data-node-id="398:19118">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse20} />
+          </div>
+          <div className="absolute left-[343px] size-[10px] top-[475px]" data-node-id="398:19119">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse20} />
+          </div>
+          <div className="absolute left-[162px] size-[10px] top-[272px]" data-node-id="398:19120">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse20} />
+          </div>
+          <div className="absolute left-[162px] size-[10px] top-[475px]" data-node-id="398:19121">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse20} />
+          </div>
+          <div className="-translate-x-1/2 -translate-y-1/2 absolute bg-[rgba(0,0,0,0.38)] h-[700px] left-1/2 top-1/2 w-[390px]" data-node-id="398:19122" data-name="Затемнение фона карточки" />
+        </div>
+        <div className="absolute contents cursor-pointer left-[30px] top-[66px]" data-node-id="398:19123">
+          <a className="absolute contents left-[30px] top-[66px]" data-node-id="398:19124">
+            <div className="absolute bg-[#48352d] h-[75px] left-[30px] rounded-[10px] top-[66px] w-[150px]" data-node-id="398:19125" />
+            <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-89.5px)] not-italic text-[16px] text-center text-white top-[110px] whitespace-nowrap" data-node-id="398:19126">
+              перенести
+            </p>
+          </a>
+          <a className="absolute block left-[93px] size-[24px] top-[77px]" data-node-id="398:19127" data-name="ICON / Перенести">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgIcon} />
+          </a>
+        </div>
+        <div className="absolute contents cursor-pointer left-[210px] top-[66px]" data-node-id="398:19130">
+          <a className="absolute contents left-[210px] top-[66px]" data-node-id="398:19131">
+            <div className="absolute bg-[#a5bcd6] h-[75px] left-[210px] rounded-[10px] top-[66px] w-[150px]" data-node-id="398:19132" />
+            <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%+42px)] not-italic text-[16px] text-white top-[110px] whitespace-nowrap" data-node-id="398:19133">
+              дублировать
+            </p>
+          </a>
+          <a className="absolute block left-[273px] size-[24px] top-[77px]" data-node-id="398:19134" data-name="ICON / Дублировать">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgIcon1} />
+          </a>
+        </div>
+        <a className="absolute contents cursor-pointer left-[30px] top-[182px]" data-node-id="398:19138">
+          <div className="absolute bg-[#a4a4a4] h-[75px] left-[30px] rounded-[10px] top-[182px] w-[150px]" data-node-id="398:19139" />
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-117px)] not-italic text-[16px] text-white top-[226px] whitespace-nowrap" data-node-id="398:19140">
+            показать
+          </p>
+          <div className="absolute inset-[57.51%_70.51%_38.36%_24.36%]" data-node-id="398:19191">
+            <div className="absolute inset-[-7.14%_-5.2%]">
+              <img alt="" className="block max-w-none size-full" src={imgGroup229} />
+            </div>
+          </div>
+        </a>
+        <button className="absolute contents cursor-pointer left-[210px] top-[182px]" data-node-id="398:19146">
+          <div className="absolute contents left-[210px] top-[182px]" data-node-id="398:19147">
+            <div className="absolute bg-[#5f0f10] h-[75px] left-[210px] rounded-[10px] top-[182px] w-[150px]" data-node-id="398:19148" />
+            <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%+59px)] not-italic text-[16px] text-white top-[226px] whitespace-nowrap" data-node-id="398:19149">
+              удалить
+            </p>
+          </div>
+          <div className="-translate-x-1/2 absolute bottom-[39.09%] left-[calc(50%+90.5px)] top-[55.52%] w-[19px]" data-node-id="398:19150" data-name="Vector">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgVector1} />
+          </div>
+        </button>
+        <NavStores className="-translate-x-1/2 absolute bg-white h-[60px] left-1/2 top-[293px] w-[390px]" />
+      </div>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer left-[322px] size-[52px] top-[356px]" data-node-id="447:635" data-name="FLOW / Закрыть панель скрытых" />
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: black: #000000, gray 4: #7D7D7D, white: #FFFFFF, gray 5: #D9D9D9, beige: #F0EFEB, gray 2: #A5A5A5, blue: #A5BCD6, brown: #48352D, dark brown: #2C1B15, red: #5F0F10.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

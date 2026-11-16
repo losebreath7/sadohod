@@ -1,0 +1,14 @@
+# Add to default Compose for actual OpenCLIP mode. Does not delete DB or legacy index.
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: backend/Dockerfile.ml
+    environment:
+      SEARCH_BACKEND: clip
+      HF_HOME: /root/.cache/huggingface
+      TORCH_HOME: /root/.cache/torch
+    volumes:
+      - sadohod_ml_cache:/root/.cache
+volumes:
+  sadohod_ml_cache:

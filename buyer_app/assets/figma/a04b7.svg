@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 12">
+<g id="Group 11">
+<circle id="Ellipse 6" cx="20" cy="20" r="20" fill="black"/>
+<path id="Subtract" d="M20 0C31.0457 0 40 8.9543 40 20C40 24.8247 38.2902 29.2493 35.4453 32.7041L28.8604 26.1182C30.0627 24.3802 30.7695 22.2732 30.7695 20C30.7695 14.0523 25.9477 9.2305 20 9.23047C14.0523 9.23047 9.23047 14.0523 9.23047 20C9.2305 25.9477 14.0523 30.7695 20 30.7695C22.2732 30.7695 24.3802 30.0627 26.1182 28.8604L32.7041 35.4453C29.2493 38.2902 24.8247 40 20 40C8.9543 40 0 31.0457 0 20C0 8.9543 8.9543 0 20 0Z" fill="white"/>
+</g>
+<circle id="Ellipse 7" cx="20" cy="20" r="8" fill="white"/>
+</g>
+</svg>

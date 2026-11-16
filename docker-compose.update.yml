@@ -1,0 +1,10 @@
+volumes:
+  sadohod_pg:
+    external: true
+    name: sadohod_mvp_v0_2_sadohod_pg
+  sadohod_uploads:
+    external: true
+    name: sadohod_mvp_v0_2_sadohod_uploads
+  sadohod_admin_state:
+    external: true
+    name: sadohod_mvp_v0_2_sadohod_admin_state

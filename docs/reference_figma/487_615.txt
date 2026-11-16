@@ -1,0 +1,54 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/5ec44ab7-d146-42a4-9139-c07f24494a75";
+const imgHeader = `${assetPathPrefix}/aa689.svg`;
+
+export default function Auth03() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="487:615" data-name="AUTH 03 · Подтверждение почты / Код">
+      <div className="-translate-x-1/2 absolute h-[100px] left-[calc(50%-0.21px)] top-0 w-[397.572px]" data-node-id="487:644" data-name="HEADER / Фон">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgHeader} />
+      </div>
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-1/2 not-italic text-[16px] text-black text-center top-[67px] w-[330px]" data-node-id="487:648">
+        подтвердить почту
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[30px] not-italic text-[20px] text-black top-[153px] w-[330px]" data-node-id="487:649">
+        введите код из письма
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#a5a5a5] text-[13px] top-[190px] w-[330px]" data-node-id="487:650">
+        Мы отправили 6-значный код на вашу почту.
+      </p>
+      <div className="absolute bg-white h-[56px] left-[30px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:651" data-name="Ячейка кода / 1" />
+      <div className="absolute bg-white h-[56px] left-[87px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:652" data-name="Ячейка кода / 2" />
+      <div className="absolute bg-white h-[56px] left-[144px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:653" data-name="Ячейка кода / 3" />
+      <div className="absolute bg-white h-[56px] left-[201px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:654" data-name="Ячейка кода / 4" />
+      <div className="absolute bg-white h-[56px] left-[258px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:655" data-name="Ячейка кода / 5" />
+      <div className="absolute bg-white h-[56px] left-[315px] rounded-[6px] top-[255px] w-[45px]" data-node-id="487:656" data-name="Ячейка кода / 6" />
+      <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[24px] top-[351px] w-[330px]" data-node-id="487:657" data-name="Кнопка / подтвердить" />
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[195px] not-italic text-[16px] text-center text-white top-[365px] w-[330px]" data-node-id="487:658">
+        подтвердить
+      </p>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[48px] left-[30px] top-[351px] w-[330px]" data-node-id="487:659" data-name="FLOW / подтвердить" />
+      <button className="-translate-x-1/2 [word-break:break-word] absolute block cursor-pointer font-['Helvetica:Regular'] leading-[0] left-[195px] not-italic text-[#48352d] text-[13px] text-center top-[422px] w-[330px]" data-node-id="487:660">
+        <p className="leading-[normal]">отправить код ещё раз</p>
+      </button>
+      <a className="-translate-x-1/2 [word-break:break-word] absolute block cursor-pointer font-['Helvetica:Regular'] leading-[0] left-[195px] not-italic text-[#a5a5a5] text-[13px] text-center top-[459px] w-[330px]" data-node-id="487:661">
+        <p className="leading-[normal]">изменить почту</p>
+      </a>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer left-[18px] size-[42px] top-[53px]" data-node-id="488:620" data-name="FLOW / Назад">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[12px] not-italic text-[30px] text-black text-left top-0 whitespace-nowrap" data-node-id="488:621">
+          ‹
+        </p>
+      </a>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[56px] left-[30px] top-[255px] w-[330px]" data-node-id="494:678" data-name="PROTO / Ввод кода" />
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: white: #FFFFFF, black: #000000, helvetica bold 16 0%: Font(family: "Helvetica", style: Bold, size: 16, weight: 700, lineHeight: 100, letterSpacing: 0).
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

@@ -1,0 +1,28 @@
+# Device certificate is issued by a LOCAL development CA. No Internet exposure.
+# The hostname/IP is taken from the shell SADOHOD_LAN_IP environment variable.
+https://{$SADOHOD_LAN_IP} {
+    tls internal
+    encode zstd gzip
+    reverse_proxy api:8000
+    header X-Content-Type-Options "nosniff"
+    header Referrer-Policy "same-origin"
+}
+
+# Bootstrap endpoint, restricted to PUBLIC CA certificate and installation
+# profile. Private keys remain inside the persistent Caddy Docker volume.
+:80 {
+    root * /srv/public-ca
+    @profile path /sadohod-local.mobileconfig
+    handle @profile {
+        header Content-Type "application/x-apple-aspen-config"
+        file_server
+    }
+    @rootcrt path /root.crt
+    handle @rootcrt {
+        header Content-Type "application/x-x509-ca-cert"
+        file_server
+    }
+    handle {
+        respond "Not found" 404
+    }
+}

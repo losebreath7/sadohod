@@ -1,0 +1,62 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/34cf9df9-c6eb-41aa-9e43-dc07c80abb38";
+const img = `${assetPathPrefix}/83ac5.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/a5de6.svg`;
+const img3 = `${assetPathPrefix}/d5d93.svg`;
+
+function NavStores({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:783" data-name="САДОХОД / nav / stores">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:784" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:789" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:792" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component23() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="419:620" data-name="23 · Магазин подтверждён · Нет товаров">
+      <NavStores className="absolute bg-white bottom-0 h-[60px] left-0 w-[390px]" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[30px] not-italic text-[16px] text-black top-[212px] whitespace-nowrap" data-node-id="419:642">
+        все товары
+      </p>
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-0 top-[640px] w-[130px]" data-node-id="419:686" data-name="FLOW / Низ / Магазин" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[130px] top-[640px] w-[130px]" data-node-id="419:687" data-name="FLOW / Низ / Камера" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[260px] top-[640px] w-[130px]" data-node-id="419:688" data-name="FLOW / Низ / Профиль" />
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[195px] not-italic text-[18px] text-black text-center top-[336px] w-[330px]" data-node-id="419:705">
+        товаров пока нет
+      </p>
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[195px] not-italic text-[#a5a5a5] text-[13px] text-center top-[371px] w-[304px]" data-node-id="419:706">
+        Добавьте первый товар, чтобы его увидели покупатели.
+      </p>
+      <a className="-translate-x-1/2 absolute contents cursor-pointer left-1/2 top-[129px]" data-node-id="428:557" data-name="Действие / Добавить первый товар">
+        <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[100px] top-[129px] w-[330px]" data-node-id="428:558" />
+        <div className="absolute contents left-[121px] top-[143px]" data-node-id="428:559">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-44px)] not-italic text-[16px] text-white top-[calc(50%-207px)] whitespace-nowrap" data-node-id="428:560">
+            добавить первый товар
+          </p>
+          <div className="absolute left-[121px] size-[19px] top-[144px]" data-node-id="428:561" data-name="Камера">
+            <img alt="" className="absolute block inset-0 max-w-none size-full" src={img3} />
+          </div>
+        </div>
+      </a>
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: brown: #48352D, white: #FFFFFF, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

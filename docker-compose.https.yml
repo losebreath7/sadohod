@@ -1,0 +1,36 @@
+# Override for HTTPS testing with an iPhone on trusted local Wi-Fi.
+# Run together with docker-compose.yml and docker-compose.ml.yml.
+# API remains available on 127.0.0.1:8000 on the Windows host;
+# only the reverse proxy is exposed to the LAN on 8443.
+services:
+  api:
+    environment:
+      FORWARDED_ALLOW_IPS: "172.29.246.2"
+    networks:
+      default: {}
+      proxy: {}
+  https:
+    networks:
+      proxy:
+        ipv4_address: 172.29.246.2
+    image: caddy:2.10-alpine
+    environment:
+      SADOHOD_LAN_IP: ${SADOHOD_LAN_IP:-192.168.0.106}
+    ports:
+      - "0.0.0.0:8443:443"
+      - "0.0.0.0:8080:80"
+    volumes:
+      - ./https/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./https/ca-public:/srv/public-ca:ro
+      - sadohod_local_https_data:/data
+      - sadohod_local_https_config:/config
+    depends_on:
+      - api
+volumes:
+  sadohod_local_https_data:
+  sadohod_local_https_config:
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: 172.29.246.0/28

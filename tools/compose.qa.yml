@@ -1,0 +1,26 @@
+name: sadohod_isolated_qa
+services:
+  qa-db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: qa
+      POSTGRES_PASSWORD: qa
+      POSTGRES_DB: sadohod_qa
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "qa", "-d", "sadohod_qa"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  tests:
+    build:
+      context: ../server
+      dockerfile: backend/Dockerfile.qa
+    environment:
+      DATABASE_URL: postgresql+psycopg://qa:qa@qa-db:5432/sadohod_qa
+      SADOHOD_QA: "1"
+      DEMO_SEED: "0"
+      ADMIN_STATE_DIR: /tmp/qa-admin
+    depends_on:
+      qa-db:
+        condition: service_healthy

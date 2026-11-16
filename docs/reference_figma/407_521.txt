@@ -1,0 +1,94 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/3f97e869-a5f3-4731-b45b-99a3ac1b2a43";
+const img = `${assetPathPrefix}/83ac5.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/a5de6.svg`;
+const imgSubtract = `${assetPathPrefix}/aa689.svg`;
+const img281 = `${assetPathPrefix}/9df2a.svg`;
+
+function NavStores({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:783" data-name="САДОХОД / nav / stores">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:784" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:789" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:792" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component20() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="407:521" data-name="20 · Дублировать товары">
+      <div className="-translate-x-1/2 absolute h-[100px] left-[calc(50%-0.21px)] top-0 w-[397.572px]" data-node-id="407:534" data-name="Subtract">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgSubtract} />
+      </div>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer left-[18px] size-[42px] top-[53px]" data-node-id="407:562" data-name="PROTO / Назад">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[12px] not-italic text-[30px] text-black text-left top-0 whitespace-nowrap" data-node-id="407:563">
+          ‹
+        </p>
+      </a>
+      <NavStores className="absolute bg-white h-[60px] left-0 top-[640px] w-[390px]" />
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[195px] not-italic text-[#141414] text-[16px] text-center top-[67px] w-[330px]" data-node-id="407:583">
+        дублировать товары
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#a5a5a5] text-[13px] top-[181px] w-[330px]" data-node-id="407:585">
+        Выбрано 4 товара
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#a5a5a5] text-[13px] top-[227px] w-[330px]" data-node-id="407:586">
+        Разместить копии в магазинах
+      </p>
+      <div className="absolute bg-white h-[56px] left-[30px] rounded-[6px] top-[254px] w-[330px]" data-node-id="407:587" data-name="Магазин / Б-2В-81" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#141414] text-[15px] top-[272px] w-[200px]" data-node-id="407:588">
+        Б-2В-81
+      </p>
+      <div className="absolute bg-[#a5bcd6] border-[#a5bcd6] border-[1.4px] border-solid left-[319px] rounded-[4px] size-[19px] top-[272px]" data-node-id="407:589" data-name="Выбор / Б-2В-81" />
+      <div className="absolute left-[322px] size-[13px] top-[275px]" data-node-id="407:590" data-name="Галочка / Б-2В-81">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img281} />
+      </div>
+      <div className="absolute bg-white h-[56px] left-[30px] rounded-[6px] top-[320px] w-[330px]" data-node-id="407:592" data-name="Магазин / Б-2В-82" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#141414] text-[15px] top-[338px] w-[200px]" data-node-id="407:593">
+        Б-2В-82
+      </p>
+      <div className="absolute bg-[#a5bcd6] border-[#a5bcd6] border-[1.4px] border-solid left-[319px] rounded-[4px] size-[19px] top-[338px]" data-node-id="407:594" data-name="Выбор / Б-2В-82" />
+      <div className="absolute left-[322px] size-[13px] top-[341px]" data-node-id="407:595" data-name="Галочка / Б-2В-82">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img281} />
+      </div>
+      <div className="absolute bg-white h-[56px] left-[30px] rounded-[6px] top-[386px] w-[330px]" data-node-id="407:597" data-name="Магазин / Б-2В-83" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#141414] text-[15px] top-[404px] w-[200px]" data-node-id="407:598">
+        Б-2В-83
+      </p>
+      <div className="absolute bg-[#a5bcd6] border-[#a5bcd6] border-[1.4px] border-solid left-[319px] rounded-[4px] size-[19px] top-[404px]" data-node-id="407:599" data-name="Выбор / Б-2В-83" />
+      <div className="absolute left-[322px] size-[13px] top-[407px]" data-node-id="407:600" data-name="Галочка / Б-2В-83">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img281} />
+      </div>
+      <div className="absolute bg-white h-[56px] left-[30px] rounded-[6px] top-[452px] w-[330px]" data-node-id="407:602" data-name="Магазин / Б-2В-84" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#141414] text-[15px] top-[470px] w-[200px]" data-node-id="407:603">
+        Б-2В-84
+      </p>
+      <div className="absolute bg-white border-[#a5a5a5] border-[1.4px] border-solid left-[319px] rounded-[4px] size-[19px] top-[470px]" data-node-id="407:604" data-name="Выбор / Б-2В-84" />
+      <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[24px] top-[585px] w-[330px]" data-node-id="407:610" data-name="Основная кнопка / дублировать товары" />
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[195px] not-italic text-[16px] text-center text-white top-[599px] w-[310px]" data-node-id="407:611">
+        дублировать товары
+      </p>
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[48px] left-[30px] rounded-[24px] top-[585px] w-[330px]" data-node-id="407:612" data-name="PROTO / дублировать товары" />
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#7d7d7d] text-[12px] top-[115px] w-[330px]" data-node-id="412:542">
+        Будут созданы отдельные копии товаров в выбранных магазинах. Оригиналы останутся без изменений.
+      </p>
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: white: #FFFFFF, gray 4: #7D7D7D, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

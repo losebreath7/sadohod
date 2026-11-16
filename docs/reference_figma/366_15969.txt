@@ -1,0 +1,54 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/d6249027-c95a-4dd0-a116-beefa7ea8dd8";
+const imgImage17 = `${assetPathPrefix}/045ce.png`;
+const imgSubtract = `${assetPathPrefix}/aa689.svg`;
+const img = `${assetPathPrefix}/342fc.svg`;
+const img1 = `${assetPathPrefix}/a5de6.svg`;
+const img2 = `${assetPathPrefix}/3154a.svg`;
+
+export default function Component() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="366:15969" data-name="добавить товар выбор фотографии">
+      <div className="-translate-x-1/2 absolute h-[100px] left-[calc(50%-0.21px)] top-0 w-[397.572px]" data-node-id="366:15982" data-name="Subtract">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgSubtract} />
+      </div>
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-1/2 not-italic text-[16px] text-black text-center top-[67px] w-[330px]" data-node-id="366:15987">
+        добавить товар
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[494px] whitespace-nowrap" data-node-id="366:15988">{` `}</p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[157px] not-italic text-[16px] text-white top-[841px] whitespace-nowrap" data-node-id="366:15989">
+        сохранить
+      </p>
+      <a className="-translate-x-1/2 absolute block cursor-pointer h-[630px] left-[calc(50%+0.5px)] top-[106px] w-[439px]" data-node-id="366:15990" data-name="image 17">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <img alt="" className="absolute h-[151.69%] left-0 max-w-none top-[-24.18%] w-full" src={imgImage17} />
+        </div>
+      </a>
+      <div className="absolute bg-white h-[60px] left-0 top-[732px] w-[390px]" data-node-id="366:15993" data-name="NAV / Продавец">
+        <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="I366:15993;336:801" data-name="Камера">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+        </div>
+        <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="I366:15993;336:804" data-name="Профиль">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+        </div>
+      </div>
+      <a className="absolute block cursor-pointer left-[52.5px] size-[27px] top-[748.5px]" data-node-id="366:17276" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </a>
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[242px] top-[732px] w-[110px]" data-node-id="366:15995" data-name="NAV / Профиль" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-0 top-[732px] w-[130px]" data-node-id="379:443" data-name="FLOW / Низ / Магазин" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[130px] top-[732px] w-[130px]" data-node-id="379:445" data-name="FLOW / Низ / Камера" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[260px] top-[732px] w-[130px]" data-node-id="379:446" data-name="FLOW / Низ / Профиль" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[48px] left-[122px] top-[652px] w-[146px]" data-node-id="428:565" data-name="PROTO / Из галереи" />
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: white: #FFFFFF, black: #000000, helvetica bold 16 0%: Font(family: "Helvetica", style: Bold, size: 16, weight: 700, lineHeight: 100, letterSpacing: 0), gray 2: #A5A5A5, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

@@ -1,0 +1,48 @@
+# Keep the same Docker Compose project ID as v0.2 to reuse the existing PostgreSQL volume.
+name: sadohod_mvp_v0_2
+services:
+  db:
+    labels:
+      ru.sadohod.install: "${SADOHOD_INSTALL_ID:-legacy}"
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: sadohod
+      POSTGRES_USER: sadohod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only}
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sadohod -d sadohod"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - sadohod_pg:/var/lib/postgresql/data
+  api:
+    labels:
+      ru.sadohod.install: "${SADOHOD_INSTALL_ID:-legacy}"
+    build:
+      context: ./server
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://sadohod:${POSTGRES_PASSWORD:-local-dev-only}@db:5432/sadohod
+      DEMO_SEED: "1"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_GROUP_ID: ${TELEGRAM_GROUP_ID:-}
+    ports:
+      - "${SADOHOD_BIND:-127.0.0.1}:8000:8000"
+    volumes:
+      - sadohod_uploads:/app/backend/media/products/uploads
+      - sadohod_admin_state:/app/state
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  sadohod_uploads:
+  sadohod_admin_state:
+  sadohod_pg:

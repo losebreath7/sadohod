@@ -1,0 +1,71 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/7277a62d-f16e-4593-a1b1-d2ca734ad7c9";
+const img = `${assetPathPrefix}/83ac5.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/a5de6.svg`;
+const imgSubtract = `${assetPathPrefix}/aa689.svg`;
+
+function NavStores({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:783" data-name="САДОХОД / nav / stores">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:784" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:789" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:792" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component14() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="366:16552" data-name="14 · Адрес не найден">
+      <div className="-translate-x-1/2 absolute h-[100px] left-[calc(50%-0.21px)] top-0 w-[397.572px]" data-node-id="366:16565" data-name="Subtract">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgSubtract} />
+      </div>
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-1/2 not-italic text-[16px] text-black text-center top-[67px] w-[330px]" data-node-id="366:16570">
+        адрес не найден
+      </p>
+      <div className="absolute contents left-[30px] top-[141px]" data-node-id="366:16571">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[141px] w-[330px]" data-node-id="366:16572" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[149px] whitespace-nowrap" data-node-id="366:16573">
+          указать адрес
+        </p>
+      </div>
+      <a className="absolute contents cursor-pointer left-[30px] top-[585px]" data-node-id="366:16586">
+        <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[100px] top-[585px] w-[330px]" data-node-id="366:16587" />
+      </a>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[128.5px] not-italic text-[16px] text-white top-[599px] whitespace-nowrap" data-node-id="366:16588">
+        отправить адрес
+      </p>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[30px] not-italic text-[#808080] text-[12px] top-[111px] w-[332px]" data-node-id="366:16589">
+        Укажи расположение торговой точки вручную.
+      </p>
+      <button className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer left-[18px] size-[42px] top-[53px]" data-node-id="366:16592" data-name="PROTO / Назад">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[12px] not-italic text-[30px] text-black text-left top-0 whitespace-nowrap" data-node-id="366:16593">
+          ‹
+        </p>
+      </button>
+      <NavStores className="absolute bg-white h-[60px] left-0 top-[640px] w-[390px]" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[8px] top-[640px] w-[110px]" data-node-id="366:16595" data-name="NAV / Магазины" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[125px] top-[640px] w-[110px]" data-node-id="366:16596" data-name="NAV / Камера" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[242px] top-[640px] w-[110px]" data-node-id="366:16597" data-name="NAV / Профиль" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-0 top-[640px] w-[130px]" data-node-id="379:495" data-name="FLOW / Низ / Магазин" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[130px] top-[640px] w-[130px]" data-node-id="379:497" data-name="FLOW / Низ / Камера" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[260px] top-[640px] w-[130px]" data-node-id="379:499" data-name="FLOW / Низ / Профиль" />
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: white: #FFFFFF, black: #000000, helvetica bold 16 0%: Font(family: "Helvetica", style: Bold, size: 16, weight: 700, lineHeight: 100, letterSpacing: 0), gray 2: #A5A5A5, brown: #48352D, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

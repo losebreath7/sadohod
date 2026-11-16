@@ -1,0 +1,10 @@
+name: sadohod_shared_core
+description: Common API connection settings for the buyer and seller Flutter clients.
+publish_to: none
+version: 0.8.4+27
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.2.0

@@ -1,0 +1,146 @@
+const assetPathPrefix = "https://www.figma.com/api/mcp/asset/487ce797-3915-41e1-9ea1-c6a46dd892e7";
+const img = `${assetPathPrefix}/aa629.svg`;
+const img1 = `${assetPathPrefix}/c4e1e.svg`;
+const img2 = `${assetPathPrefix}/eb441.svg`;
+const imgUnsplashKFnmVvG5A1 = `${assetPathPrefix}/d24f3.png`;
+const imgSubtract = `${assetPathPrefix}/aa689.svg`;
+const imgEllipse9 = `${assetPathPrefix}/5c616.svg`;
+const imgEvaPersonFill = `${assetPathPrefix}/9b01f.svg`;
+const imgGroup36 = `${assetPathPrefix}/2858a.svg`;
+const imgUnsplashKFnmVvG5A = `${assetPathPrefix}/d36f5.svg`;
+
+function NavProfile({ className }: { className?: string }) {
+  return (
+    <div className={className || "bg-white h-[60px] relative w-[390px]"} data-node-id="336:807" data-name="САДОХОД / nav / profile">
+      <div className="absolute left-[52.5px] size-[27px] top-[16.5px]" data-node-id="336:808" data-name="Магазины">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img} />
+      </div>
+      <div className="absolute left-[169.5px] size-[27px] top-[16.5px]" data-node-id="336:813" data-name="Камера">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img1} />
+      </div>
+      <div className="absolute left-[286.5px] size-[27px] top-[16.5px]" data-node-id="336:816" data-name="Профиль">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={img2} />
+      </div>
+    </div>
+  );
+}
+
+export default function Component10() {
+  return (
+    <div className="bg-[#f0efeb] relative size-full" data-node-id="366:16208" data-name="10 · Редактировать профиль">
+      <div className="-translate-x-1/2 absolute h-[100px] left-[calc(50%-0.21px)] top-0 w-[397.572px]" data-node-id="366:16221" data-name="Subtract">
+        <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgSubtract} />
+      </div>
+      <div className="-translate-x-1/2 absolute contents left-1/2 top-[117px]" data-node-id="366:16225">
+        <div className="-translate-x-1/2 absolute bg-[#48352d] h-[150px] left-1/2 rounded-[10px] top-[117px] w-[330px]" data-node-id="366:16226" />
+        <div className="-translate-x-1/2 absolute left-[calc(50%+0.5px)] size-[93px] top-[205px]" data-node-id="366:16227">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEllipse9} />
+        </div>
+        <div className="-translate-x-1/2 absolute left-1/2 size-[60px] top-[221px]" data-node-id="366:16228" data-name="eva:person-fill">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgEvaPersonFill} />
+        </div>
+        <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[calc(50%-37px)] not-italic text-[12px] text-black top-[313px] tracking-[-0.24px] whitespace-nowrap" data-node-id="366:16230">
+          martini felesk
+        </p>
+      </div>
+      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-1/2 not-italic text-[22px] text-black text-center top-[67px] tracking-[-0.44px] w-[330px]" data-node-id="366:16232">
+        профиль
+      </p>
+      <div className="absolute contents left-[30px] top-[346px]" data-node-id="366:16233">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[346px] w-[330px]" data-node-id="366:16234" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[354px] whitespace-nowrap" data-node-id="366:16235">
+          имя
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[811px]" data-node-id="366:16236">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[811px] w-[330px]" data-node-id="366:16237" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[819px] whitespace-nowrap" data-node-id="366:16238">
+          email
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[486px]" data-node-id="366:16239">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[486px] w-[330px]" data-node-id="366:16240" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[493px] whitespace-nowrap" data-node-id="366:16241">
+          телеграм
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[556px]" data-node-id="366:16242">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[556px] w-[330px]" data-node-id="366:16243" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[565px] whitespace-nowrap" data-node-id="366:16244">
+          вконтакте
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[626px]" data-node-id="366:16245">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[626px] w-[330px]" data-node-id="366:16246" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[635px] whitespace-nowrap" data-node-id="366:16247">
+          whatsapp
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[671px]" data-node-id="366:16248">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[671px] w-[330px]" data-node-id="366:16249" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[680px] whitespace-nowrap" data-node-id="366:16250">
+          авито
+        </p>
+      </div>
+      <div className="absolute contents left-[30px] top-[741px]" data-node-id="366:16251">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[741px] w-[330px]" data-node-id="366:16252" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[750px] whitespace-nowrap" data-node-id="366:16253">
+          сайт
+        </p>
+      </div>
+      <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[494px] whitespace-nowrap" data-node-id="366:16254">{` `}</p>
+      <div className="absolute contents left-[30px] top-[416px]" data-node-id="366:16255">
+        <div className="absolute bg-white h-[60px] left-[30px] rounded-[5px] top-[416px] w-[330px]" data-node-id="366:16256" />
+        <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[50px] not-italic text-[#a5a5a5] text-[12px] top-[424px] whitespace-nowrap" data-node-id="366:16257">
+          номер телефона
+        </p>
+        <div className="absolute contents left-[325px] top-[431px]" data-node-id="366:16258">
+          <div className="absolute flex items-center justify-center left-[325px] size-[28px] top-[432px]" data-node-id="366:16259">
+            <div className="-scale-y-100 flex-none rotate-180">
+              <div className="relative size-[28px]">
+                <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgGroup36} />
+              </div>
+            </div>
+          </div>
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[332px] not-italic text-[24px] text-white top-[431px] whitespace-nowrap" data-node-id="366:16261">
+            +
+          </p>
+        </div>
+      </div>
+      <div className="absolute contents left-[149px] top-[205px]" data-node-id="366:16265" data-name="Mask group">
+        <div className="absolute h-[147px] left-[147px] mask-alpha mask-intersect mask-no-clip mask-no-repeat mask-position-[2px_8px] mask-size-[93px_93px] top-[197px] w-[98px]" data-node-id="366:16267" style={{ maskImage: `url("${imgUnsplashKFnmVvG5A}")` }} data-name="unsplash:k_FNMVvG5_A">
+          <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgUnsplashKFnmVvG5A1} />
+        </div>
+      </div>
+      <button className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer left-[18px] size-[42px] top-[53px]" data-node-id="366:16268" data-name="PROTO / Назад">
+        <p className="[word-break:break-word] absolute font-['Helvetica:Bold'] leading-[normal] left-[12px] not-italic text-[30px] text-black text-left top-0 whitespace-nowrap" data-node-id="366:16269">
+          ‹
+        </p>
+      </button>
+      <NavProfile className="absolute bg-white h-[60px] left-0 top-[981px] w-[390px]" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[8px] top-[981px] w-[110px]" data-node-id="366:16271" data-name="NAV / Магазины" />
+      <div className="absolute bg-[rgba(255,255,255,0)] h-[60px] left-[125px] top-[981px] w-[110px]" data-node-id="366:16272" data-name="NAV / Камера" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-0 top-[981px] w-[130px]" data-node-id="379:460" data-name="FLOW / Низ / Магазин" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[130px] top-[981px] w-[130px]" data-node-id="379:462" data-name="FLOW / Низ / Камера" />
+      <a className="absolute bg-[rgba(255,255,255,0)] block cursor-pointer h-[60px] left-[260px] top-[981px] w-[130px]" data-node-id="379:464" data-name="FLOW / Низ / Профиль" />
+      <a className="-translate-x-1/2 absolute contents cursor-pointer left-1/2 top-[902px]" data-node-id="398:18147">
+        <div className="absolute bg-[#48352d] h-[48px] left-[30px] rounded-[100px] top-[902px] w-[330px]" data-node-id="398:18148" />
+        <div className="-translate-x-1/2 -translate-y-1/2 absolute contents left-[calc(50%+0.5px)] top-[calc(50%+404.5px)]" data-node-id="398:18149">
+          <p className="[word-break:break-word] absolute font-['Helvetica:Regular'] leading-[normal] left-[calc(50%-38px)] not-italic text-[16px] text-white top-[calc(50%+395.5px)] whitespace-nowrap" data-node-id="398:18150">
+            сохранить
+          </p>
+        </div>
+      </a>
+    </div>
+  );
+}
+SUPER CRITICAL: The generated React+Tailwind code MUST be converted to match the target project's technology stack and styling system.
+1. Analyze the target codebase to identify: technology stack, styling approach, component patterns, and design tokens
+2. Convert React syntax to the target framework/library
+3. Transform all Tailwind classes to the target styling system while preserving exact visual design
+4. Follow the project's existing patterns and conventions
+DO NOT install any Tailwind as a dependency unless the user instructs you to do so.
+
+Node ids have been added to the code as data attributes, e.g. `data-node-id="1:2"`.
+These styles are contained in the design: white: #FFFFFF, brown: #48352D, gray 5: #D9D9D9, gray 4: #7D7D7D, black: #000000, helvetica bold 22 -2%: Font(family: "Helvetica", style: Bold, size: 22, weight: 700, lineHeight: 100, letterSpacing: -2), gray 2: #A5A5A5, blue: #A5BCD6, beige: #F0EFEB.
+The generated code contains image and SVG URL constants, e.g. const image = `${assetPathPrefix}/<asset file name>`, where assetPathPrefix is declared once at the top of the code and every asset URL interpolates it. These URLs are temporary download sources and expire after 7 days. Download each asset into the project with curl -L, then replace its URL in the generated code with a reference to the downloaded asset. Never use the temporary URLs as runtime image sources.

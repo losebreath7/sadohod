@@ -1,0 +1,13 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+const c=vm.createContext({URL});vm.runInContext(fs.readFileSync(__dirname+'/seller_helpers.js','utf8'),c);
+const links=s=>JSON.parse(JSON.stringify(vm.runInContext(`contactLinks(${JSON.stringify(s)})`,c)));
+assert.deepEqual(links(''),[]);
+assert.deepEqual(links('Уточняйте в павильоне'),[]);
+assert.deepEqual(links('+7 (999) 123-45-67; @example').map(l=>l.href),['https://t.me/example','tel:+79991234567']);
+assert.deepEqual(links('8 (999) 123-45-67').map(l=>l.href),['tel:+79991234567']);
+assert.deepEqual(links('https://wa.me/79991234567; https://t.me/example').map(l=>l.href),['https://wa.me/79991234567','https://t.me/example']);
+assert.deepEqual(links('shop@example.com').map(l=>l.href),['mailto:shop@example.com']);
+assert.deepEqual(links('https://t.me.evil.test/example; javascript:alert(1); https://evil.test/+79991234567'),[]);
+assert.equal(links('@example; https://t.me/example').length,1);
+assert.equal(vm.runInContext("sellerAddress({zone:'Ряд 2',pavilion:'14'})",c),'Садовод, Ряд 2, павильон 14');
+console.log('PASS: empty contacts, phone normalization, Telegram, WhatsApp, email, unsafe URLs, deduplication, address');
