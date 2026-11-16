@@ -687,6 +687,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     ];
     const map = {
       '366:15805': 'profile',
+      '366:settings': 'settings',
       '366:15855': 'address',
       '366:15903': 'pending',
       '366:15936': 'approved',
