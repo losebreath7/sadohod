@@ -129,9 +129,10 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     final note = (item['note'] ?? '').toString().trim();
     final title = (item['title'] ?? '').toString();
     final description = (item['message'] ?? '').toString();
-    final status = title == 'Не прошло модерацию'
+    final moderationStatus = item['status']?.toString() ?? '';
+    final statusIcon = moderationStatus == 'rejected'
         ? Icons.error_outline
-        : title == 'Проверка пройдена'
+        : moderationStatus == 'approved'
             ? Icons.check_circle_outline
             : Icons.schedule_outlined;
     return Semantics(
@@ -146,7 +147,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
             children: [
               SizedBox(
                 width: 32,
-                child: Icon(status, size: 23, color: sellerBrown),
+                child: Icon(statusIcon, size: 23, color: sellerBrown),
               ),
               const SizedBox(width: 13),
               Expanded(child: Column(
@@ -182,7 +183,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                   Text(date(item['created_at']),
                     style: const TextStyle(fontFamily: 'Helvetica',
                       fontSize: 10, color: Color(0xFF92908B))),
-                  if (title == 'Не прошло модерацию')
+                  if (moderationStatus == 'rejected')
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text('посмотреть и исправить ›',
