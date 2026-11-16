@@ -68,10 +68,12 @@ void main() {
       of: tags,
       matching: find.byType(Scrollable),
     );
+    // The main scrollable is the first descendant. The tag rail is also
+    // nested under CustomScrollView, so the unfiltered finder is ambiguous.
     final vertical = find.descendant(
       of: find.byType(CustomScrollView),
       matching: find.byType(Scrollable),
-    );
+    ).first;
     final initialVertical = tester.state<ScrollableState>(vertical).position.pixels;
 
     final drag = await tester.startGesture(
