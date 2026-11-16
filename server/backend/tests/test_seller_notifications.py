@@ -79,9 +79,11 @@ def test_pavilion_and_product_moderation_keep_reasons_and_isolate_owner(env):
         json={'decision':'rejected', 'note':'Замените основную фотографию'})
     assert decision.status_code == 200, decision.text
     inbox = client.get('/api/v1/merchant/notifications', headers=seller).json()
-    assert inbox['items'][0]['event_type']=='product'
-    assert inbox['items'][0]['target_id']==pid
-    assert inbox['items'][0]['note']=='Замените основную фотографию'
+    rejected = [n for n in inbox['items']
+                if n['event_type'] == 'product' and n['target_id'] == pid
+                and n['title'] == 'Не прошло модерацию']
+    assert len(rejected) == 1
+    assert rejected[0]['note'] == 'Замените основную фотографию'
     assert any(x['event_type']=='product' and x['title']=='На проверке'
                for x in inbox['items'])
     assert client.get('/api/v1/merchant/notifications', headers=other).json()['items']==[]
