@@ -214,6 +214,52 @@ def move_products(data: MoveInput, buyer: Buyer = Depends(current_buyer), db: Se
                   'destination_pavilion_id': data.destination_pavilion_id})
 
 
+
+class VisibilityInput(BatchInput):
+    # Explicit scope: absent means every applicable listing of these products.
+    pavilion_id: str | None = None
+
+
+def change_visibility(data, buyer, db, resume):
+    shop = lock_shop(db, buyer)
+    digest, old = receipt(db, shop, data, 'resume' if resume else 'pause')
+    if old is not None:
+        return old
+    if data.pavilion_id:
+        claim(db, shop, data.pavilion_id)
+    changes = []
+    for pid in data.product_ids:
+        owner = m.merchant_product(pid, shop, db)
+        product = db.get(Product, pid)
+        rows = db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid)).all()
+        rows = [r for r in rows if not data.pavilion_id or r.pavilion_id == data.pavilion_id]
+        eligible = [r for r in rows if r.status == 'paused' and owner.status == 'approved'] if resume else [r for r in rows if r.offer_id is not None
+                    and r.status in ('approved', 'pending')]
+        if not eligible:
+            raise HTTPException(409, 'Статус товара изменился. Обновите список и повторите действие.')
+        changes.append((owner, product, eligible))
+    for owner, product, rows in changes:
+        for row in rows:
+            if resume:
+                row.status = 'pending'
+            else:
+                drop_offer(db, row)
+                row.status = 'paused'
+            row.note = ''
+        refresh_visibility(db, product, owner)
+    return finish(db, shop, data, digest, {'product_ids': data.product_ids,
+                  'status': 'pending' if resume else 'paused'})
+
+
+@router.post('/products/actions/pause')
+def pause_products(data: VisibilityInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    return change_visibility(data, buyer, db, False)
+
+
+@router.post('/products/actions/resume')
+def resume_products(data: VisibilityInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    return change_visibility(data, buyer, db, True)
+
 def clone_image(db, image, pid, created_files):
     source = (admin.MEDIA / image.filename).resolve()
     if not source.is_relative_to(Path(admin.MEDIA).resolve()) or not source.is_file():
@@ -249,22 +295,22 @@ def copy_products(data: CopyInput, buyer: Buyer = Depends(current_buyer), db: Se
         claim(db, shop, pavilion)
     sources = []
     for pid in data.product_ids:
-        _, product = editable(db, pid, shop)
+        owner, product = editable(db, pid, shop)
         row = db.scalar(select(MerchantListing).where(MerchantListing.product_id == pid,
                         MerchantListing.pavilion_id == data.source_pavilion_id))
-        if not row or row.status == 'pending':
+        if owner.status != 'approved' or not row or row.status not in ('approved', 'paused'):
             raise HTTPException(409, 'Исходное предложение недоступно или на модерации.')
         sources.append((product, row))
     created_files, items = [], []
     try:
-        for original, listing in sources:
+        for original, listing, destination in [(p, l, d) for p, l in sources for d in data.destination_pavilion_ids]:
             pid = m.uid('u-')
             product = Product(id=pid, title=original.title, category=original.category,
                               description=original.description, colors=list(original.colors), is_demo=False,
-                              details=ProductDetails(active=False, sizes=list(original.details.sizes)))
+                              details=ProductDetails(active=True, sizes=list(original.details.sizes)))
             db.add(product)
             db.flush()
-            db.add(MerchantProduct(product_id=pid, seller_id=shop.id, status='draft'))
+            db.add(MerchantProduct(product_id=pid, seller_id=shop.id, status='approved'))
             category_state = db.get(ProductCategoryState, original.id)
             if category_state:
                 db.add(ProductCategoryState(product_id=pid, source=category_state.source,
@@ -272,11 +318,14 @@ def copy_products(data: CopyInput, buyer: Buyer = Depends(current_buyer), db: Se
                        suggestion=category_state.suggestion, score=category_state.score))
             for image in original.images:
                 clone_image(db, image, pid, created_files)
-            for pavilion in data.destination_pavilion_ids:
-                db.add(MerchantListing(id=m.uid('l-'), product_id=pid, seller_id=shop.id,
+            for pavilion in [destination]:
+                row = MerchantListing(id=m.uid('l-'), product_id=pid, seller_id=shop.id,
                        pavilion_id=pavilion, price=listing.price, wholesale=listing.wholesale,
-                       retail=listing.retail, status='draft'))
-            items.append({'source_id': original.id, 'id': pid})
+                       retail=listing.retail, status='approved')
+                db.add(row)
+                db.flush()
+                m.publish_listing(db, row)
+            items.append({'source_id': original.id, 'id': pid, 'pavilion_id': destination})
         return finish(db, shop, data, digest, {'copies': items})
     except Exception:
         db.rollback()
@@ -344,7 +393,7 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
         row.price = value.price
         row.wholesale = 'wholesale' in value.sale_modes
         row.retail = 'retail' in value.sale_modes
-        row.status = 'pending' if data.submit else 'draft'
+        row.status = ('paused' if row.status == 'paused' else 'pending') if data.submit else 'draft'
         row.note = ''
     owner.status = 'pending' if data.submit else 'draft'
     owner.note = ''

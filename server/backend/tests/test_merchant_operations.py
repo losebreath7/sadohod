@@ -24,7 +24,7 @@ def setup(env):
     return c, auth, other, source, destination, factory, media
 
 
-def test_copy_retry_independent_images_and_moderation(env):
+def test_copy_retry_publishes_approved_independent_images(env):
     c, auth, _, source, dest, factory, media = setup(env)
     pid = make_published(c, auth, source)
     payload = {'request_id': 'copy-request-1', 'product_ids': [pid], 'source_pavilion_id': source,
@@ -35,9 +35,9 @@ def test_copy_retry_independent_images_and_moderation(env):
     assert copied != pid
     again = c.post('/api/v1/merchant/products/actions/copy', headers=auth, json=payload)
     assert again.json() == r.json()
-    assert c.get('/api/v1/products/' + copied).status_code == 404
+    assert c.get('/api/v1/products/' + copied).status_code == 200
     data = c.get('/api/v1/merchant/products/' + copied, headers=auth).json()
-    assert data['status'] == 'draft'
+    assert data['status'] == 'approved'
     assert data['listings'][0]['price'] == 2500
     assert data['listings'][0]['sale_modes'] == ['wholesale', 'retail']
     original = c.get('/api/v1/merchant/products/' + pid, headers=auth).json()

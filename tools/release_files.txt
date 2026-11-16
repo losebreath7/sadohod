@@ -600,3 +600,5 @@ tools/test_version.py
 docs/R8_CHAT_LAYOUT_POLISH.md
 tools/gate.ps1
 ВОРОТА.bat
+server/backend/migrations/versions/20261116_03_optional_price.py
+server/backend/tests/test_product_lifecycle.py

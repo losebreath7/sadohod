@@ -38,7 +38,7 @@ class Offer(Base):
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
     seller_id: Mapped[str] = mapped_column(ForeignKey("sellers.id"), index=True)
     pavilion_id: Mapped[str] = mapped_column(ForeignKey("pavilions.id"))
-    price: Mapped[int] = mapped_column(Integer)
+    price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     modes: Mapped["OfferSaleModes | None"] = relationship(uselist=False, cascade="all, delete-orphan", back_populates="offer")
     product: Mapped[Product] = relationship(back_populates="offers")
     seller: Mapped[Seller] = relationship(lazy="joined")
