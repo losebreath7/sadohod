@@ -9,7 +9,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import Float, ForeignKey, String, Text, select, event, inspect
+from sqlalchemy import Float, ForeignKey, String, Text, select, event, inspect, func
 from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from .account import Buyer, current_buyer
@@ -28,6 +28,7 @@ class SellerNotification(Base):
     buyer_id: Mapped[str] = mapped_column(
         ForeignKey('buyers.id', ondelete='CASCADE'), index=True, nullable=False)
     event_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
     target_id: Mapped[str] = mapped_column(String(32), nullable=False)
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -56,26 +57,50 @@ def _record(db: Session, buyer_id: str | None, kind: str, target: str,
     if buyer_id is None or status not in ('pending', 'approved', 'rejected'):
         return
     subject = (subject or 'Без названия').strip()
-    label = {
+    titles = {
+        'application': {
+            'pending': 'Заявка на магазин отправлена',
+            'approved': 'Магазин подтверждён',
+            'rejected': 'Заявка на магазин отклонена',
+        },
+        'pavilion': {
+            'pending': 'Павильон на проверке',
+            'approved': 'Павильон подтверждён',
+            'rejected': 'Павильон отклонён',
+        },
+        'product': {
+            'pending': 'Товар на проверке',
+            'approved': 'Товар опубликован',
+            'rejected': 'Товар не прошёл модерацию',
+        },
+        'listing': {
+            'pending': 'Размещение на проверке',
+            'approved': 'Размещение одобрено',
+            'rejected': 'Размещение отклонено',
+        },
+    }
+    subject_label = {
         'application': 'Магазин',
         'pavilion': 'Павильон',
         'product': 'Товар',
         'listing': 'Размещение товара',
     }[kind]
-    action = {
-        'pending': 'отправлен на проверку' if kind != 'application' else 'отправлена на проверку',
-        'approved': 'прошёл модерацию' if kind != 'application' else 'подтверждён',
-        'rejected': 'не прошёл модерацию' if kind != 'application' else 'отклонён',
-    }[status]
-    title = {
-        'pending': 'На проверке',
-        'approved': 'Проверка пройдена',
-        'rejected': 'Не прошло модерацию',
-    }[status]
+    messages = {
+        'pending': f'{subject_label} «{subject}» отправлен на проверку.',
+        'approved': f'{subject_label} «{subject}» прошёл проверку.',
+        'rejected': f'{subject_label} «{subject}» отклонён.',
+    }
+    if kind == 'listing':
+        messages = {
+            'pending': f'Размещение «{subject}» отправлено на проверку.',
+            'approved': f'Размещение «{subject}» одобрено.',
+            'rejected': f'Размещение «{subject}» отклонено.',
+        }
+    title = titles[kind][status]
     db.add(SellerNotification(
         id=uuid.uuid4().hex, buyer_id=buyer_id, event_type=kind,
-        target_id=target, title=title,
-        message=f'{label} «{subject}» {action}.',
+        status=status, target_id=target, title=title,
+        message=messages[status],
         note=note if status == 'rejected' else '', created_at=time.time()))
 
 
@@ -85,7 +110,18 @@ def _capture_merchant_decisions(db, flush_context, instances):
     # unrelated columns, polling and restarting the API cannot duplicate them.
     # The newly inserted notification shares the original transaction, so a
     # failed moderation decision cannot leave a false notification behind.
+    # Approving/rejecting a product may update all its placements in one
+    # transaction. Record the product decision once; standalone placement
+    # decisions remain independent notifications.
+    changed_products = {
+        obj.product_id for obj in list(db.new) + list(db.dirty)
+        if isinstance(obj, MerchantProduct)
+        and _status_transition(db, obj, obj.status)
+        and obj.status in ('approved', 'rejected')
+    }
     for obj in list(db.new) + list(db.dirty):
+        if isinstance(obj, MerchantListing) and obj.product_id in changed_products:
+            continue
         if not isinstance(obj, (ShopApplication, PavilionRequest,
                                 MerchantProduct, MerchantListing)):
             continue
@@ -124,7 +160,7 @@ def _owned(notification_id: str, buyer: Buyer, db: Session) -> SellerNotificatio
 def _dto(row: SellerNotification):
     return {
         'id': row.id, 'event_type': row.event_type,
-        'target_id': row.target_id, 'title': row.title,
+        'status': row.status, 'target_id': row.target_id, 'title': row.title,
         'message': row.message, 'note': row.note,
         'created_at': row.created_at, 'read': row.read_at is not None,
     }
@@ -138,8 +174,10 @@ def notifications(buyer: Buyer = Depends(current_buyer),
         SellerNotification.buyer_id == buyer.id)
         .order_by(SellerNotification.created_at.desc(), SellerNotification.id.desc())
         .limit(150)).all()
-    return {'items': [_dto(row) for row in rows],
-            'unread': sum(row.read_at is None for row in rows)}
+    unread = db.scalar(select(func.count()).select_from(SellerNotification).where(
+        SellerNotification.buyer_id == buyer.id,
+        SellerNotification.read_at.is_(None))) or 0
+    return {'items': [_dto(row) for row in rows], 'unread': unread}
 
 
 @router.put('/{notification_id}/read')
