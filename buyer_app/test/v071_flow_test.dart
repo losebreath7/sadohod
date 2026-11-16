@@ -38,6 +38,6 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(SliverPersistentHeader), findsOneWidget);
     expect(find.text('Все товары'), findsNothing);
-    expect(find.byTooltip('Поиск по фотографии'), findsOneWidget);
+    expect(find.text('найти по фото'), findsOneWidget);
   });
 }
