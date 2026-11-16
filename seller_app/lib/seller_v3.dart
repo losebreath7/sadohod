@@ -2711,8 +2711,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     width: 24,
                     height: 24,
                     child: Center(
-                      child: const Icon(Icons.check_box_outlined,
-                          size: 19, color: Colors.black),
+                      child: asset(shop ? 'ac2f9.svg' : 'e36ac.svg',
+                          width: 18, height: 18),
                     ),
                   ),
                   () => setState(() {
