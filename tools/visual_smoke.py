@@ -23,6 +23,8 @@ def cases(app):
         ('seller-profile-iphone16pro', '/?screen=366%3A15805', 402, 874),
         ('seller-settings-iphone16pro', '/?screen=366%3Asettings', 402, 874),
         ('seller-catalog-iphone16pro', '/?screen=366%3A16277', 402, 874),
+        ('seller-shop-iphone16pro', '/?screen=366%3A17044', 402, 874),
+        ('seller-selection-iphone16pro', '/?screen=388%3A17542', 402, 874),
         ('seller-add-product-iphone16pro', '/?screen=366%3A17304', 402, 874),
         ('seller-edit-product-iphone16pro', '/?screen=366%3A16062', 402, 874),
     ]
