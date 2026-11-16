@@ -179,7 +179,7 @@ void main() {
     await tester.tap(find.text('перенести'));
     await tester.pumpAndSettle();
     expect(find.text('перенести товары'), findsNWidgets(2));
-    await tester.tap(find.text('‹'));
+    await tester.tap(find.bySemanticsLabel('Назад'));
     await tester.pumpAndSettle();
     expect(find.text('перенести товары'), findsNothing);
     expect(find.text('выбрано : 4'), findsOneWidget);
