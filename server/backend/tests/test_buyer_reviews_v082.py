@@ -39,6 +39,13 @@ def test_reviews_edit_ratings_and_photo_limit(setup):
     r=c.post('/api/v1/sellers/s01/reviews',headers=a,json={'rating':5,'text':'Отлично'})
     assert r.status_code==200 and r.json()['item']['id']==review_id
     r=c.get('/api/v1/sellers/s01/reviews')
+    # New and edited reviews remain private until moderator approval.
+    assert r.status_code==200 and r.json()['count']==0
+    assert c.get('/api/v1/sellers/s01/my-review',headers=a).json()['item']['moderation_status']=='pending'
+    with sessions() as db:
+        db.get(SellerReview,review_id).moderation_status='approved'
+        db.commit()
+    r=c.get('/api/v1/sellers/s01/reviews')
     assert r.status_code==200 and r.json()['average']==5.0 and r.json()['count']==1
     assert r.json()['verified_purchases'] is False
     assert c.post('/api/v1/sellers/s01/reviews',headers=a,json={'rating':4,'photos':['invalid-base64']}).status_code==422
@@ -53,6 +60,9 @@ def test_reports_moderation_and_owner_isolation(setup,monkeypatch):
     alice=login(c,codes,'one@example.com');bob=login(c,codes,'two@example.com')
     r=c.post('/api/v1/sellers/s01/reviews',headers=alice,json={'rating':2,'text':'Плохо'})
     rid=r.json()['item']['id']
+    with sessions() as db:
+        db.get(SellerReview,rid).moderation_status='approved'
+        db.commit()
     assert c.post(f'/api/v1/sellers/s01/reviews/{rid}/report',headers=bob,json={'reason':'Спам и флуд'}).status_code==200
     assert c.post(f'/api/v1/sellers/s01/reviews/{rid}/report',headers=bob,json={'reason':'Повтор'}).status_code==200
     with sessions() as db:
