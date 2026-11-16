@@ -109,7 +109,13 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
       )));
     // Avoid disposing a controller while an alert closing animation still
     // builds its TextField. Let the route release its widget first.
-    if (saved == true && mounted) await _load();
+    if (saved == true && mounted) {
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Отзыв отправлен на модерацию')));
+      }
+    }
   }
 
   Future<void> _report(String reviewId) async {
