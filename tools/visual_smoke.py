@@ -48,7 +48,7 @@ async def capture(app, port, output):
                         wait_until='domcontentloaded', timeout=45000)
                     if response is None or response.status != 200:
                         raise RuntimeError(f'Bad HTTP response: {response}')
-                    await page.locator('flt-glass-pane').wait_for(timeout=60000)
+                    await page.locator('flt-glass-pane').wait_for(state='attached', timeout=30000)
                     await page.wait_for_timeout(6500)
                     image = output / f'{name}.png'
                     await page.screenshot(path=str(image), full_page=True)
