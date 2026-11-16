@@ -80,6 +80,14 @@ jobs:
         run: flutter test
       - name: Flutter Web build
         run: flutter build web --dart-define=API_BASE_URL=http://localhost:8000
+      - name: Preview web build для визуальной проверки Figma
+        run: flutter build web --dart-define=FIGMA_PREVIEW=true --dart-define=API_BASE_URL=http://localhost:8000
+      - name: Сохранить Flutter Web для проверки в Chrome
+        uses: actions/upload-artifact@v4
+        with:
+          name: figma-preview-${{ matrix.app }}
+          path: ${{ matrix.app }}/build/web/
+          retention-days: 3
 
   gate:
     name: ворота
