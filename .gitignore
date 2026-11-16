@@ -56,3 +56,19 @@ coverage/
 Thumbs.db
 *.log
 *.tmp
+
+# Product-photo storage can contain user uploads or imported catalogue data.
+# Commit only documented seed fixtures p01.jpg through p12.jpg.
+server/backend/media/products/*
+!server/backend/media/products/p01.jpg
+!server/backend/media/products/p02.jpg
+!server/backend/media/products/p03.jpg
+!server/backend/media/products/p04.jpg
+!server/backend/media/products/p05.jpg
+!server/backend/media/products/p06.jpg
+!server/backend/media/products/p07.jpg
+!server/backend/media/products/p08.jpg
+!server/backend/media/products/p09.jpg
+!server/backend/media/products/p10.jpg
+!server/backend/media/products/p11.jpg
+!server/backend/media/products/p12.jpg
