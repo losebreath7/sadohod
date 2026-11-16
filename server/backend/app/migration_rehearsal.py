@@ -8,22 +8,34 @@ from sqlalchemy.engine import make_url
 from .migrations import upgrade_database
 
 
-def snapshot(engine):
+def snapshot(engine, column_scope=None):
+    """Hash original columns even when an additive migration adds new ones.
+
+    The old rehearsal compared row_to_json(table) wholesale, which incorrectly
+    treated a new nullable/defaulted column as corruption of existing rows.
+    Keep hashing inside PostgreSQL (private attachments never leave the DB).
+    """
     result = {}
     with engine.connect() as connection:
+        inspector = inspect(connection)
         quote = connection.dialect.identifier_preparer.quote
-        for table in sorted(inspect(connection).get_table_names()):
+        for table in sorted(inspector.get_table_names()):
             if table == 'alembic_version':
                 continue
+            if column_scope is not None and table not in column_scope:
+                continue
+            columns = (column_scope[table] if column_scope is not None else
+                       tuple(c['name'] for c in inspector.get_columns(table)))
+            projection = ', '.join(quote(col) for col in columns)
             digest = hashlib.sha256()
             count = 0
-            # Hash within PostgreSQL: attachments are never copied to the client.
             rows = connection.execution_options(stream_results=True).execute(text(
-                f'SELECT md5(row_to_json(t)::text) AS h FROM {quote(table)} t ORDER BY h'))
+                f'SELECT md5(row_to_json(t)::text) AS h '
+                f'FROM (SELECT {projection} FROM {quote(table)}) t ORDER BY h'))
             for row in rows:
                 digest.update(row[0].encode('ascii'))
                 count += 1
-            result[table] = (count, digest.hexdigest())
+            result[table] = (columns, count, digest.hexdigest())
     return result
 
 
@@ -33,11 +45,13 @@ def rehearse(engine):
         raise RuntimeError('Rehearsal is allowed only on an isolated verification database')
     before = snapshot(engine)
     upgrade_database(engine)
-    after = snapshot(engine)
-    if any(after.get(table) != values for table, values in before.items()):
+    before_columns = {table: data[0] for table, data in before.items()}
+    after = snapshot(engine, before_columns)
+    if after != before:
         raise RuntimeError('Existing data changed during migration rehearsal')
+    upgraded_snapshot = snapshot(engine)
     upgrade_database(engine)
-    if snapshot(engine) != after:
+    if snapshot(engine) != upgraded_snapshot:
         raise RuntimeError('Repeated migration changed data')
     print(f'Migration rehearsal passed: {len(before)} existing tables preserved.')
 
