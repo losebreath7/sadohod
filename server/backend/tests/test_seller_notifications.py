@@ -61,7 +61,8 @@ def test_pavilion_and_product_moderation_keep_reasons_and_isolate_owner(env):
     assert inbox['items'][0]['event_type'] == 'pavilion'
     assert inbox['items'][0]['note'] == 'Уточните сектор'
 
-    # Product awaiting moderation stays private until a decision.
+    # Products are published without review and must not generate
+    # misleading moderation notifications for the seller.
     pavilions = client.get('/api/v1/merchant/pavilions', headers=seller).json()['items']
     pid = client.post('/api/v1/merchant/products', headers=seller,
         json={'title':'Чёрная куртка','category':'Одежда'}).json()['id']
@@ -75,16 +76,7 @@ def test_pavilion_and_product_moderation_keep_reasons_and_isolate_owner(env):
                               'sale_modes':['retail']}).status_code == 201
     assert client.post(f'/api/v1/merchant/products/{pid}/submit',
         headers=seller).status_code == 200
-    decision = client.post(f'/api/v1/admin/merchant/products/{pid}/decision',
-        json={'decision':'rejected', 'note':'Замените основную фотографию'})
-    assert decision.status_code == 200, decision.text
+    assert client.get('/api/v1/products/' + pid).status_code == 200
     inbox = client.get('/api/v1/merchant/notifications', headers=seller).json()
-    rejected = [n for n in inbox['items']
-                if n['event_type'] == 'product' and n['target_id'] == pid
-                and n['title'] == 'Товар не прошёл модерацию']
-    assert len(rejected) == 1
-    assert rejected[0]['note'] == 'Замените основную фотографию'
-    assert not any(x['event_type'] == 'listing' and x['status'] == 'rejected' for x in inbox['items'])
-    assert any(x['event_type']=='product' and x['title']=='Товар на проверке'
-               for x in inbox['items'])
+    assert not any(x['event_type'] in ('product', 'listing') for x in inbox['items'])
     assert client.get('/api/v1/merchant/notifications', headers=other).json()['items']==[]
