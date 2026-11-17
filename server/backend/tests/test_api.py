@@ -75,7 +75,7 @@ def test_ml_endpoint_reports_truthful_model(monkeypatch, client):
     from backend.app import api, ml_index
     monkeypatch.setattr(api, 'SEARCH_BACKEND', 'clip')
     # Mock embedding retrieval tests HTTP wiring, not OpenCLIP model quality.
-    monkeypatch.setattr(ml_index, 'nearest_ml_images', lambda session, data, limit, category=None: [('i-p02', 0.72)])
+    monkeypatch.setattr(ml_index, 'nearest_ml_images', lambda session, data, limit, category=None, category_ids=None: [('i-p02', 0.72)])
     result = client.post('/api/v1/search/image',
                          files={'file': ('bag.jpg', (MEDIA / 'p02.jpg').read_bytes(), 'image/jpeg')})
     assert result.status_code == 200

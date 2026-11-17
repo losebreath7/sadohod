@@ -1,7 +1,7 @@
 from threading import BoundedSemaphore
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session, selectinload
 
 from .config import MODEL_ID, SEARCH_BACKEND
@@ -13,6 +13,8 @@ from .search_upload import read_search_photo
 from .search import nearest_images, SearchCapacityError
 from .crop import crop_image
 from .ml_clip import MODEL_ID as CLIP_MODEL_ID
+from .merchant_models import ProductCategoryAssignment
+from .catalog_taxonomy import NODES_V1, BY_ID, category_path, descendant_ids
 
 router = APIRouter(prefix="/api/v1")
 
@@ -32,8 +34,11 @@ def serialize_product(product: Product) -> dict:
     offers = sorted(product.offers, key=lambda item: (item.price is None, item.price if item.price is not None else 0, item.id))
     offer = offers[0] if offers else None
     images = sorted(product.images, key=lambda item: (item.ordering.position if item.ordering else -1, item.id))
+    assigned = product.category_assignment
     return {
         "id": product.id, "title": product.title, "category": product.category,
+        "category_id": assigned.category_id if assigned else None,
+        "category_path": category_path(assigned.category_id) if assigned else [],
         "description": product.description, "colors": product.colors,
         "sizes": product.details.sizes if product.details else [],
         "active": product.details.active if product.details else True,
@@ -60,6 +65,7 @@ def product_query(include_hidden=False):
         statement = statement.where(visible_products())
     return statement.options(
         selectinload(Product.details),
+        selectinload(Product.category_assignment),
         selectinload(Product.images).selectinload(ProductImage.ordering),
         selectinload(Product.offers).joinedload(Offer.seller).joinedload(Seller.pavilion),
         selectinload(Product.offers).selectinload(Offer.modes),
@@ -72,12 +78,41 @@ def categories(session: Session = Depends(get_db)):
     return {"items": ["Все", *rows], "demo": True}
 
 
+@router.get("/categories/tree")
+def category_tree():
+    """Complete stable taxonomy; clients use IDs to avoid duplicate leaf labels."""
+    return {'items': [
+        {'id': id, 'parent_id': parent, 'name': name,
+         'path': category_path(id), 'position': position}
+        for position, (id, parent, name) in enumerate(NODES_V1)
+    ]}
+
+
+def category_ids_for_filter(value: str | None):
+    if not value or value == 'Все':
+        return []
+    roots = [value] if value in BY_ID else [
+        item_id for item_id, _, name in NODES_V1 if name == value]
+    return sorted({descendant for root in roots for descendant in descendant_ids(root)})
+
+
+def product_category_filter(value):
+    ids = category_ids_for_filter(value)
+    # Legacy string filter remains valid, including custom categories.
+    if not ids:
+        return Product.category == value
+    return or_(Product.category == value,
+               Product.id.in_(
+                   select(ProductCategoryAssignment.product_id).where(
+                       ProductCategoryAssignment.category_id.in_(ids))))
+
+
 @router.get("/products")
 def products(category: str | None = None, q: str = "", limit: int = Query(default=100, ge=1, le=500),
              offset: int = Query(default=0, ge=0), session: Session = Depends(get_db)):
     statement = product_query().order_by(Product.id)
     if category and category != "Все":
-        statement = statement.where(Product.category == category)
+        statement = statement.where(product_category_filter(category))
     if q.strip():
         statement = statement.where(Product.title.ilike(f"%{q.strip()[:80]}%"))
     items = session.scalars(statement.offset(offset).limit(limit)).all()
@@ -147,11 +182,14 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
         selected = crop_image(content, crop)
         candidate_count = max(48, 4 * limit)
         filter_category = category if category != 'Все' else None
+        category_ids = category_ids_for_filter(filter_category)
         if SEARCH_BACKEND == 'clip':
             from .ml_index import nearest_ml_images
-            nearest = nearest_ml_images(session, selected, limit=candidate_count, category=filter_category)
+            nearest = nearest_ml_images(session, selected, limit=candidate_count,
+                                        category=filter_category, category_ids=category_ids)
         else:
-            nearest = nearest_images(session, selected, limit=candidate_count, category=filter_category)
+            nearest = nearest_images(session, selected, limit=candidate_count,
+                                     category=filter_category, category_ids=category_ids)
     except SearchCapacityError as exc:
         raise HTTPException(503, str(exc), headers={'Retry-After': '3'}) from exc
     except InvalidImage as e:

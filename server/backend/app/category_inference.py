@@ -8,10 +8,11 @@ import logging
 import math
 
 from .config import SEARCH_BACKEND
-from .merchant_models import ProductCategoryState
+from .merchant_models import ProductCategoryState, ProductCategoryAssignment, CatalogCategory
 from .models import ImageMLEmbedding
 from .ml_clip import MODEL_ID, DIM, _model_bundle, MODEL_ARCH
 from .product_categories import resolve_category, is_unassigned, UNASSIGNED
+from .catalog_taxonomy import NODES_V1, LEGACY, BY_ID, path_ids, resolve_leaf
 
 log = logging.getLogger(__name__)
 PROMPTS = {
@@ -20,8 +21,18 @@ PROMPTS = {
     'Обувь': ('a photo of sneakers', 'a photo of boots', 'a photo of shoes'),
     'Платья': ('a photo of a dress', 'a photo of a sundress'),
     'Одежда': ('a photo of a t-shirt', 'a photo of a hoodie', 'a photo of jeans', 'a photo of a skirt', 'a photo of a sweater', 'a photo of a shirt'),
-    # An explicit outside class keeps unrelated images from being forced into clothing.
-    '_other': ('a photo of furniture', 'a photo of electronics', 'a photo of food', 'a photo of cosmetics', 'a photo of jewelry', 'a photo of a toy', 'a photo of a belt', 'a photo of fabric', 'a photo of a watch', 'a photo of a hat'),
+    'Игрушки': ('a product photo of a doll toy', 'a product photo of a plush toy', 'a product photo of building blocks'),
+    'Красота и уход': ('a product photo of facial cream', 'a product photo of lipstick', 'a product photo of shampoo'),
+    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel'),
+    'Электроника': ('a product photo of headphones', 'a product photo of a phone charger', 'a product photo of a lamp'),
+    'Украшения': ('a product photo of earrings', 'a product photo of a necklace', 'a product photo of a ring'),
+    'Детские товары': ('a product photo of a stroller', 'a product photo of baby diapers'),
+    'Спорт и отдых': ('a product photo of a soccer ball', 'a product photo of camping equipment'),
+    'Зоотовары': ('a product photo of a dog collar', 'a product photo of a pet bed'),
+    'Канцтовары': ('a product photo of a notebook', 'a product photo of pens'),
+    'Инструменты и ремонт': ('a product photo of a drill', 'a product photo of hand tools'),
+    # An explicit outside class keeps unrelated images from forced labels.
+    '_other': ('a photo of food', 'a photo of a car', 'a photo of a building', 'a photo of a person', 'a photo of fabric', 'a photo of a watch'),
 }
 
 
@@ -53,6 +64,54 @@ def photo_vote(vector):
     return category, score, confident
 
 
+
+def sync_taxonomy(db, product, state):
+    """Refresh the precise category without changing offer publication or review state."""
+    leaf = resolve_leaf(product.title)
+    legacy = LEGACY.get(product.category)
+    # Keep explicit seller categories authoritative when a known legacy mapping exists.
+    if state.source == 'manual':
+        leaf = legacy
+    elif state.status == 'conflict':
+        leaf = None
+    elif legacy and (leaf is None or path_ids(legacy)[0] != path_ids(leaf)[0]):
+        leaf = legacy
+
+    # Alembic seeds the entire taxonomy in deployed databases. The fallback
+    # supports isolated ORM-created test DBs and remains additive/idempotent.
+    if leaf and db.get(CatalogCategory, leaf) is None:
+        positions = {id: i for i, (id, _, _) in enumerate(NODES_V1)}
+        for node_id in path_ids(leaf):
+            if db.get(CatalogCategory, node_id) is None:
+                _, parent, name = BY_ID[node_id]
+                db.add(CatalogCategory(id=node_id, parent_id=parent,
+                                       name=name, position=positions[node_id]))
+                db.flush()
+    assignment = db.get(ProductCategoryAssignment, product.id)
+    if not leaf:
+        if assignment:
+            db.delete(assignment)
+        return
+    if assignment is None:
+        assignment = ProductCategoryAssignment(product_id=product.id,
+                                               category_id=leaf,
+                                               source=state.source)
+        db.add(assignment)
+    else:
+        assignment.category_id = leaf
+        assignment.source = state.source
+    # Preserve existing legacy categories for old clients. New groups get a
+    # meaningful root label instead of showing "Без категории" forever.
+    if is_unassigned(product.category):
+        root = path_ids(leaf)[0]
+        product.category = BY_ID[root][2]
+        state.assigned = product.category
+        if state.status in ('needs_review', 'photo_model_disabled', 'photo_index_missing'):
+            state.source = 'title'
+            state.status = 'assigned'
+        assignment.source = state.source
+
+
 def mark_manual(db, product):
     state = db.get(ProductCategoryState, product.id)
     if state is None:
@@ -63,6 +122,7 @@ def mark_manual(db, product):
     state.assigned = product.category
     state.suggestion = ''
     state.score = 0.0
+    sync_taxonomy(db, product, state)
     return state
 
 
@@ -74,6 +134,7 @@ def assign_category(db, product, supplied=None):
     ):
         return mark_manual(db, product)
     if state is not None and state.source == 'manual' and not is_unassigned(product.category):
+        sync_taxonomy(db, product, state)
         return state
     if state is None:
         state = ProductCategoryState(product_id=product.id)
@@ -112,6 +173,7 @@ def assign_category(db, product, supplied=None):
         state.status = 'photo_model_disabled'
     product.category = category
     state.assigned = category
+    sync_taxonomy(db, product, state)
     return state
 
 

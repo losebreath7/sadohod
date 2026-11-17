@@ -30,6 +30,8 @@ class Product(Base):
     details: Mapped["ProductDetails | None"] = relationship(uselist=False, cascade="all, delete-orphan")
     images: Mapped[list["ProductImage"]] = relationship(back_populates="product", cascade="all, delete-orphan")
     offers: Mapped[list["Offer"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+    category_assignment: Mapped["ProductCategoryAssignment | None"] = relationship(
+        uselist=False, cascade="all, delete-orphan")
 
 
 class Offer(Base):

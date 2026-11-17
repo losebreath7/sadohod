@@ -20,7 +20,7 @@ from .seller_notifications import router as seller_notifications_router
 from .config import DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND
 from .database import SessionLocal, init_db
 from .build_info import BUILD_INFO
-from .seed import seed_demo, ensure_legacy_demo_sale_modes
+from .seed import seed_demo, ensure_legacy_demo_sale_modes, ensure_demo_category_links
 from .photo_seed import seed_photos
 from .ml_clip import MODEL_ID as CLIP_MODEL_ID
 from .telegram_bridge import run_bridge, configured as telegram_configured
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
             seed_demo(session)
             seed_photos(session)
             ensure_legacy_demo_sale_modes(session)
+            ensure_demo_category_links(session)
     if SEARCH_BACKEND == 'clip':
         # Explicitly selected ML mode: fail loudly if weights are unavailable.
         # Never silently replace the neural model with v0.2 features.
