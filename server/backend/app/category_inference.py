@@ -21,8 +21,18 @@ PROMPTS = {
     'Обувь': ('a photo of sneakers', 'a photo of boots', 'a photo of shoes'),
     'Платья': ('a photo of a dress', 'a photo of a sundress'),
     'Одежда': ('a photo of a t-shirt', 'a photo of a hoodie', 'a photo of jeans', 'a photo of a skirt', 'a photo of a sweater', 'a photo of a shirt'),
-    # An explicit outside class keeps unrelated images from being forced into clothing.
-    '_other': ('a photo of furniture', 'a photo of electronics', 'a photo of food', 'a photo of cosmetics', 'a photo of jewelry', 'a photo of a toy', 'a photo of a belt', 'a photo of fabric', 'a photo of a watch', 'a photo of a hat'),
+    'Игрушки': ('a product photo of a doll toy', 'a product photo of a plush toy', 'a product photo of building blocks'),
+    'Красота и уход': ('a product photo of facial cream', 'a product photo of lipstick', 'a product photo of shampoo'),
+    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel'),
+    'Электроника': ('a product photo of headphones', 'a product photo of a phone charger', 'a product photo of a lamp'),
+    'Украшения': ('a product photo of earrings', 'a product photo of a necklace', 'a product photo of a ring'),
+    'Детские товары': ('a product photo of a stroller', 'a product photo of baby diapers'),
+    'Спорт и отдых': ('a product photo of a soccer ball', 'a product photo of camping equipment'),
+    'Зоотовары': ('a product photo of a dog collar', 'a product photo of a pet bed'),
+    'Канцтовары': ('a product photo of a notebook', 'a product photo of pens'),
+    'Инструменты и ремонт': ('a product photo of a drill', 'a product photo of hand tools'),
+    # An explicit outside class keeps unrelated images from forced labels.
+    '_other': ('a photo of food', 'a photo of a car', 'a photo of a building', 'a photo of a person', 'a photo of fabric', 'a photo of a watch'),
 }
 
 
