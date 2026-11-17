@@ -72,7 +72,7 @@ class DarkAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: double.infinity,
-    height: 58,
+    height: SadohodControl.buyerPrimaryActionHeight,
     child: FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
