@@ -1249,6 +1249,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
   }
 
+  int? originalPavilionPrice(String id, int? fallback) {
+    final existing = rows(originalProduct['listings'])
+        .where((listing) => '${listing['pavilion_id']}' == id)
+        .firstOrNull;
+    return existing == null ? fallback : existing['price'] as int?;
+  }
+
   int? parsePrice(String text) {
     if (text.trim().isEmpty) return null;
     final value = int.tryParse(text.trim());
@@ -1514,7 +1521,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
     final price = parsePrice(c('price').text);
     final sharedPriceChanged = c('price').text != initialPrice;
-    final sharedModesChanged = !setEquals(saleModes, initialSaleModes);
+    final sharedModesChanged = saleModes.length != initialSaleModes.length ||
+        !saleModes.containsAll(initialSaleModes);
     // The editor has one common price/mode control for every selected pavilion.
     // Preserve each pavilion's own values unless the seller changes that control.
     final edits = <String, RowData>{
@@ -1523,9 +1531,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           id: {
             'price': sharedPriceChanged
                 ? price
-                : rows(originalProduct['listings'])
-                    .where((listing) => '${listing['pavilion_id']}' == id)
-                    .firstOrNull?['price'] ?? price,
+                : originalPavilionPrice(id, price),
             'sale_modes': saleModes.toList(),
           },
     };
