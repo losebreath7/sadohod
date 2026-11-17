@@ -185,6 +185,54 @@ void main() {
     expect(find.text('выбрано : 4'), findsOneWidget);
     expect(find.text('дублировать'), findsOneWidget);
   });
+  testWidgets('Selection action bar stays above tab bar at any scroll height',
+      (tester) async {
+    await openFrame(tester, '388:17641');
+    final bar = find.byKey(const ValueKey('selection-actions-bar'));
+    final tab = find.byType(SellerTabBar);
+    expect(bar, findsOneWidget);
+    expect(tab, findsOneWidget);
+    final gap = tester.getTopLeft(tab).dy - tester.getBottomLeft(bar).dy;
+    expect(gap, closeTo(24, 1));
+    await tester.tap(find.text('действия'));
+    await tester.pumpAndSettle();
+    final sheet = find.byKey(const ValueKey('seller-actions-sheet'));
+    expect(sheet, findsOneWidget);
+    final modalGap = tester.getTopLeft(tab).dy -
+        tester.getBottomLeft(sheet).dy;
+    expect(modalGap, closeTo(0, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Editor shows one price and one mode selector with two pavilions',
+      (tester) async {
+    await openFrame(tester, '366:16062');
+    final dynamic state = tester.state(find.byType(SellerV3));
+    state.setState(() {
+      state.destinations.add('p2');
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('цена'), findsOneWidget);
+    expect(find.text('опт'), findsOneWidget);
+    expect(find.text('розница'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Shared sale-mode edits preserve a second pavilion empty price',
+      (tester) async {
+    await openFrame(tester, '366:16062');
+    final dynamic state = tester.state(find.byType(SellerV3));
+    state.originalProduct = <String, dynamic>{
+      'listings': [
+        {'pavilion_id': 'p1', 'price': 200, 'sale_modes': ['retail']},
+        {'pavilion_id': 'p2', 'price': null, 'sale_modes': ['wholesale']},
+      ],
+    };
+    expect(state.originalPavilionPrice('p1', 200), 200);
+    expect(state.originalPavilionPrice('p2', 200), isNull);
+    expect(state.originalPavilionPrice('p3', 200), 200);
+  });
+
   testWidgets('System back returns from connected support chat', (tester) async {
     await openFrame(tester, '366:15805');
     await tester.tap(find.text('поддержка'));
