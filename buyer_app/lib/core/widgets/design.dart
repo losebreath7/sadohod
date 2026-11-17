@@ -8,8 +8,8 @@ import '../../data/catalog.dart';
 // The 62px iPhone 16 Pro safe inset is already part of the full-screen
 // buyer layout. Compact controls need their own row *below* that inset,
 // rather than adding another MediaQuery/SafeArea around the whole screen.
-const double buyerCompactHeaderHeight = 100;
-const double buyerCompactContentTop = 66;
+const double buyerCompactHeaderHeight = 75;
+const double buyerCompactContentTop = 39;
 
 /// Original vector artwork exported from approved Figma home frames.
 class SvgLogo extends StatelessWidget {
@@ -74,10 +74,11 @@ class FavoriteButton extends StatelessWidget {
 }
 
 class PhotoGallery extends StatefulWidget {
-  const PhotoGallery(this.photos, {super.key, this.radius = 5, this.small = false, this.onTap});
+  const PhotoGallery(this.photos, {super.key, this.radius = 5, this.small = false, this.fit = BoxFit.cover, this.onTap});
   final List<String> photos;
   final double radius;
   final bool small;
+  final BoxFit fit;
   final ValueChanged<int>? onTap;
   @override
   State<PhotoGallery> createState() => _PhotoGalleryState();
@@ -91,6 +92,8 @@ class _PhotoGalleryState extends State<PhotoGallery> {
     child: ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Stack(fit: StackFit.expand, children: [
+        if (widget.fit == BoxFit.contain)
+          const ColoredBox(color: Color(0xffeaeaea)),
         PageView.builder(
           itemCount: widget.photos.length,
           onPageChanged: (i) => setState(() => current = i),
@@ -101,8 +104,8 @@ class _PhotoGalleryState extends State<PhotoGallery> {
             return GestureDetector(
               onTap: widget.onTap == null ? null : () => widget.onTap!(i),
               child: url.startsWith('http')
-                ? Image.network(url, fit: BoxFit.cover, errorBuilder: failure)
-                : Image.asset(url, fit: BoxFit.cover, errorBuilder: failure),
+                ? Image.network(url, fit: widget.fit, filterQuality: FilterQuality.high, errorBuilder: failure)
+                : Image.asset(url, fit: widget.fit, filterQuality: FilterQuality.high, errorBuilder: failure),
             );
           },
         ),
@@ -236,7 +239,7 @@ class DesignHeader extends StatelessWidget {
     child: Stack(
       children: [
         Positioned(
-          top: -14,
+          top: -39,
           left: -5,
           right: -5,
           child: IgnorePointer(
@@ -250,7 +253,7 @@ class DesignHeader extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 52, 22, 0),
+          padding: const EdgeInsets.fromLTRB(22, 35, 22, 0),
           child: child,
         ),
       ],

@@ -46,7 +46,7 @@ void main() {
       'https://example.com/b.jpg',
     ]);
   });
-  testWidgets('tile shows title, hides price, heart saves item', (tester) async {
+  testWidgets('tile shows exact price, title and heart saves item', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -61,7 +61,7 @@ void main() {
     expect(find.text(DemoCatalog.products.first.title), findsOneWidget);
     expect(
       find.text(formatRubles(DemoCatalog.products.first.price!)),
-      findsNothing,
+      findsOneWidget,
     );
     await tester.tap(find.byTooltip('В избранное'));
     await tester.pumpAndSettle();
