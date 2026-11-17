@@ -111,19 +111,26 @@ class ProductTile extends StatelessWidget {
           child: SizedBox(width: 28, height: 28,
             child: FavoriteButton(product.id, small: true, alignRight: true))),
       ]),
-      SizedBox(height: 20, child: Row(children: [
-        Expanded(child: GestureDetector(
-          onTap: () => context.push('/product/${product.id}'),
-          child: Text(product.pavilion, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, height: 1.1)),
-        )),
-        if (product.price != null)
-          Text(formatRubles(product.price!),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, height: 1.1, fontWeight: FontWeight.w500)),
-      ])),
-      Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 10, color: Color(0xff6c6c6c), height: 1.1)),
+      const SizedBox(height: 9),
+      GestureDetector(
+        onTap: () => context.push('/product/${product.id}'),
+        child: Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, height: 1.2,
+            fontWeight: FontWeight.w500, color: Palette.ink)),
+      ),
+      const SizedBox(height: 5),
+      Row(children: [
+        Expanded(child: Text(product.pavilion,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, height: 1.2, color: Palette.muted))),
+        if (product.price != null) ...[
+          const SizedBox(width: 6),
+          Text(formatRubles(product.price!), maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, height: 1.2,
+              fontWeight: FontWeight.w700, color: Palette.ink)),
+        ],
+      ]),
     ],
   );
 }
@@ -141,8 +148,8 @@ class ProductGrid extends StatelessWidget {
             : constraints.maxWidth >= 520
             ? 3
             : 2;
-        final tileWidth = (constraints.maxWidth - (count - 1) * 30) / count;
-        final tileHeight = tileWidth + 34;
+        final tileWidth = (constraints.maxWidth - (count - 1) * 16) / count;
+        final tileHeight = tileWidth + 66;
         return GridView.builder(
           // This is a nested grid in our screen scroll views, not an
           // independent safe-area scroll view. Flutter's implicit top padding
@@ -153,8 +160,8 @@ class ProductGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: count,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 30,
+            mainAxisSpacing: 20,
+            crossAxisSpacing: 16,
             childAspectRatio: tileWidth / tileHeight,
           ),
           itemBuilder: (context, index) =>
