@@ -32,7 +32,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _load() {
     _imageSearch = widget.query == null ? null : CatalogApi.instance.searchImage(widget.query!.bytes, crop: widget.query!.crop);
-    _allProducts = CatalogApi.instance.products();
+    _allProducts = widget.query == null && widget.textQuery.trim().isNotEmpty
+      ? CatalogApi.instance.searchText(widget.textQuery)
+      : CatalogApi.instance.products();
   }
 
   @override
@@ -99,9 +101,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   if (snapshot.hasError) return ApiFailure(error: snapshot.error!, retry: () => setState(_load));
                   return const LoadingCatalog();
                 }
-                final needle = widget.textQuery.trim().toLowerCase();
-                return _listing(snapshot.data!.where((p) => needle.isEmpty ||
-                  '${p.title} ${p.category} ${p.pavilion}'.toLowerCase().contains(needle)).toList());
+                // Server has already matched title, category hierarchy and
+                // available visual semantics. Re-filtering by title here
+                // would discard all photo-inferred results without a name.
+                return _listing(snapshot.data!);
               },
             ),
         ],
