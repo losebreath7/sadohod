@@ -100,9 +100,9 @@ class _ProductScreenState extends State<ProductScreen> {
                 Expanded(child: Text(p.title, maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                if ((selected?.price ?? p.price) != null) ...[
+                if ((selected == null ? p.price : selected.price) != null) ...[
                   const SizedBox(width: 10),
-                  Text(formatRubles((selected?.price ?? p.price)!),
+                  Text(formatRubles((selected == null ? p.price : selected.price)!),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ]),
