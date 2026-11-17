@@ -1871,10 +1871,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ],
     ),
   );
+  // Keep the profile geometry synchronized with buyer ProfileScreen.
+  // Both bodies start below the status bar / Dynamic Island.
   Widget profileBody() => scroll(
     Column(
       children: [
-        const SizedBox(height: 39),
+        SizedBox(height: math.max(94.0, MediaQuery.paddingOf(context).top + 24)),
         SizedBox(
           height: 181,
           child: Stack(
@@ -1925,12 +1927,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 children: [
                   SizedBox(
                     width: 30,
+                    height: 30,
                     child: Stack(clipBehavior: Clip.none, children: [
-                      asset(
+                      Center(child: asset(
                         item[1],
-                        width: item[0] == 'профиль' ? 34.621 : 24,
-                        height: item[0] == 'профиль' ? 34.621 : 24,
-                      ),
+                        width: item[0] == 'профиль' ? 30 : 24,
+                        height: item[0] == 'профиль' ? 30 : 24,
+                      )),
                       if (item[0] == 'уведомления' && unreadNotifications > 0)
                         Positioned(
                           left: 14, top: -5,
