@@ -278,8 +278,9 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
         ),
       ),
     );
-    // showModalBottomSheet completes after the editor has closed.
-    comment.dispose();
+    // The route future resolves when pop begins, before the sheet's reverse
+    // animation finishes. The outgoing TextField may still build in that
+    // animation; do not dispose its controller prematurely.
     if (saved != true || !mounted) return;
     await _load();
     if (!mounted) return;
