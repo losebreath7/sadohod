@@ -156,7 +156,7 @@ RULES = (
     ('office-notebooks', r'\bтетрад\w*\b|\bблокнот\w*\b'),
     ('office-pens', r'\bкарандаш\w*\b|\bручк\w*\b'),
 )
-ACCESSORY_CONTEXT = re.compile(r'\b(чехол|чехлы|брелок|принт|рисунок|наклейка|выкройка|для\s+куклы|для\s+кроссовок)\b')
+ACCESSORY_CONTEXT = re.compile(r'\b(чехол\w*|брелок\w*|принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*|для\s+куклы|для\s+кроссовок)\b')
 FEMALE = re.compile(r'\b(женск\w*|для\s+женщин)\b')
 MALE = re.compile(r'\b(мужск\w*|для\s+мужчин)\b')
 CHILD = re.compile(r'\b(детск\w*|для\s+детей)\b')
