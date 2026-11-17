@@ -105,3 +105,32 @@ def test_report_resolution_can_hide_product_atomically(env, monkeypatch):
     assert processed.status_code == 200, processed.text
     assert c.get('/api/v1/products/' + pid).status_code == 404
     assert c.get('/api/v1/moderation/queue', headers=staff).json()['product_reports'] == []
+
+
+def test_published_legacy_product_can_be_reported_and_hidden(env, monkeypatch):
+    from backend.app.models import Product, Offer, Seller, Pavilion
+    c, codes, factory, _ = env
+    with factory() as db:
+        db.add(Pavilion(id='legacy-pav', zone='А', code='1'))
+        db.flush()
+        db.add(Seller(id='legacy-seller', name='Продавец', pavilion_id='legacy-pav'))
+        db.add(Product(id='legacy-product', title='Демо товар',
+                       category='Без категории', description='', colors=[],
+                       is_demo=True))
+        db.flush()
+        db.add(Offer(id='legacy-offer', product_id='legacy-product',
+                     seller_id='legacy-seller', pavilion_id='legacy-pav',
+                     price=150))
+        db.commit()
+    reporter = login(c, codes, 'legacy-reporter@example.com')
+    _, _, _, staff = provision(c, monkeypatch, username='legacy-reviewer')
+    assert c.get('/api/v1/products/legacy-product').status_code == 200
+    assert c.post('/api/v1/products/legacy-product/report', headers=reporter,
+                  json={'reason': 'Проблема с товаром'}).status_code == 201
+    stopped = c.post('/api/v1/moderation/products/legacy-product/takedown',
+                     headers=staff, json={'reason': 'Контент недопустим'})
+    assert stopped.status_code == 200, stopped.text
+    assert c.get('/api/v1/products/legacy-product').status_code == 404
+    # Legacy administrator cannot bypass a staff hold by toggling visibility.
+    assert c.put('/api/v1/admin/products/legacy-product/visibility',
+                 json={'active': True}).status_code == 409
