@@ -2012,14 +2012,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 28),
             decoration: BoxDecoration(
-              color: muted,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: brown.withValues(alpha: .16)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                label('мои магазины', 16, color: Colors.white),
-                const Icon(Icons.chevron_right, color: Colors.white, size: 26),
+                label('мои магазины', 16, color: brown),
+                const Icon(Icons.chevron_right, color: brown, size: 26),
               ],
             ),
           ),
@@ -2842,15 +2843,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 height: 48,
                 padding: const EdgeInsets.symmetric(horizontal: 27),
                 decoration: BoxDecoration(
-                  color: muted,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: brown.withValues(alpha: .16)),
                 ),
                 child: Row(
                   children: [
                     Expanded(
-                      child: label('мои магазины', 16, color: Colors.white),
+                      child: label('мои магазины', 16, color: brown),
                     ),
-                    label('›', 30, bold: true, color: Colors.white),
+                    label('›', 30, bold: true, color: brown),
                   ],
                 ),
               ),
@@ -3160,7 +3162,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ],
             ),
           ),
-          const SizedBox(height: 8),
           const SizedBox(height: 10),
           SizedBox(
             width: width,
