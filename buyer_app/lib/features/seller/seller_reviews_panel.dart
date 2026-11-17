@@ -10,9 +10,17 @@ import 'review_flowers.dart';
 
 /// Public reviews: personal opinions, never marked as verified purchases.
 class SellerReviewsPanel extends StatefulWidget {
-  const SellerReviewsPanel({required this.sellerId, required this.sellerName, super.key});
+  const SellerReviewsPanel({
+    required this.sellerId, required this.sellerName, super.key,
+    this.publicLoader, this.myLoader, this.submitOverride, this.loggedIn,
+  });
   final String sellerId;
   final String sellerName;
+  final Future<Map<String, dynamic>> Function()? publicLoader;
+  final Future<Map<String, dynamic>> Function()? myLoader;
+  final Future<void> Function(int, String, List<String>)? submitOverride;
+  final bool? loggedIn;
+
 
   @override
   State<SellerReviewsPanel> createState() => _SellerReviewsPanelState();
@@ -22,6 +30,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   Map<String, dynamic>? _data;
   Map<String, dynamic>? _mine;
   String? _activeToken;
+  bool get _signedIn => widget.loggedIn ?? AccountStore.instance.signedIn;
   bool _loading = true;
   String? _error;
 
@@ -57,13 +66,15 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
 
   Future<void> _load() async {
     try {
-      final result = await AccountStore.instance.request(
-        '/sellers/${widget.sellerId}/reviews', method: 'GET');
+      final result = await (widget.publicLoader?.call() ??
+        AccountStore.instance.request(
+          '/sellers/${widget.sellerId}/reviews', method: 'GET'));
       Map<String, dynamic>? mine;
-      if (AccountStore.instance.signedIn) {
+      if (_signedIn) {
         try {
-          final own = await AccountStore.instance.request(
-            '/sellers/${widget.sellerId}/my-review', method: 'GET');
+          final own = await (widget.myLoader?.call() ??
+            AccountStore.instance.request(
+              '/sellers/${widget.sellerId}/my-review', method: 'GET'));
           if (own['item'] is Map) {
             mine = Map<String, dynamic>.from(own['item'] as Map);
             mine['hidden'] = own['hidden'] == true;
@@ -84,7 +95,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   }
 
   Future<void> _review() async {
-    if (!AccountStore.instance.signedIn) {
+    if (!_signedIn) {
       context.go('/account');
       return;
     }
@@ -232,10 +243,14 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                       }
                       update(() { submitting = true; error = null; });
                       try {
-                        await AccountStore.instance.request(
-                          '/sellers/${widget.sellerId}/reviews',
-                          body: {'rating': rating, 'text': comment.text.trim(),
-                            'photos': photos});
+                        if (widget.submitOverride != null) {
+                          await widget.submitOverride!(rating, comment.text.trim(), photos);
+                        } else {
+                          await AccountStore.instance.request(
+                            '/sellers/${widget.sellerId}/reviews',
+                            body: {'rating': rating, 'text': comment.text.trim(),
+                              'photos': photos});
+                        }
                         if (sheetContext.mounted) {
                           Navigator.pop(sheetContext, true);
                         }
