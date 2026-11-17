@@ -191,7 +191,7 @@ class _SellerScreenState extends State<SellerScreen> {
                       child: Icon(Icons.edit, size: 14))),
                 ]),
               const SizedBox(height: 14),
-              SellerReviewsPanel(sellerId: seller.id),
+              SellerReviewsPanel(sellerId: seller.id, sellerName: seller.name),
               const SizedBox(height: 14),
               ProductGrid(products: page.products.map((p) => p.forSeller(seller.id)).toList()),
             ],
