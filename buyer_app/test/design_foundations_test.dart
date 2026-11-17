@@ -21,4 +21,33 @@ void main() {
     expect(SadohodMotion.quick, lessThan(SadohodMotion.standard));
     expect(SadohodMotion.standard, lessThan(SadohodMotion.deliberate));
   });
+
+  test('R19 Helvetica product roles are consistent across both applications', () {
+    for (final style in [
+      BuyerProductType.catalogAddress,
+      BuyerProductType.catalogPrice,
+      BuyerProductType.catalogTitle,
+      BuyerProductType.detailAddress,
+      BuyerProductType.detailTitle,
+      BuyerProductType.detailPrice,
+      BuyerProductType.secondary,
+      SellerProductType.cardTitle,
+      SellerProductType.cardPrice,
+      SellerProductType.secondary,
+    ]) {
+      expect(style.fontFamily, SadohodFont.family);
+      expect(style.fontFamilyFallback, SadohodFont.fallback);
+      expect(style.height, greaterThanOrEqualTo(1.2));
+    }
+    expect(BuyerProductType.catalogAddress.fontSize, 14);
+    expect(BuyerProductType.catalogPrice.fontSize, 13);
+    expect(BuyerProductType.catalogTitle.fontSize, 12);
+    expect(BuyerProductType.detailTitle.fontSize, 16);
+    expect(BuyerProductType.detailPrice.fontSize, 16);
+    expect(BuyerProductType.detailTitle.fontWeight,
+        BuyerProductType.detailPrice.fontWeight);
+    expect(SellerProductType.cardTitle.color, SellerColors.brown);
+    expect(SellerProductType.cardPrice.color, SellerColors.brown);
+    expect(BuyerProductType.detailTitle.color, BuyerColors.ink);
+  });
 }
