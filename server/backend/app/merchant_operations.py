@@ -149,14 +149,18 @@ def delete_image(pid: str, iid: str, buyer: Buyer = Depends(current_buyer), db: 
     if db.bind.dialect.name == 'postgresql':
         for table in ('product_image_vectors', 'product_image_ml_vectors'):
             db.execute(text(f'DELETE FROM {table} WHERE image_id=:id'), {'id': iid})
-    product.details.active = False
-    owner.status = 'draft'
-    owner.note = ''
+    # Removing a photo alone does not require a moderation decision.
     db.delete(img)
     db.flush()
     db.expire(product, ['images'])
     from .category_inference import assign_category
     assign_category(db, product)
+    if not product.images:
+        for listing in db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid)):
+            drop_offer(db, listing)
+            listing.status = 'draft'
+        owner.status = 'draft'
+    refresh_visibility(db, product, owner)
     m.safe_commit(db)
     # A failed filesystem cleanup must not turn a successful DB mutation into 500.
     if filename.startswith('uploads/'):
@@ -207,8 +211,10 @@ def move_products(data: MoveInput, buyer: Buyer = Depends(current_buyer), db: Se
     for owner, product, row in changes:
         drop_offer(db, row)
         row.pavilion_id = data.destination_pavilion_id
-        row.status = 'paused' if row.status == 'paused' else ('pending' if owner.status == 'approved' else 'draft')
+        row.status = 'paused' if row.status == 'paused' else ('approved' if owner.status == 'approved' else 'draft')
         row.note = ''
+        if row.status == 'approved':
+            m.publish_listing(db, row)
         refresh_visibility(db, product, owner)
     return finish(db, shop, data, digest, {'moved_ids': data.product_ids,
                   'destination_pavilion_id': data.destination_pavilion_id})
@@ -241,14 +247,14 @@ def change_visibility(data, buyer, db, resume):
     for owner, product, rows in changes:
         for row in rows:
             if resume:
-                row.status = 'pending'
+                m.publish_listing(db, row)
             else:
                 drop_offer(db, row)
                 row.status = 'paused'
             row.note = ''
         refresh_visibility(db, product, owner)
     return finish(db, shop, data, digest, {'product_ids': data.product_ids,
-                  'status': 'pending' if resume else 'paused'})
+                  'status': 'approved' if resume else 'paused'})
 
 
 @router.post('/products/actions/pause')
@@ -341,8 +347,7 @@ def copy_products(data: CopyInput, buyer: Buyer = Depends(current_buyer), db: Se
 def classify_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     shop = lock_shop(db, buyer)
     owner, product = editable(db, pid, shop)
-    if owner.status == 'approved':
-        raise HTTPException(409, 'Сначала переведите товар в черновик для повторной модерации.')
+    # Category inference is allowed for already published items.
     from .category_inference import assign_category
     assign_category(db, product)
     m.safe_commit(db)
@@ -378,7 +383,6 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
     product.description = data.description.strip()
     product.colors = data.colors
     product.details.sizes = data.sizes
-    product.details.active = False
     from .category_inference import assign_category
     assign_category(db, product)
     for row in existing:
@@ -393,9 +397,15 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
         row.price = value.price
         row.wholesale = 'wholesale' in value.sale_modes
         row.retail = 'retail' in value.sale_modes
-        row.status = ('paused' if row.status == 'paused' else 'pending') if data.submit else 'draft'
+        if data.submit:
+            if row.status != 'paused':
+                m.publish_listing(db, row)
+        else:
+            drop_offer(db, row)
+            row.status = 'draft'
         row.note = ''
-    owner.status = 'pending' if data.submit else 'draft'
+    owner.status = 'approved' if data.submit else 'draft'
     owner.note = ''
+    refresh_visibility(db, product, owner)
     finish(db, shop, data, digest, {'id': pid})
     return m.as_product(db, owner)
