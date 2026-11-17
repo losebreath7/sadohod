@@ -16,6 +16,17 @@ from PIL import Image, ImageChops
 
 
 def cases(app):
+    if app == 'buyer_matrix':
+        # QA presets are selected via URL so the screenshot reliably exercises
+        # the actual browser device wrapper and its MediaQuery.
+        return [
+            ('buyer-matrix-iphone16pro', '/?previewDevice=iPhone%2016%20Pro#/home', 1440, 1000),
+            ('buyer-matrix-iphone13', '/?previewDevice=iPhone%2013#/home', 1440, 1000),
+            ('buyer-matrix-compact320', '/?previewDevice=Compact%20320#/home', 1440, 1000),
+            ('buyer-matrix-galaxy-a15', '/?previewDevice=Galaxy%20A15#/home', 1440, 1000),
+            ('buyer-matrix-tecno-spark20', '/?previewDevice=TECNO%20Spark%2020#/home', 1440, 1000),
+            ('buyer-matrix-pro-max', '/?previewDevice=iPhone%2016%20Pro%20Max#/home', 1440, 1080),
+        ]
     if app == 'buyer_shell':
         # Real desktop-hosted phone preview injects a 62 px iOS SafeArea,
         # unlike FIGMA_PREVIEW which removes the phone frame.
@@ -126,7 +137,7 @@ async def capture(app, port, output):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--app', choices=['buyer_app', 'seller_app', 'buyer_shell'], required=True)
+    parser.add_argument('--app', choices=['buyer_app', 'seller_app', 'buyer_shell', 'buyer_matrix'], required=True)
     parser.add_argument('--build', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
