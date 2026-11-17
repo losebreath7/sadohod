@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,10 +19,10 @@ import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
 
-const beige = Color(0xFFF0EFEB), brown = Color(0xFF48352D);
-const muted = Color(0xFFA5A5A5),
-    blue = Color(0xFFA5BCD6),
-    red = Color(0xFF670D10);
+const beige = SellerColors.background, brown = SellerColors.brown;
+const muted = SellerColors.muted,
+    blue = SellerColors.blue,
+    red = SellerColors.danger;
 const preview = bool.fromEnvironment('FIGMA_PREVIEW');
 typedef RowData = Map<String, dynamic>;
 
@@ -38,7 +39,7 @@ List<RowData> rows(dynamic value) => (value is List ? value : const [])
     .toList();
 TextStyle type(double size, {bool bold = false, Color color = Colors.black}) =>
     TextStyle(
-      fontFamily: 'Helvetica',
+      fontFamily: SadohodFont.family,
       fontSize: size,
       fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
       color: color,
