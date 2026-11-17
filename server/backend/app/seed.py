@@ -76,3 +76,30 @@ def ensure_legacy_demo_sale_modes(session: Session) -> None:
         changed = True
     if changed:
         session.commit()
+
+
+def ensure_demo_category_links(session: Session) -> int:
+    """Backfill only unlinked demo records seeded after the Alembic migration.
+
+    Real seller products are managed by merchant category inference; this routine
+    neither overwrites existing links nor changes product publication/status.
+    """
+    from .merchant_models import ProductCategoryAssignment
+    from .catalog_taxonomy import LEGACY, path_ids, resolve_leaf
+    pending = session.scalars(select(Product).where(
+        Product.is_demo.is_(True),
+        ~Product.id.in_(select(ProductCategoryAssignment.product_id)))).all()
+    count = 0
+    for product in pending:
+        leaf = resolve_leaf(product.title)
+        legacy = LEGACY.get(product.category)
+        if legacy and (leaf is None or
+                       path_ids(legacy)[0] != path_ids(leaf)[0]):
+            leaf = legacy
+        if leaf:
+            session.add(ProductCategoryAssignment(
+                product_id=product.id, category_id=leaf, source='demo'))
+            count += 1
+    if count:
+        session.commit()
+    return count
