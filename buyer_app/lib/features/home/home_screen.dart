@@ -101,23 +101,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (items.isEmpty)
                       const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: Text('Товары не найдены')))
                     else ...[
-                      ProductGrid(products: items.take(4).toList()),
-                      if (items.length > 4) ...[
-                        const SizedBox(height: 14),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: AspectRatio(
-                            aspectRatio: 330 / 180,
-                            child: Semantics(
-                              label: 'Рекламное место, демонстрация',
-                              child: Image.asset('assets/figma/e221c.png', fit: BoxFit.cover),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        ProductGrid(products: items.skip(4).toList()),
-                      ],
-                    ],
+                      ProductGrid(products: items),
+                   ],
                     if (CatalogApi.localDemo) const Padding(padding: EdgeInsets.only(top: 22), child: DemoNotice()),
                   ],
                 );
@@ -195,11 +180,11 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
                 const SizedBox(height: 16),
                 const Text('находи и забирай   //   без посредников',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: Color(0xff6c6c6c))),
+                  style: TextStyle(fontSize: 13, color: Color(0xff555555))),
                 const SizedBox(height: 2),
                 const Text('11 тыс. магазинов садовода в одном месте',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: Color(0xff6c6c6c))),
+                  style: TextStyle(fontSize: 12, color: Color(0xff555555))),
                 const SizedBox(height: 15),
                 Material(
                   color: Colors.black,
