@@ -111,6 +111,34 @@ abstract final class SellerProductType {
   );
 }
 
+/// Component geometry is semantic: compact search is not a full-size form field.
+/// Buyer and seller keep their intentional palettes and component densities.
+abstract final class SadohodControl {
+  static const minTapTarget = 44.0;
+  static const compactSearchHeight = 32.0;
+  static const sellerActionHeight = 48.0;
+  static const buyerPrimaryActionHeight = 58.0;
+  static const tabBarHeight = 56.0;
+  static const pillRadius = 100.0;
+  static const sellerFieldRadius = 5.0;
+  static const buyerFieldRadius = 10.0;
+  static const compactSearchRadius = 20.0;
+  static const sellerSearchText = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    height: 1.2,
+    color: SellerColors.brown,
+  );
+  static const sellerSearchHint = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    height: 1.2,
+    color: SellerColors.brown,
+  );
+}
+
 abstract final class SadohodSpace {
   static const x1 = 4.0;
   static const x2 = 8.0;
