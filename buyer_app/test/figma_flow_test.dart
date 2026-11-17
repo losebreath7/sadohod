@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sadohod/app/app.dart';
@@ -87,7 +88,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('favorite photos fit entirely without changing catalog photos',
+  testWidgets('small catalog and favorite photo tiles use full-bleed cover',
       (tester) async {
     final product = DemoCatalog.products.first;
     await tester.pumpWidget(MaterialApp(
@@ -100,8 +101,40 @@ void main() {
     await tester.pumpAndSettle();
     final galleries = tester.widgetList<PhotoGallery>(find.byType(PhotoGallery)).toList();
     expect(galleries, hasLength(2));
+    // Callers can request contain, but small square product tiles must
+    // always fill edge-to-edge, including the favorites grid.
     expect(galleries.first.fit, BoxFit.contain);
-    expect(galleries.last.fit, BoxFit.cover);
+    final photos = tester.widgetList<SadohodProductPhoto>(
+      find.byType(SadohodProductPhoto)).toList();
+    expect(photos, isNotEmpty);
+    for (final photo in photos) {
+      expect(photo.fit, BoxFit.cover);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('favorite heart uses no badge and changes outline/fill state',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SizedBox(
+        width: 150,
+        child: ProductTile(product: DemoCatalog.products.first),
+      )),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FavoriteHeartGlyph), findsOneWidget);
+    expect(tester.widget<FavoriteHeartGlyph>(
+      find.byType(FavoriteHeartGlyph)).filled, isFalse);
+    await tester.tap(find.byTooltip('В избранное'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FavoriteHeartGlyph>(
+      find.byType(FavoriteHeartGlyph)).filled, isTrue);
+    // The glyph is painted directly; no badge or coloured box is added.
+    expect(find.descendant(
+      of: find.byType(FavoriteHeartGlyph),
+      matching: find.byType(Container),
+    ), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
