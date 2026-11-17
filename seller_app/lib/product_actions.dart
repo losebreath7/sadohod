@@ -119,12 +119,7 @@ class ProductActions {
     final finalKey = session.keyFor(finalBody);
     await checkpoint?.call();
     if (current['status'] == 'pending') {
-      // A lost final response is recovered by the same receipt on the server.
-      return api.call(
-        '/merchant/products/$id/save',
-        method: 'PUT',
-        body: {...finalBody, 'request_id': finalKey},
-      );
+      throw SellerApiException(409, 'У товара осталась старая заявка на модерацию. Обновите список.');
     }
     if (current['status'] == 'approved' &&
         dataRows(current['listings']).any((l) => l['status'] == 'pending')) {
