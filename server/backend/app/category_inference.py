@@ -65,9 +65,59 @@ def photo_vote(vector):
 
 
 
-def sync_taxonomy(db, product, state):
+
+# Finer visual categories are only assigned when the product's image is
+# unambiguous. Ambiguous photos retain the broad group (e.g. 'Игрушки').
+TOY_LEAF_PROMPTS = {
+    'toys-plush': (
+        'a product photo of a soft plush monkey toy',
+        'a product photo of a stuffed plush animal toy',
+        'a product photo of a teddy bear stuffed toy',
+    ),
+    'toys-dolls': ('a product photo of a plastic fashion doll toy',),
+    'toys-cars': ('a product photo of a toy car',),
+    'toys-construction': ('a product photo of plastic building blocks toy',),
+    '_other': ('a product photo of a sweatshirt', 'a product photo of shoes'),
+}
+
+
+@lru_cache(maxsize=1)
+def toy_text_vectors():
+    import open_clip
+    model, _, torch = _model_bundle()
+    entries = [(category, prompt) for category, prompts in
+               TOY_LEAF_PROMPTS.items() for prompt in prompts]
+    tokens = open_clip.get_tokenizer(MODEL_ARCH)(
+        [prompt for _, prompt in entries])
+    with torch.inference_mode():
+        vectors = model.encode_text(tokens).float()
+        vectors = vectors / vectors.norm(dim=-1, keepdim=True).clamp(min=1e-12)
+    return [(entry[0], vector) for entry, vector in
+            zip(entries, vectors.cpu().tolist())]
+
+
+def toy_leaf_vote(vector):
+    norm = math.sqrt(sum(x*x for x in vector))
+    if len(vector) != DIM or norm < 1e-12:
+        return None
+    scores = {}
+    for leaf, candidate in toy_text_vectors():
+        score = sum(a*b for a, b in zip(vector, candidate)) / norm
+        scores[leaf] = max(score, scores.get(leaf, -1.0))
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    leaf, score = ranked[0]
+    if leaf == '_other' or score < .29 or score - ranked[1][1] < .035:
+        return None
+    return leaf
+
+
+
+
+def sync_taxonomy(db, product, state, photo_leaf=None):
     """Refresh the precise category without changing offer publication or review state."""
     leaf = resolve_leaf(product.title)
+    if leaf is None and photo_leaf in BY_ID:
+        leaf = photo_leaf
     legacy = LEGACY.get(product.category)
     # Keep explicit seller categories authoritative when a known legacy mapping exists.
     if state.source == 'manual':
@@ -140,6 +190,7 @@ def assign_category(db, product, supplied=None):
         state = ProductCategoryState(product_id=product.id)
         db.add(state)
     state.score, state.suggestion = 0.0, ''
+    photo_leaf = None
     title_category = resolve_category(product.title)
     category = title_category
     state.source = 'title' if not is_unassigned(category) else 'unknown'
@@ -156,6 +207,10 @@ def assign_category(db, product, supplied=None):
                 categories = {vote[0] for vote in votes}
                 if len(categories) == 1 and all(vote[2] for vote in votes):
                     photo_category = votes[0][0]
+                    if photo_category == 'Игрушки':
+                        leaves = [toy_leaf_vote(row.embedding) for row in vectors]
+                        if leaves and leaves[0] is not None and len(set(leaves)) == 1:
+                            photo_leaf = leaves[0]
                     state.suggestion = photo_category
                     if is_unassigned(title_category) or title_category == photo_category:
                         category = photo_category
@@ -173,7 +228,7 @@ def assign_category(db, product, supplied=None):
         state.status = 'photo_model_disabled'
     product.category = category
     state.assigned = category
-    sync_taxonomy(db, product, state)
+    sync_taxonomy(db, product, state, photo_leaf=photo_leaf)
     return state
 
 
@@ -183,3 +238,31 @@ def describe(db, product):
         return {'source': 'legacy', 'status': 'needs_review' if is_unassigned(product.category) else 'assigned'}
     return {'source': state.source, 'status': state.status, 'suggestion': state.suggestion,
             'score': state.score, 'score_kind': 'cosine_similarity', 'photo_model': MODEL_ID if SEARCH_BACKEND == 'clip' else None}
+
+
+def reclassify_indexed_products(db):
+    """Idempotently refresh existing products after ML backfills their images.
+
+    Merchant-selected manual categories are never overwritten. Products retain
+    their publication and moderation status regardless of inference outcome.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from .models import Product
+    products = db.scalars(select(Product).options(
+        selectinload(Product.images),
+        selectinload(Product.category_assignment))).all()
+    changed = 0
+    for product in products:
+        state = db.get(ProductCategoryState, product.id)
+        if state is not None and state.source == 'manual':
+            continue
+        before = product.category_assignment.category_id if product.category_assignment else None
+        assign_category(db, product)
+        db.flush()
+        assigned = db.get(ProductCategoryAssignment, product.id)
+        if (assigned.category_id if assigned else None) != before:
+            changed += 1
+    db.commit()
+    log.info('Reclassified %s of %s indexed products', changed, len(products))
+    return changed
