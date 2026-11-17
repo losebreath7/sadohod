@@ -95,3 +95,19 @@ def test_unknown_product_publishes_without_invented_leaf(env):
     assert detail['category_id'] is None
     assert detail['category_path'] == []
     assert detail['price'] is None
+
+
+def test_child_jacket_keeps_precise_path_despite_legacy_outerwear_label(env):
+    from backend.app.merchant_models import ProductCategoryAssignment
+    c, codes, factory, _ = env
+    auth = login(c, codes, 'taxonomy-child@example.com')
+    admin_client(c)
+    approve(c, f'applications/{applicant(c, "taxonomy-3", auth)}/decision')
+    result = c.post('/api/v1/merchant/products', headers=auth,
+                    json={'title': 'Детская куртка'})
+    assert result.status_code == 201, result.text
+    assert result.json()['category'] == 'Верхняя одежда'
+    with factory() as db:
+        assignment = db.get(ProductCategoryAssignment, result.json()['id'])
+        assert assignment is not None
+        assert assignment.category_id == 'clothing-kids-jackets'
