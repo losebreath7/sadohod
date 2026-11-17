@@ -132,5 +132,6 @@ def test_published_legacy_product_can_be_reported_and_hidden(env, monkeypatch):
     assert stopped.status_code == 200, stopped.text
     assert c.get('/api/v1/products/legacy-product').status_code == 404
     # Legacy administrator cannot bypass a staff hold by toggling visibility.
+    admin_client(c)
     assert c.put('/api/v1/admin/products/legacy-product/visibility',
                  json={'active': True}).status_code == 409
