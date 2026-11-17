@@ -5,11 +5,39 @@ import 'package:go_router/go_router.dart';
 import '../../data/account.dart';
 import '../../data/catalog.dart';
 
-// The 62px iPhone 16 Pro safe inset is already part of the full-screen
-// buyer layout. Compact controls need their own row *below* that inset,
-// rather than adding another MediaQuery/SafeArea around the whole screen.
-const double buyerCompactHeaderHeight = 75;
-const double buyerCompactContentTop = 39;
+/// The buyer shell never adds a second top SafeArea. Each compact header
+/// calculates its own position from the device's system top inset.
+/// Flutter does not expose the exact Dynamic Island bounding rectangle:
+/// for tall iOS insets the obstruction ends above the bottom of the inset.
+class BuyerHeaderLayout {
+  const BuyerHeaderLayout._(this.obstructionBottom, this.contentTop, this.height);
+
+  static const double gap = 12;
+  static const double rowHeight = 28;
+  final double obstructionBottom;
+  final double contentTop;
+  final double height;
+
+  factory BuyerHeaderLayout.forInset(double safeTop) {
+    final top = safeTop < 0 ? 0.0 : safeTop;
+    // iPhone 16 Pro preview: safeTop=62, Dynamic Island bottom=40.
+    // Conventional notches and plain Android status bars differ.
+    final obstructionBottom = top >= 55
+        ? top - 22
+        : top >= 36 ? top - 12 : top;
+    final contentTop = obstructionBottom + gap;
+    return BuyerHeaderLayout._(
+      obstructionBottom, contentTop, contentTop + rowHeight + gap);
+  }
+
+  static BuyerHeaderLayout of(BuildContext context) {
+    final data = MediaQuery.of(context);
+    final top = data.viewPadding.top > data.padding.top
+        ? data.viewPadding.top : data.padding.top;
+    return BuyerHeaderLayout.forInset(top);
+  }
+}
+
 
 /// Original vector artwork exported from approved Figma home frames.
 class SvgLogo extends StatelessWidget {
@@ -234,12 +262,14 @@ class DesignHeader extends StatelessWidget {
   const DesignHeader({required this.child, super.key});
   final Widget child;
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: buyerCompactHeaderHeight,
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return SizedBox(
+    height: header.height,
     child: Stack(
       children: [
         Positioned(
-          top: -39,
+          top: header.height - 114,
           left: -5,
           right: -5,
           child: IgnorePointer(
@@ -253,12 +283,14 @@ class DesignHeader extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 35, 22, 0),
+          padding: EdgeInsets.fromLTRB(
+            22, header.contentTop, 22, BuyerHeaderLayout.gap),
           child: child,
         ),
       ],
     ),
   );
+  }
 }
 
 /// Compact header shared by photo search, matches and favourite seller screens.
@@ -270,12 +302,15 @@ class BuyerTopBar extends StatelessWidget {
   final ValueChanged<String>? onSubmitted, onChanged;
   final bool showSearch;
   @override
-  Widget build(BuildContext context) => Container(
-    height: buyerCompactHeaderHeight,
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return Container(
+    height: header.height,
     decoration: const BoxDecoration(color: Colors.white,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+      padding: EdgeInsets.fromLTRB(
+        30, header.contentTop, 30, BuyerHeaderLayout.gap),
       child: Row(children: [
         GestureDetector(onTap: onBack,
           child: const SizedBox(width: 25, height: 25,
@@ -289,4 +324,5 @@ class BuyerTopBar extends StatelessWidget {
       ]),
     ),
   );
+  }
 }

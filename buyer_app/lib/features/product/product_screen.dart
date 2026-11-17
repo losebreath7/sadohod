@@ -72,12 +72,14 @@ class _ProductScreenState extends State<ProductScreen> {
       final selected = offers.isEmpty ? null : offers[_selectedOffer.clamp(0, offers.length - 1).toInt()];
       final address = selected?.pavilion ?? p.pavilion;
       final seller = selected?.seller ?? p.seller ?? DemoCatalog.findSeller(p.sellerId);
+      final header = BuyerHeaderLayout.of(context);
       return ColoredBox(
         color: const Color(0xfff1f1f1),
         child: Column(children: [
           Container(
-            height: buyerCompactHeaderHeight,
-            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+            height: header.height,
+            padding: EdgeInsets.fromLTRB(
+              30, header.contentTop, 30, BuyerHeaderLayout.gap),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [

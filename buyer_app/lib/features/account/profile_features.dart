@@ -14,15 +14,54 @@ import '../../core/widgets/design.dart';
 import '../../data/account.dart';
 import '../../data/api.dart';
 
+class _BuyerAdaptiveChatHeader extends StatelessWidget {
+  const _BuyerAdaptiveChatHeader({required this.title, required this.onBack});
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return Container(
+      height: header.height,
+      decoration: const BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
+      padding: EdgeInsets.fromLTRB(
+        14, header.contentTop, 14, BuyerHeaderLayout.gap),
+      child: Stack(children: [
+        Center(child: Text(title, style: const TextStyle(
+          fontFamily: 'Helvetica', fontSize: 16, fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ))),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Semantics(
+            button: true, label: 'Назад',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: onBack,
+              child: const SizedBox(width: 32, height: 28,
+                child: Center(child: Icon(Icons.chevron_left, size: 27))),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 class _BuyerPageTop extends StatelessWidget {
   const _BuyerPageTop(this.title);
   final String title;
   @override
-  Widget build(BuildContext context) => Container(
-    height: buyerCompactHeaderHeight,
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return Container(
+    height: header.height,
     decoration: const BoxDecoration(color: Colors.white,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-    padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+    padding: EdgeInsets.fromLTRB(
+      30, header.contentTop, 30, BuyerHeaderLayout.gap),
     child: Row(children: [
       const RoundBack(),
       Expanded(child: Text(title, textAlign: TextAlign.center,
@@ -30,6 +69,7 @@ class _BuyerPageTop extends StatelessWidget {
       const SizedBox(width: 32),
     ]),
   );
+  }
 }
 
 class ProfileEditScreen extends StatefulWidget {
@@ -571,7 +611,7 @@ class _BuyerChatScreenState extends State<BuyerChatScreen> {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      SadohodChatHeader(
+      _BuyerAdaptiveChatHeader(
         title: widget.kind == 'support' ? 'поддержка' : 'сотрудничество',
         onBack: () {
           if (context.canPop()) {

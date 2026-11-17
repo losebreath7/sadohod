@@ -26,7 +26,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('compact search row clears 62px Dynamic Island without extra SafeArea',
+  test('adaptive header maintains equal gaps for phone families', () {
+    for (final safeTop in [0.0, 24.0, 44.0, 62.0, 75.0]) {
+      final h = BuyerHeaderLayout.forInset(safeTop);
+      expect(h.contentTop - h.obstructionBottom, BuyerHeaderLayout.gap);
+      expect(h.height - h.contentTop - BuyerHeaderLayout.rowHeight,
+          BuyerHeaderLayout.gap);
+      expect(h.height, greaterThan(h.contentTop));
+    }
+    final iphone = BuyerHeaderLayout.forInset(62);
+    expect(iphone.obstructionBottom, 40);
+    expect(iphone.contentTop, 52);
+    expect(iphone.height, 92);
+    expect(BuyerHeaderLayout.forInset(24).height, 76);
+    expect(BuyerHeaderLayout.forInset(44).height, 84);
+  });
+
+  testWidgets('compact search is centered between island and header bottom',
       (tester) async {
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1;
@@ -35,7 +51,10 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: MediaQuery(
-          data: const MediaQueryData(padding: EdgeInsets.only(top: 62)),
+          data: const MediaQueryData(
+            padding: EdgeInsets.only(top: 62),
+            viewPadding: EdgeInsets.only(top: 62),
+          ),
           child: Column(
             children: [BuyerTopBar(onBack: () {})],
           ),
@@ -43,11 +62,41 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    expect(buyerCompactHeaderHeight, 75);
-    expect(tester.getSize(find.byType(BuyerTopBar)).height, 75);
-    expect(tester.getTopLeft(find.byType(SearchCapsule)).dy,
-        greaterThanOrEqualTo(39));
+    final geometry = BuyerHeaderLayout.forInset(62);
+    final topBar = tester.getRect(find.byType(BuyerTopBar));
+    final search = tester.getRect(find.byType(SearchCapsule));
+    expect(topBar.height, geometry.height);
+    expect(search.height, 25);
+    final topGap = search.top - geometry.obstructionBottom;
+    final bottomGap = topBar.bottom - search.bottom;
+    expect(topGap, greaterThan(12));
+    expect(topGap, closeTo(bottomGap, 0.1));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact header updates on Android, notch and island layouts',
+      (tester) async {
+    for (final top in <double>[0, 24, 44, 62]) {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(
+        body: MediaQuery(
+          data: MediaQueryData(
+            padding: EdgeInsets.only(top: top),
+            viewPadding: EdgeInsets.only(top: top),
+          ),
+          child: Column(children: [
+            BuyerTopBar(onBack: () {}),
+          ]),
+        ),
+      )));
+      await tester.pumpAndSettle();
+      final layout = BuyerHeaderLayout.forInset(top);
+      final bounds = tester.getRect(find.byType(BuyerTopBar));
+      final input = tester.getRect(find.byType(SearchCapsule));
+      expect(bounds.height, closeTo(layout.height, 0.01));
+      expect(input.top - layout.obstructionBottom,
+          closeTo(bounds.bottom - input.bottom, 0.01));
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('home Figma logo starts at y=58 with 16px gap to intro',
