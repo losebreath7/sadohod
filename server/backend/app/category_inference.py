@@ -8,11 +8,11 @@ import logging
 import math
 
 from .config import SEARCH_BACKEND
-from .merchant_models import ProductCategoryState, ProductCategoryAssignment
+from .merchant_models import ProductCategoryState, ProductCategoryAssignment, CatalogCategory
 from .models import ImageMLEmbedding
 from .ml_clip import MODEL_ID, DIM, _model_bundle, MODEL_ARCH
 from .product_categories import resolve_category, is_unassigned, UNASSIGNED
-from .catalog_taxonomy import LEGACY, BY_ID, path_ids, resolve_leaf
+from .catalog_taxonomy import NODES_V1, LEGACY, BY_ID, path_ids, resolve_leaf
 
 log = logging.getLogger(__name__)
 PROMPTS = {
@@ -77,6 +77,16 @@ def sync_taxonomy(db, product, state):
     elif legacy and (leaf is None or legacy not in path_ids(leaf)):
         leaf = legacy
 
+    # Alembic seeds the entire taxonomy in deployed databases. The fallback
+    # supports isolated ORM-created test DBs and remains additive/idempotent.
+    if leaf and db.get(CatalogCategory, leaf) is None:
+        positions = {id: i for i, (id, _, _) in enumerate(NODES_V1)}
+        for node_id in path_ids(leaf):
+            if db.get(CatalogCategory, node_id) is None:
+                _, parent, name = BY_ID[node_id]
+                db.add(CatalogCategory(id=node_id, parent_id=parent,
+                                       name=name, position=positions[node_id]))
+                db.flush()
     assignment = db.get(ProductCategoryAssignment, product.id)
     if not leaf:
         if assignment:
