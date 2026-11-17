@@ -1,15 +1,47 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('Helvetica is shared and app colour identities stay distinct', () {
-    expect(SadohodFont.family, 'Helvetica');
+    expect(SadohodFont.family, 'packages/sadohod_shared_core/Helvetica');
     expect(SadohodThemePalette.buyer.background, BuyerColors.paper);
     expect(SadohodThemePalette.seller.background, SellerColors.background);
     expect(SadohodThemePalette.buyer.background,
         isNot(SadohodThemePalette.seller.background));
     expect(SadohodThemePalette.buyer.accent, BuyerColors.ink);
     expect(SadohodThemePalette.seller.accent, SellerColors.burgundy);
+  });
+
+  test('all four Helvetica font resources load from shared package', () async {
+    const fonts = <String, int>{
+      'Helvetica.ttf': 300000,
+      'Helvetica-Bold.ttf': 300000,
+      'Helvetica-Oblique.ttf': 500000,
+      'Helvetica-BoldOblique.ttf': 250000,
+    };
+    for (final file in fonts.entries) {
+      final bytes = await rootBundle.load(
+        'packages/sadohod_shared_core/assets/fonts/${file.key}',
+      );
+      expect(bytes.lengthInBytes, greaterThan(file.value));
+    }
+  });
+
+  test('bundled Helvetica family is consistent across all product text roles', () {
+    for (final style in [
+      BuyerProductType.catalogAddress,
+      BuyerProductType.catalogTitle,
+      BuyerProductType.catalogPrice,
+      BuyerProductType.detailTitle,
+      BuyerProductType.detailPrice,
+      SellerProductType.cardTitle,
+      SellerProductType.cardPrice,
+    ]) {
+      expect(style.fontFamily, SadohodFont.family);
+      expect(style.fontFamilyFallback, SadohodFont.fallback);
+    }
   });
 
   test('design spacing and durations are increasing', () {
