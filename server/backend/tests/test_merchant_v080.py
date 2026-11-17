@@ -85,9 +85,9 @@ def make_published(c, auth, pavilion_id, title='Куртка'):
     listing = c.post(f'/api/v1/merchant/products/{pid}/listings', headers=auth,
                      json={'pavilion_id': pavilion_id, 'price': 2500, 'sale_modes': ['wholesale', 'retail']})
     assert listing.status_code == 201, listing.text
-    assert c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth).status_code == 200
-    assert c.get('/api/v1/products/'+pid).status_code == 404
-    approve(c, 'products/'+pid+'/decision')
+    result = c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth)
+    assert result.status_code == 200, result.text
+    assert result.json()['status'] == 'approved'
     assert c.get('/api/v1/products/'+pid).status_code == 200
     return pid
 
