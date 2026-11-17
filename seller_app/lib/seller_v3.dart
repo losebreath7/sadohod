@@ -404,7 +404,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(wasVisible
           ? 'Товар скрыт'
-          : 'Товар отправлен на проверку перед публикацией'),
+          : 'Товар опубликован'),
       ));
     });
   }
@@ -1490,7 +1490,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     await finishAction(
       duplicate
           ? 'Копии опубликованы'
-          : 'Товары перенесены. Публикация — после проверки',
+          : 'Товары перенесены и опубликованы',
     );
   });
 
@@ -1550,7 +1550,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photoReplacements.clear();
     draftId = null;
     saveSession = ProductSaveSession();
-    await finishAction('Товар отправлен на модерацию');
+    await finishAction('Товар опубликован');
   });
   List<RowData> get shown => products.where((p) {
     final ls = rows(p['listings']);
@@ -3295,7 +3295,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Товары отправлены на проверку перед публикацией',
+                                  'Товары опубликованы',
                                 ),
                               ),
                             );
