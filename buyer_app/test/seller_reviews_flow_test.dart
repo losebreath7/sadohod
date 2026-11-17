@@ -160,6 +160,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('review-compose-sheet')), findsOneWidget);
     expect(find.text('martini felesk'), findsOneWidget);
+    expect(find.text('Отправить на проверку'), findsOneWidget);
+    final submitButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('submit-seller-review')));
+    final shape = submitButton.style!.shape!.resolve({});
+    expect(shape, isA<RoundedRectangleBorder>());
+    expect((shape! as RoundedRectangleBorder).borderRadius,
+      BorderRadius.circular(999));
     await tester.tap(find.byKey(const ValueKey('submit-seller-review')));
     await tester.pump();
     expect(find.text('Выберите оценку'), findsOneWidget);
