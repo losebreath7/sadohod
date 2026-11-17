@@ -31,6 +31,7 @@ def test_report_requires_login_and_published_product_and_deduplicates(env, monke
     endpoint = f'/api/v1/products/{pid}/report'
     assert c.post(endpoint, json={'reason': 'Подмена изображения'}).status_code == 401
     assert c.post(endpoint, headers=reporter, json={'reason': 'x'}).status_code == 422
+    assert c.post(endpoint, headers=reporter, json={'reason': '      '}).status_code == 422
     assert c.post('/api/v1/products/unknown/report', headers=reporter,
                   json={'reason': 'Нарушение правил'}).status_code == 404
     first = c.post(endpoint, headers=reporter, json={'reason': 'Подмена изображения'})
