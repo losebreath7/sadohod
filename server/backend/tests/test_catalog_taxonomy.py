@@ -111,3 +111,25 @@ def test_child_jacket_keeps_precise_path_despite_legacy_outerwear_label(env):
         assignment = db.get(ProductCategoryAssignment, result.json()['id'])
         assert assignment is not None
         assert assignment.category_id == 'clothing-kids-jackets'
+
+
+def test_edit_reclassifies_product_and_clears_stale_auto_leaf(env):
+    from backend.app.merchant_models import ProductCategoryAssignment
+    c, codes, factory, _ = env
+    auth = login(c, codes, 'taxonomy-edit@example.com')
+    admin_client(c)
+    approve(c, f'applications/{applicant(c, "taxonomy-4", auth)}/decision')
+    pid = c.post('/api/v1/merchant/products', headers=auth,
+                 json={'title': 'Кукла Барби'}).json()['id']
+    with factory() as db:
+        assert db.get(ProductCategoryAssignment, pid).category_id == 'toys-dolls'
+    edit = c.put('/api/v1/merchant/products/' + pid, headers=auth,
+                 json={'title': 'Женские кроссовки'})
+    assert edit.status_code == 200, edit.text
+    with factory() as db:
+        assert db.get(ProductCategoryAssignment, pid).category_id == 'shoes-women-sneakers'
+    edit = c.put('/api/v1/merchant/products/' + pid, headers=auth,
+                 json={'title': 'Артикул 123'})
+    assert edit.status_code == 200, edit.text
+    with factory() as db:
+        assert db.get(ProductCategoryAssignment, pid) is None
