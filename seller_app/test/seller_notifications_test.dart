@@ -69,6 +69,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('moderator takedown notification links to affected product',
+      (tester) async {
+    final api = FakeNotificationApi();
+    api.data
+      ..clear()
+      ..add({
+        'id': 'hold-1',
+        'event_type': 'product_safety',
+        'target_id': 'product-held',
+        'title': 'Товар снят с публикации',
+        'status': 'removed',
+        'message': 'Товар «Кукла» снят с публикации модератором.',
+        'note': 'Запрещённый контент',
+        'created_at': 1731769200,
+        'read': false,
+      });
+    String? opened;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body:
+      SellerNotificationsPage(
+        api: api, onOpenPavilions: () {},
+        onOpenProduct: (id) => opened = id,
+      ))));
+    await tester.pumpAndSettle();
+    expect(find.text('Причина: Запрещённый контент'), findsOneWidget);
+    await tester.tap(find.text('Товар снят с публикации'));
+    await tester.pumpAndSettle();
+    expect(opened, 'product-held');
+    expect(api.called, contains('PUT /merchant/notifications/hold-1/read'));
+  });
+
   testWidgets('profile opens notifications inside existing seller navigation', (tester) async {
     final api = FakeNotificationApi();
     tester.view.physicalSize = const Size(390, 874);
