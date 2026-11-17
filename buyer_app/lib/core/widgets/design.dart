@@ -95,11 +95,77 @@ class FavoriteButton extends StatelessWidget {
         icon: SizedBox(
           width: small ? 16 : 23,
           height: small ? 15 : 21,
-          child: DesignIcon(saved ? 'b2fbd' : 'heart_outline_clean'),
+          child: FavoriteHeartGlyph(filled: saved),
         ),
       );
     },
   );
+}
+
+/// A black heart with a narrow white outline, readable against any photo.
+/// No background circle, badge, or other surface is painted behind the heart.
+class FavoriteHeartGlyph extends StatelessWidget {
+  const FavoriteHeartGlyph({super.key, required this.filled});
+
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _FavoriteHeartPainter(filled: filled),
+    size: const Size(24, 24),
+  );
+}
+
+class _FavoriteHeartPainter extends CustomPainter {
+  const _FavoriteHeartPainter({required this.filled});
+  final bool filled;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24, size.height / 24);
+    final heart = Path()
+      ..moveTo(12, 21)
+      ..cubicTo(10.6, 19.7, 2, 13.5, 2, 8.4)
+      ..cubicTo(2, 5.2, 4.4, 3, 7.5, 3)
+      ..cubicTo(9.4, 3, 11, 3.9, 12, 5.1)
+      ..cubicTo(13, 3.9, 14.6, 3, 16.5, 3)
+      ..cubicTo(19.6, 3, 22, 5.2, 22, 8.4)
+      ..cubicTo(22, 13.5, 13.4, 19.7, 12, 21)
+      ..close();
+
+    if (filled) {
+      canvas.drawPath(heart, Paint()
+        ..style = PaintingStyle.fill
+        ..color = Colors.black
+        ..isAntiAlias = true);
+      canvas.drawPath(heart, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.3
+        ..strokeJoin = StrokeJoin.round
+        ..color = Colors.white
+        ..isAntiAlias = true);
+    } else {
+      // White halo behind the dark outline, not a filled white heart.
+      canvas.drawPath(heart, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeJoin = StrokeJoin.round
+        ..color = Colors.white
+        ..isAntiAlias = true);
+      canvas.drawPath(heart, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeJoin = StrokeJoin.round
+        ..color = Colors.black
+        ..isAntiAlias = true);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _FavoriteHeartPainter oldDelegate) =>
+      oldDelegate.filled != filled;
 }
 
 class PhotoGallery extends StatefulWidget {
@@ -121,7 +187,7 @@ class _PhotoGalleryState extends State<PhotoGallery> {
     child: ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Stack(fit: StackFit.expand, children: [
-        if (widget.fit == BoxFit.contain)
+        if (!widget.small && widget.fit == BoxFit.contain)
           const ColoredBox(color: Color(0xffeaeaea)),
         PageView.builder(
           itemCount: widget.photos.length,
@@ -130,10 +196,15 @@ class _PhotoGalleryState extends State<PhotoGallery> {
             final url = widget.photos[i];
             return GestureDetector(
               onTap: widget.onTap == null ? null : () => widget.onTap!(i),
-              child: SadohodProductPhoto(
-                path: url,
-                fit: widget.fit,
-                placeholder: const Color(0xFFEAEAEA),
+              child: ColoredBox(
+                color: Colors.white,
+                child: SizedBox.expand(
+                  child: SadohodProductPhoto(
+                    path: url,
+                    fit: widget.small ? BoxFit.cover : widget.fit,
+                    placeholder: const Color(0xFFEAEAEA),
+                  ),
+                ),
               ),
             );
           },

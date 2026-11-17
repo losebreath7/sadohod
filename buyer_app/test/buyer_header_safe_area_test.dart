@@ -5,7 +5,7 @@ import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/home/home_screen.dart';
 
 void main() {
-  testWidgets('favorite heart has legible 16x15 Figma vector without clipping',
+  testWidgets('favorite heart has legible 16x15 outline without clipping',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
@@ -20,7 +20,7 @@ void main() {
     ));
     await tester.pump();
     final icon = find.descendant(
-      of: find.byType(FavoriteButton), matching: find.byType(DesignIcon));
+      of: find.byType(FavoriteButton), matching: find.byType(FavoriteHeartGlyph));
     expect(icon, findsOneWidget);
     expect(tester.getSize(icon), const Size(16, 15));
     expect(tester.takeException(), isNull);
