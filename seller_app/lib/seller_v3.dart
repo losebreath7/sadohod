@@ -80,11 +80,11 @@ Widget pill(
   String? icon,
 }) => tap(
   Container(
-    height: 48,
+    height: SadohodControl.sellerActionHeight,
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: color,
-      borderRadius: BorderRadius.circular(100),
+      borderRadius: BorderRadius.circular(SadohodControl.pillRadius),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -116,7 +116,7 @@ class SellerTabBar extends StatelessWidget {
         bottom: MediaQuery.viewPaddingOf(context).bottom,
       ),
       child: SizedBox(
-        height: 56,
+        height: SadohodControl.tabBarHeight,
         child: Row(
           children: [
             for (var i = 0; i < 3; i++)
@@ -228,7 +228,7 @@ class V3Field extends StatelessWidget {
     height: height,
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: BorderRadius.circular(SadohodControl.sellerFieldRadius),
     ),
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Column(
@@ -2690,10 +2690,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   Widget searchField() => Container(
-    height: 32,
+    height: SadohodControl.compactSearchHeight,
     decoration: BoxDecoration(
       color: const Color(0xFFD9D9D9),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(SadohodControl.compactSearchRadius),
     ),
     child: Row(
       children: [
@@ -2707,7 +2707,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               searching = true;
               selected.clear();
             }),
-            style: type(12, color: Colors.white),
+            style: SadohodControl.sellerSearchText,
             textAlignVertical: TextAlignVertical.center,
             maxLines: 1,
             strutStyle: const StrutStyle(
@@ -2715,7 +2715,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
             decoration: InputDecoration(
               hintText: 'поиск',
-              hintStyle: type(12, color: Colors.white),
+              hintStyle: SadohodControl.sellerSearchHint,
               isDense: true,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
