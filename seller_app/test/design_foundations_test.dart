@@ -60,5 +60,6 @@ void main() {
     expect(SadohodControl.sellerSearchText.fontFamily, SadohodFont.family);
     expect(SadohodControl.sellerSearchText.color, SellerColors.brown);
     expect(SadohodControl.sellerSearchHint.color, SellerColors.brown);
+    expect(SellerColors.fieldLabel, isNot(SellerColors.muted));
   });
 }
