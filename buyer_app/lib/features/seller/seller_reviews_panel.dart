@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/account.dart';
 import '../../data/api.dart';
@@ -156,7 +157,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                         }),
                         child: Padding(padding: const EdgeInsets.all(2),
                           child: ReviewFlower(
-                            color: reviewColors[i], size: 21,
+                            index: i, size: 21,
                             fill: rating > i ? 1 : 0)),
                       ),
                     ),
@@ -295,7 +296,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         padding: const EdgeInsets.fromLTRB(30, 24, 30, 27),
         child: Column(children: [
-          const ReviewFlower(color: Color(0xff569d70), size: 27),
+          SvgPicture.asset('assets/figma/review_confirmation.svg', width: 26, height: 26),
           const SizedBox(height: 23),
           const Text('Отзыв отправлен',
             style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
@@ -355,6 +356,21 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     }
   }
 
+  // Both add and published review cards use the exact Figma header slot:
+  // card 135×85, avatar x=6/y=5/13.5px, name x=23/y≈7.5.
+  Widget _reviewHeader(String name) => Positioned(
+    left: 6, top: 5, right: 6,
+    child: Row(children: [
+      SvgPicture.asset('assets/figma/review_avatar.svg',
+        width: 13.5, height: 13.5),
+      const SizedBox(width: 3.5),
+      Expanded(child: Text(name, maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 8,
+          color: Colors.black, height: 1.125))),
+    ]),
+  );
+
   Widget _tile(Map<String, dynamic> item,
       {bool pending = false, bool rejected = false}) {
     final name = item['name']?.toString() ?? 'Пользователь';
@@ -365,40 +381,34 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
       key: ValueKey('seller-review-${item['id']}'),
       onTap: () => _openReview(item, ownUnpublished: pending || rejected),
       child: Container(
-        width: 137, height: 85,
-        padding: const EdgeInsets.fromLTRB(7, 7, 7, 6),
+        width: 135, height: 85,
         decoration: BoxDecoration(color: Colors.white,
-          borderRadius: BorderRadius.circular(6)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const CircleAvatar(radius: 7, backgroundColor: Color(0xffdddddd),
-              child: Icon(Icons.person, size: 10,
-                color: Color(0xff999999))),
-            const SizedBox(width: 4),
-            Expanded(child: Text(name, maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 8,
-                fontWeight: FontWeight.w600))),
-          ]),
-          const SizedBox(height: 4),
-          if (pending || rejected)
-            Text(rejected ? 'отзыв отклонен' : 'на модерации',
-              style: const TextStyle(fontSize: 9,
-                color: Color(0xff9b3030))),
-          if (reviewText.isNotEmpty)
-            Expanded(child: Text(reviewText,
-              maxLines: pending || rejected ? 3 : 4,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9,
-                color: Color(0xff888888), height: 1.25)))
-          else const Spacer(),
-          if (photos.isNotEmpty || reply.isNotEmpty)
-            Text([
-              if (photos.isNotEmpty) 'фото: ${photos.length}',
-              if (reply.isNotEmpty) 'ответ продавца',
-            ].join(' · '), maxLines: 1,
-              style: const TextStyle(fontSize: 8,
-                color: Color(0xff999999))),
+          borderRadius: BorderRadius.circular(5)),
+        child: Stack(children: [
+          _reviewHeader(name),
+          Positioned(left: 23, top: 21, right: 7, bottom: 6,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (pending || rejected)
+                  Text(rejected ? 'отзыв отклонен' : 'на модерации',
+                    style: const TextStyle(fontSize: 8, height: 1.2,
+                      color: Color(0xff9b3030))),
+                if (reviewText.isNotEmpty)
+                  Expanded(child: Text(reviewText,
+                    maxLines: pending || rejected ? 3 : 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 8,
+                      color: Color(0xff7d7d7d), height: 1.2)))
+                else const Spacer(),
+                if (photos.isNotEmpty || reply.isNotEmpty)
+                  Text([
+                    if (photos.isNotEmpty) 'фото: ${photos.length}',
+                    if (reply.isNotEmpty) 'ответ продавца',
+                  ].join(' · '), maxLines: 1,
+                    style: const TextStyle(fontSize: 8,
+                      color: Color(0xff999999))),
+              ]),
+          ),
         ]),
       ),
     );
@@ -474,21 +484,25 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (average == null)
-        const Text('нет отзывов', style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w700))
-      else Row(children: [
-        Text(average.toStringAsFixed(1), style: const TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(width: 9),
-        ReviewRatingFlowers(rating: average),
-      ]),
+      // The Figma card strip begins at the same Y in both states. The text
+      // label sits lower when the public rating is absent.
+      SizedBox(height: 28, child: Stack(children: [
+        if (average == null)
+          const Positioned(left: 0, bottom: 0,
+            child: Text('нет отзывов', style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700)))
+        else
+          Positioned(left: 0, top: 0, child: Row(children: [
+            Text(average.toStringAsFixed(1), style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            ReviewRatingFlowers(rating: average, size: 12),
+          ])),
+      ])),
       if (_loading)
-        const Padding(padding: EdgeInsets.only(top: 7),
-          child: LinearProgressIndicator(minHeight: 1, color: Colors.black)),
+        const LinearProgressIndicator(minHeight: 1, color: Colors.black),
       if (_error != null)
         TextButton(onPressed: _load, child: Text(_error!)),
-      const SizedBox(height: 10),
       SizedBox(
         key: const ValueKey('seller-reviews-list'),
         height: 85,
@@ -499,31 +513,22 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
               key: const ValueKey('seller-review-add'),
               onTap: _review,
               child: Container(
-                width: 137, height: 85,
+                width: 135, height: 85,
                 decoration: BoxDecoration(color: Colors.white,
-                  borderRadius: BorderRadius.circular(6)),
-                child: Column(children: [
-                  Row(children: [
-                    const CircleAvatar(radius: 7,
-                      backgroundColor: Color(0xffdddddd),
-                      child: Icon(Icons.person, size: 10,
-                        color: Color(0xff999999))),
-                    const SizedBox(width: 4),
-                    Expanded(child: Text(
-                      AccountStore.instance.name.isEmpty
-                        ? 'имя фамилия' : AccountStore.instance.name,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 8))),
-                  ]),
-                  const Spacer(),
-                  const Icon(Icons.add, size: 33,
-                    color: Color(0xffdddddd)),
-                  const Spacer(),
+                  borderRadius: BorderRadius.circular(5)),
+                child: Stack(children: [
+                  _reviewHeader(AccountStore.instance.name.isEmpty
+                    ? 'имя фамилия' : AccountStore.instance.name),
+                  const Positioned(left: 54, top: 15,
+                    child: SizedBox(width: 27, height: 52,
+                      child: Center(child: Text('+',
+                        style: TextStyle(fontSize: 44.8,
+                          height: 1.0, color: Color(0xffd9d9d9)))))),
                 ]),
               ),
             ),
             for (final item in entries) ...[
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
               _tile(item,
                 pending: item['id'] == _mine?['id'] && status == 'pending',
                 rejected: item['id'] == _mine?['id'] && status == 'rejected'),

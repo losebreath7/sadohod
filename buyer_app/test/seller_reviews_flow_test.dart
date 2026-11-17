@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sadohod/features/seller/review_flowers.dart';
 import 'package:sadohod/features/seller/seller_reviews_panel.dart';
 
@@ -39,6 +40,49 @@ void main() {
     expect(find.byKey(const ValueKey('seller-review-add')), findsOneWidget);
     expect(find.byType(ReviewRatingFlowers), findsNothing);
     expect(find.byKey(const ValueKey('seller-reviews-list')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('add review card matches Figma size, avatar and name position',
+      (tester) async {
+    await mountReviews(tester, public: () async => {
+      'count': 0, 'average': null, 'items': [],
+    });
+    final card = find.byKey(const ValueKey('seller-review-add'));
+    final cardTopLeft = tester.getTopLeft(card);
+    expect(tester.getSize(card).width, 135);
+    expect(tester.getSize(card).height, 85);
+    final avatar = find.descendant(
+      of: card, matching: find.byType(SvgPicture));
+    expect(avatar, findsOneWidget);
+    final avatarTopLeft = tester.getTopLeft(avatar);
+    expect(avatarTopLeft.dx - cardTopLeft.dx, closeTo(6, .1));
+    expect(avatarTopLeft.dy - cardTopLeft.dy, closeTo(5, .1));
+    expect(tester.getSize(avatar).width, closeTo(13.5, .1));
+    expect(tester.getSize(avatar).height, closeTo(13.5, .1));
+    final label = find.descendant(of: card,
+      matching: find.text('имя фамилия'));
+    expect(label, findsOneWidget);
+    expect(tester.getTopLeft(label).dx - cardTopLeft.dx, closeTo(23, .1));
+    expect(find.descendant(of: card, matching: find.text('+')),
+      findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rating flowers render original SVG assets in Figma order',
+      (tester) async {
+    await mountReviews(tester, public: () async => {
+      'count': 2, 'average': 3.5, 'items': [],
+    });
+    final flowers = tester.widgetList<ReviewFlower>(
+      find.byType(ReviewFlower)).toList();
+    expect(flowers.map((flower) => flower.index).toList(),
+      [0, 1, 2, 3, 4]);
+    for (final asset in reviewFlowerAssets) {
+      expect(asset.startsWith('assets/figma/review_'), isTrue);
+      expect(asset.endsWith('.svg'), isTrue);
+    }
+    expect(find.byType(SvgPicture), findsAtLeastNWidgets(6));
     expect(tester.takeException(), isNull);
   });
 
