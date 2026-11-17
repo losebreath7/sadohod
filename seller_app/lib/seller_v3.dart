@@ -1515,10 +1515,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         'id': id,
         'title': c('title').text,
         'images': [],
-        'status': 'pending',
+        'status': 'approved',
         'listings': [
           for (final destination in destinations)
-            {'pavilion_id': destination, 'price': price, 'status': 'pending'},
+            {'pavilion_id': destination, 'price': price, 'status': 'approved',
+             'published': true, 'sale_modes': saleModes.toList()},
         ],
       });
     } else {
