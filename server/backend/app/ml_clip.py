@@ -49,3 +49,17 @@ def embed_image(data: bytes) -> list[float]:
     if len(values) != DIM or not all(math.isfinite(v) for v in values):
         raise RuntimeError('Модель выдала некорректный вектор')
     return values
+
+
+def embed_text(prompt: str) -> list[float]:
+    """Text and photo vectors from the same normalized OpenCLIP checkpoint."""
+    import open_clip
+    model, _, torch = _model_bundle()
+    tokens = open_clip.get_tokenizer(MODEL_ARCH)([prompt[:300]])
+    with torch.inference_mode():
+        vector = model.encode_text(tokens).float().squeeze(0)
+        vector = vector / vector.norm().clamp(min=1e-12)
+        values = vector.cpu().tolist()
+    if len(values) != DIM or not all(math.isfinite(v) for v in values):
+        raise RuntimeError('Некорректный текстовый ML-вектор')
+    return values
