@@ -339,51 +339,181 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final count = (_data?['count'] as num?)?.toInt() ?? 0;
-    final avg = (_data?['average'] as num?)?.toDouble();
-    final items = (_data?['items'] as List? ?? []).whereType<Map<String, dynamic>>();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Text(avg == null ? 'Отзывы' : '${avg.toStringAsFixed(1)} ★  ·  $count отзывов',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        const Spacer(),
-        TextButton(onPressed: _review, child: const Text('написать',
-          style: TextStyle(color: Colors.black, fontSize: 12))),
-      ]),
-      if (_loading) const LinearProgressIndicator(minHeight: 1, color: Colors.black),
-      if (_error != null) TextButton(onPressed: _load, child: Text(_error!)),
-      for (final item in items) Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(7)),
+  Widget _tile(Map<String, dynamic> item,
+      {bool pending = false, bool rejected = false}) {
+    final name = item['name']?.toString() ?? 'Пользователь';
+    final reviewText = item['text']?.toString() ?? '';
+    final photos = item['photos'] as List? ?? const [];
+    final reply = item['reply']?.toString() ?? '';
+    return InkWell(
+      key: ValueKey('seller-review-${item['id']}'),
+      onTap: () => _openReview(item, ownUnpublished: pending || rejected),
+      child: Container(
+        width: 137, height: 85,
+        padding: const EdgeInsets.fromLTRB(7, 7, 7, 6),
+        decoration: BoxDecoration(color: Colors.white,
+          borderRadius: BorderRadius.circular(6)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(child: Text(item['name']?.toString() ?? 'Пользователь',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-            Text('${item['rating'] ?? ''} ★', style: const TextStyle(fontSize: 12)),
+            const CircleAvatar(radius: 7, backgroundColor: Color(0xffdddddd),
+              child: Icon(Icons.person, size: 10,
+                color: Color(0xff999999))),
+            const SizedBox(width: 4),
+            Expanded(child: Text(name, maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 8,
+                fontWeight: FontWeight.w600))),
           ]),
-          if ((item['text']?.toString() ?? '').isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 6),
-              child: Text(item['text'].toString(), style: const TextStyle(fontSize: 12))),
-          if ((item['photos'] as List? ?? []).isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 8), child: SizedBox(
-              height: 62, child: ListView(scrollDirection: Axis.horizontal, children: [
-                for (final encoded in (item['photos'] as List))
-                  Padding(padding: const EdgeInsets.only(right: 6),
-                    child: Image.memory(base64Decode(encoded.toString()), width: 62,
-                      height: 62, fit: BoxFit.cover)),
-              ]))),
-          if ((item['reply']?.toString() ?? '').isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 7), child: Text(
-              'ответ продавца: ${item['reply']}',
-              style: const TextStyle(fontSize: 11, color: Color(0xff6c6c6c)))),
-          Align(alignment: Alignment.centerRight,
-            child: TextButton(onPressed: () => _report(item['id'].toString()),
-              child: const Text('пожаловаться',
-                style: TextStyle(fontSize: 10, color: Color(0xff6c6c6c))))),
+          const SizedBox(height: 4),
+          if (pending || rejected)
+            Text(rejected ? 'отзыв отклонен' : 'на модерации',
+              style: const TextStyle(fontSize: 9,
+                color: Color(0xff9b3030))),
+          if (reviewText.isNotEmpty)
+            Expanded(child: Text(reviewText,
+              maxLines: pending || rejected ? 3 : 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9,
+                color: Color(0xff888888), height: 1.25)))
+          else const Spacer(),
+          if (photos.isNotEmpty || reply.isNotEmpty)
+            Text([
+              if (photos.isNotEmpty) 'фото: ${photos.length}',
+              if (reply.isNotEmpty) 'ответ продавца',
+            ].join(' · '), maxLines: 1,
+              style: const TextStyle(fontSize: 8,
+                color: Color(0xff999999))),
         ]),
+      ),
+    );
+  }
+
+  Future<void> _openReview(Map<String, dynamic> item,
+      {required bool ownUnpublished}) async {
+    if (!mounted) return;
+    final photos = item['photos'] as List? ?? const [];
+    await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: Colors.white,
+      title: Text(item['name']?.toString() ?? 'Пользователь',
+        style: const TextStyle(fontSize: 15)),
+      content: SingleChildScrollView(child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ReviewRatingFlowers(
+            rating: (item['rating'] as num?)?.toDouble() ?? 0),
+          const SizedBox(height: 12),
+          if (ownUnpublished)
+            Text(item['moderation_status'] == 'rejected'
+              ? 'отзыв отклонен' : 'на модерации',
+              style: const TextStyle(fontSize: 12,
+                color: Color(0xff9b3030))),
+          const SizedBox(height: 8),
+          Text(item['text']?.toString() ?? '',
+            style: const TextStyle(fontSize: 13)),
+          if (photos.isNotEmpty)
+            Padding(padding: const EdgeInsets.only(top: 12),
+              child: SizedBox(height: 90,
+                child: ListView(scrollDirection: Axis.horizontal, children: [
+                  for (final encoded in photos)
+                    Padding(padding: const EdgeInsets.only(right: 7),
+                      child: Image.memory(
+                        base64Decode(encoded.toString()), width: 90,
+                        height: 90, fit: BoxFit.cover)),
+                ]),
+              ),
+            ),
+          if ((item['reply']?.toString() ?? '').isNotEmpty)
+            Padding(padding: const EdgeInsets.only(top: 12),
+              child: Text('ответ продавца: ${item['reply']}',
+                style: const TextStyle(fontSize: 12))),
+        ],
+      )),
+      actions: [
+        if (!ownUnpublished)
+          TextButton(onPressed: () {
+            Navigator.pop(ctx);
+            _report(item['id'].toString());
+          }, child: const Text('пожаловаться',
+            style: TextStyle(color: Colors.black))),
+        TextButton(onPressed: () => Navigator.pop(ctx),
+          child: const Text('закрыть',
+            style: TextStyle(color: Colors.black))),
+      ],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final average = (_data?['average'] as num?)?.toDouble();
+    final published = (_data?['items'] as List? ?? const [])
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+    final status = _mine?['moderation_status']?.toString() ?? '';
+    final ownVisible = _mine != null && _mine!['hidden'] != true &&
+      (status == 'pending' || status == 'rejected');
+    final entries = <Map<String, dynamic>>[
+      if (ownVisible) _mine!,
+      ...published.where((row) => !ownVisible || row['id'] != _mine?['id']),
+    ];
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (average == null)
+        const Text('нет отзывов', style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w700))
+      else Row(children: [
+        Text(average.toStringAsFixed(1), style: const TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w700)),
+        const SizedBox(width: 9),
+        ReviewRatingFlowers(rating: average),
+      ]),
+      if (_loading)
+        const Padding(padding: EdgeInsets.only(top: 7),
+          child: LinearProgressIndicator(minHeight: 1, color: Colors.black)),
+      if (_error != null)
+        TextButton(onPressed: _load, child: Text(_error!)),
+      const SizedBox(height: 10),
+      SizedBox(
+        key: const ValueKey('seller-reviews-list'),
+        height: 85,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            InkWell(
+              key: const ValueKey('seller-review-add'),
+              onTap: _review,
+              child: Container(
+                width: 137, height: 85,
+                decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(6)),
+                child: Column(children: [
+                  Row(children: [
+                    const CircleAvatar(radius: 7,
+                      backgroundColor: Color(0xffdddddd),
+                      child: Icon(Icons.person, size: 10,
+                        color: Color(0xff999999))),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(
+                      AccountStore.instance.name.isEmpty
+                        ? 'имя фамилия' : AccountStore.instance.name,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 8))),
+                  ]),
+                  const Spacer(),
+                  const Icon(Icons.add, size: 33,
+                    color: Color(0xffdddddd)),
+                  const Spacer(),
+                ]),
+              ),
+            ),
+            for (final item in entries) ...[
+              const SizedBox(width: 9),
+              _tile(item,
+                pending: item['id'] == _mine?['id'] && status == 'pending',
+                rejected: item['id'] == _mine?['id'] && status == 'rejected'),
+            ],
+          ],
+        ),
       ),
     ]);
   }
