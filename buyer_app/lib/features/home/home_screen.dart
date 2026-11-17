@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverPersistentHeader(
           pinned: true,
           delegate: _SadoHomeHeader(
+            header: BuyerHeaderLayout.of(context),
             controller: _query,
             onChanged: (_) => setState(() {}),
             onSubmitted: _submitSearch,
@@ -133,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
 /// No duplicated TextField, no opacity switch between two search controls.
 class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
   _SadoHomeHeader({
+    required this.header,
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
@@ -141,30 +143,31 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onTag,
   });
 
+  final BuyerHeaderLayout header;
   final TextEditingController controller;
   final ValueChanged<String> onChanged, onSubmitted, onTag;
   final VoidCallback onPhotoTap, onLogoTap;
   static const double _max = 402;
-  static const double _min = buyerCompactHeaderHeight;
 
   @override
-  double get minExtent => _min;
+  double get minExtent => header.height;
   @override
   double get maxExtent => _max;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final offset = shrinkOffset.clamp(0.0, _max - _min).toDouble();
+    final offset = shrinkOffset.clamp(0.0, _max - header.height).toDouble();
     // Search moves with the scroll until it docks at the top; then its width
     // changes continuously to make room for the compact Figma logo.
-    final dock = ((offset - 150) / 60).clamp(0.0, 1.0).toDouble();
+    final dock = ((offset - 182) / 54).clamp(0.0, 1.0).toDouble();
     final curve = Curves.easeInOutCubic.transform(dock);
-    final shape = ((offset - 170) / 105).clamp(0.0, 1.0).toDouble();
+    final shape = ((offset - 200) / 105).clamp(0.0, 1.0).toDouble();
     // The pin mask is drawn ABOVE the scrolling intro, not behind it.
     // Otherwise the photo tile and tag chips bleed into the docked search
     // when the sliver collapses (particularly visible on iOS Safari).
     final pinnedCover = ((offset - 55) / 55).clamp(0.0, 1.0).toDouble();
-    final searchTop = (275 - offset).clamp(buyerCompactContentTop, 275.0).toDouble();
+    final searchTop = (275 - offset).clamp(
+      header.contentTop + (BuyerHeaderLayout.rowHeight - 25) / 2, 275.0).toDouble();
     final left = 30 + 63 * curve;
     final searchHeight = 32 - 7 * curve;
     final width = MediaQuery.sizeOf(context).width;
@@ -174,7 +177,7 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
       clipBehavior: Clip.hardEdge,
       fit: StackFit.expand,
       children: [
-        // The open header is flat white; its pinned 75 px end state uses the
+        // The open header is flat white; its pinned adaptive end state uses the
         // original exported white cutout shape, not a Material border radius.
         Positioned.fill(child: Opacity(opacity: 1 - shape,
           child: const ColoredBox(color: Colors.white))),
@@ -261,12 +264,12 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
             ),
           ),
         ),
-        // A real foreground mask for the pinned 75 px zone. The original
+        // A real foreground mask for the adaptive pinned zone. The original
         // Figma SVG now occludes the intro as it scrolls UNDER the navbar.
         // Keeping it below the search/logo in stack order leaves those
         // controls crisp, while never showing ghost tags over the search.
         if (pinnedCover > 0)
-          Positioned(left: -4, right: -4, top: -14, height: 114,
+          Positioned(left: -4, right: -4, top: header.height - 114, height: 114,
             child: IgnorePointer(child: Opacity(opacity: pinnedCover,
               child: SvgPicture.asset('assets/figma/388b2.svg', fit: BoxFit.fill)))),
         // Original 98 x 13 Figma wordmark at y=58. The intro text keeps its
@@ -282,7 +285,8 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
             ),
           ),
         // Compact emblem sits below the island; tapping scrolls the current home to top.
-        Positioned(top: buyerCompactContentTop, left: 30, width: 25, height: 25,
+        Positioned(top: header.contentTop + (BuyerHeaderLayout.rowHeight - 25) / 2,
+          left: 30, width: 25, height: 25,
           child: IgnorePointer(
             ignoring: dock < .90,
             child: Opacity(opacity: curve,
@@ -309,7 +313,9 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant _SadoHomeHeader old) =>
       old.controller != controller || old.onChanged != onChanged ||
       old.onSubmitted != onSubmitted || old.onPhotoTap != onPhotoTap ||
-      old.onLogoTap != onLogoTap || old.onTag != onTag;
+      old.onLogoTap != onLogoTap || old.onTag != onTag ||
+      old.header.height != header.height ||
+      old.header.contentTop != header.contentTop;
 }
 
 /// The approved Figma logo, drawn natively from its vector coordinates.

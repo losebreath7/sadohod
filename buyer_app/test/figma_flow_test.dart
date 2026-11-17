@@ -5,6 +5,7 @@ import 'package:sadohod/app/app.dart';
 import 'package:sadohod/data/account.dart';
 import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/core/widgets/common.dart';
+import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
 
 void main() {
@@ -46,7 +47,7 @@ void main() {
       'https://example.com/b.jpg',
     ]);
   });
-  testWidgets('tile shows title, hides price, heart saves item', (tester) async {
+  testWidgets('tile shows exact price, title and heart saves item', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -61,12 +62,71 @@ void main() {
     expect(find.text(DemoCatalog.products.first.title), findsOneWidget);
     expect(
       find.text(formatRubles(DemoCatalog.products.first.price!)),
-      findsNothing,
+      findsOneWidget,
     );
     await tester.tap(find.byTooltip('В избранное'));
     await tester.pumpAndSettle();
     expect(AccountStore.instance.products, contains('p01'));
   });
+
+  testWidgets('tile omits price when seller has not set one', (tester) async {
+    final withoutPrice = DemoProduct(
+      id: 'no-price', title: 'Без цены', category: 'Обувь', price: null,
+      sellerId: 's01', image: 'assets/products/p01.jpg',
+      description: '', colors: const [],
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: SizedBox(
+        width: 150, child: ProductTile(product: withoutPrice),
+      )),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('А-14'), findsOneWidget);
+    expect(find.text('Без цены'), findsOneWidget);
+    expect(find.textContaining('₽'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('favorite photos fit entirely without changing catalog photos',
+      (tester) async {
+    final product = DemoCatalog.products.first;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Column(children: [
+        SizedBox(width: 150, child: ProductTile(
+          product: product, imageFit: BoxFit.contain)),
+        SizedBox(width: 150, child: ProductTile(product: product)),
+      ])),
+    ));
+    await tester.pumpAndSettle();
+    final galleries = tester.widgetList<PhotoGallery>(find.byType(PhotoGallery)).toList();
+    expect(galleries, hasLength(2));
+    expect(galleries.first.fit, BoxFit.contain);
+    expect(galleries.last.fit, BoxFit.cover);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('real offer pricing follows the selected pavilion, even when null', () {
+    final product = DemoProduct.fromJson({
+      'id': 'mixed-price', 'title': 'Обувь', 'category': 'Обувь',
+      'image': '/media/products/a.jpg', 'description': '',
+      'price': 300, 'colors': [],
+      'offers': [
+        {
+          'price': 300,
+          'seller': {'id': 's1', 'name': 'Продавец', 'pavilion': 'А-1', 'zone': 'Б'},
+          'pavilion': {'code': 'А-1'},
+        },
+        {
+          'price': null,
+          'seller': {'id': 's1', 'name': 'Продавец', 'pavilion': 'А-2', 'zone': 'Б'},
+          'pavilion': {'code': 'А-2'},
+        },
+      ],
+    }, 'https://example.com');
+    expect(product.forOffer(product.availableOffers.first).price, 300);
+    expect(product.forOffer(product.availableOffers.last).price, isNull);
+  });
+
   testWidgets('email validates locally without sending request', (
     tester,
   ) async {

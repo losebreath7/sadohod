@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
-import 'package:sadohod_shared_core/device_preview_shell.dart';
+import '../core/widgets/device_preview_lab.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_theme.dart';
@@ -112,7 +112,7 @@ class SadohodApp extends StatelessWidget {
     routerConfig: appRouter,
     builder: (context, child) => const bool.fromEnvironment('FIGMA_PREVIEW')
         ? child!
-        : SadohodDevicePreviewShell(child: child!),
+        : BuyerDevicePreviewLab(child: child!),
   );
 }
 

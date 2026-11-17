@@ -35,7 +35,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       (needle.isEmpty || '${p.title} ${p.category} ${p.pavilion}'.toLowerCase().contains(needle))).toList();
     if (saved.isEmpty) return const Padding(padding: EdgeInsets.only(top: 28),
       child: Center(child: Text('Пока нет избранных товаров', style: TextStyle(fontSize: 12))));
-    if (!_oneStore) return ProductGrid(products: saved);
+    if (!_oneStore) return ProductGrid(products: saved, imageFit: BoxFit.contain);
 
     // Do NOT select a seller. Rearrange the whole favourites feed by seller,
     // then by pavilion, in the stable order of their first appearance.
@@ -64,7 +64,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ..sort((a, b) => a.key.compareTo(b.key)))) ...[
           Padding(padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
             child: Text(pavilion.key, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))),
-          ProductGrid(products: pavilion.value),
+          ProductGrid(products: pavilion.value, imageFit: BoxFit.contain),
         ],
     ]);
   }
@@ -74,28 +74,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     listenable: AccountStore.instance,
     builder: (context, _) {
       final a = AccountStore.instance;
+      final header = BuyerHeaderLayout.of(context);
       return ColoredBox(
         color: const Color(0xfff1f1f1),
         child: Column(children: [
           if (widget.sellers) Container(
-            height: buyerCompactHeaderHeight,
+            height: header.height,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.only(top: 64),
+            padding: EdgeInsets.fromLTRB(
+              0, header.contentTop, 0, BuyerHeaderLayout.gap),
             alignment: Alignment.center,
             child: const Text('любимые продавцы', style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold)),
           ) else Container(
-            height: buyerCompactHeaderHeight,
+            height: header.height,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+            padding: EdgeInsets.fromLTRB(
+              30, header.contentTop, 30, BuyerHeaderLayout.gap),
             child: Row(children: [
               GestureDetector(onTap: _toTop,
                 child: const SizedBox(width: 40, height: 28, child: Center(
                   child: SizedBox(width: 28, height: 28, child: DesignIcon('f4579'))))),
               const SizedBox(width: 23),
-              Expanded(child: SearchCapsule(controller: _search, onChanged: (_) => setState(() {}))),
+              Expanded(child: SearchCapsule(
+                height: 25, controller: _search,
+                onChanged: (_) => setState(() {}))),
             ]),
           ),
           if (widget.sellers) Padding(

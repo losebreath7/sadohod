@@ -16,6 +16,17 @@ from PIL import Image, ImageChops
 
 
 def cases(app):
+    if app == 'buyer_matrix':
+        # QA presets are selected via URL so the screenshot reliably exercises
+        # the actual browser device wrapper and its MediaQuery.
+        return [
+            ('buyer-matrix-iphone16pro', '/?previewDevice=iPhone%2016%20Pro#/home', 1440, 1000),
+            ('buyer-matrix-iphone13', '/?previewDevice=iPhone%2013#/home', 1440, 1000),
+            ('buyer-matrix-compact320', '/?previewDevice=Compact%20320#/home', 1440, 1000),
+            ('buyer-matrix-galaxy-a15', '/?previewDevice=Galaxy%20A15#/home', 1440, 1000),
+            ('buyer-matrix-tecno-spark20', '/?previewDevice=TECNO%20Spark%2020#/home', 1440, 1000),
+            ('buyer-matrix-pro-max', '/?previewDevice=iPhone%2016%20Pro%20Max#/home', 1440, 1080),
+        ]
     if app == 'buyer_shell':
         # Real desktop-hosted phone preview injects a 62 px iOS SafeArea,
         # unlike FIGMA_PREVIEW which removes the phone frame.
@@ -58,13 +69,27 @@ async def capture(app, port, output):
                 errors = []
                 page.on('pageerror', lambda exc: errors.append(str(exc)[:250]))
                 try:
+                    # For saved products exercise the actual Flutter UI, not
+                    # a seeded localStorage snapshot. The preview runs in
+                    # a 1440x1000 Chrome viewport with a 402px iPhone shell.
+                    entry_path = '/#/home' if name == 'buyer-shell-favorites' else path
                     response = await page.goto(
-                        f'http://127.0.0.1:{port}{path}',
+                        f'http://127.0.0.1:{port}{entry_path}',
                         wait_until='domcontentloaded', timeout=45000)
                     if response is None or response.status != 200:
                         raise RuntimeError(f'Bad HTTP response: {response}')
                     await page.locator('flt-glass-pane').wait_for(state='attached', timeout=30000)
                     await page.wait_for_timeout(6500)
+                    if name == 'buyer-shell-favorites':
+                        # Heart on first home product, then bottom favorites tab.
+                        await page.mouse.click(690, 508)
+                        await page.wait_for_timeout(800)
+                        await page.mouse.click(720, 870)
+                        await page.wait_for_timeout(1500)
+                        if '/favorites' not in page.url:
+                            raise AssertionError(
+                                f'Buyer favorites tab did not open: {page.url}')
+                        print('Opened favorites after saving the first demo product via UI.')
                     image = output / f'{name}.png'
                     await page.screenshot(path=str(image), full_page=True)
                     if image.stat().st_size < 2500:
@@ -112,7 +137,7 @@ async def capture(app, port, output):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--app', choices=['buyer_app', 'seller_app', 'buyer_shell'], required=True)
+    parser.add_argument('--app', choices=['buyer_app', 'seller_app', 'buyer_shell', 'buyer_matrix'], required=True)
     parser.add_argument('--build', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
