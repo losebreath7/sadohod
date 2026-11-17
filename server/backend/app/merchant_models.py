@@ -112,3 +112,23 @@ class MerchantInvitation(Base):
     expires_at: Mapped[float] = mapped_column(Float)
     used_at: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[float] = mapped_column(Float, default=now)
+
+
+class CatalogCategory(Base):
+    """Stable taxonomy node; parent link never mutates a published product."""
+    __tablename__ = 'catalog_categories'
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey('catalog_categories.id'), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class ProductCategoryAssignment(Base):
+    """One precise category per product; all ancestors are derived at query time."""
+    __tablename__ = 'product_category_assignments'
+    product_id: Mapped[str] = mapped_column(
+        ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
+    category_id: Mapped[str] = mapped_column(
+        ForeignKey('catalog_categories.id'), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(24), nullable=False)
