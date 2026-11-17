@@ -233,6 +233,8 @@ def product_report_json(db: Session, item: ProductReport):
     product = db.get(Product, item.product_id)
     return {'id': item.id, 'product_id': item.product_id,
             'title': product.title if product else '',
+            'images': [f'/media/products/{image.filename}'
+                       for image in product.images[:12]] if product else [],
             'reason': item.reason, 'created_at': item.created_at}
 
 
