@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/catalog.dart';
@@ -269,21 +270,9 @@ class ProductImageView extends StatelessWidget {
   final DemoProduct product;
   final BoxFit fit;
   @override
-  Widget build(BuildContext context) => product.image.startsWith('http')
-      ? Image.network(
-          product.image,
-          fit: fit,
-          errorBuilder: (_, _, _) => const ColoredBox(
-            color: Palette.tile,
-            child: Center(child: Icon(Icons.image_not_supported_outlined)),
-          ),
-        )
-      : Image.asset(
-          product.image,
-          fit: fit,
-          errorBuilder: (_, _, _) => const ColoredBox(
-            color: Palette.tile,
-            child: Center(child: Icon(Icons.image_not_supported_outlined)),
-          ),
-        );
+  Widget build(BuildContext context) => SadohodProductPhoto(
+    path: product.image,
+    fit: fit,
+    placeholder: Palette.tile,
+  );
 }
