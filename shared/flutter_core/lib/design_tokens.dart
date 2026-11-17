@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 /// the starting point for gradual component migration, not an instruction to
 /// replace every special-case Figma measurement at once.
 abstract final class SadohodFont {
-  static const family = 'Helvetica';
-  // Do not bundle font files unless redistribution rights are documented.
+  // Flutter prefixes font families exported from package pubspec manifests.
+  // This resolves to the bundled files even when Helvetica is not installed.
+  static const family = 'packages/sadohod_shared_core/Helvetica';
+  // The supplied Helvetica fonts do not contain U+20BD (the ruble sign).
+  // Keep OS fallback only for missing glyphs, not for normal body text.
   static const fallback = <String>['Arial', 'Roboto'];
 
   static const caption = 12.0;
