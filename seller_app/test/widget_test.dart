@@ -196,17 +196,42 @@ void main() {
     expect(find.text('поддержка'), findsOneWidget);
     expect(find.byType(SadohodChatHeader), findsNothing);
   });
-  testWidgets('Existing product actions design opens and cancels', (
+  testWidgets('Edit product visibility uses Figma eye icons without a menu', (
     tester,
   ) async {
-    await openFrame(tester, '366:17304');
-    await tester.tap(find.bySemanticsLabel('Действия с товаром'));
+    await openFrame(tester, '366:16062');
+    expect(find.bySemanticsLabel('Скрыть товар'), findsOneWidget);
+    expect(find.text('действия с товаром'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Скрыть товар'));
     await tester.pumpAndSettle();
-    expect(find.text('действия с товаром'), findsOneWidget);
-    expect(find.text('изменить фотографии'), findsOneWidget);
-    await tester.tap(find.text('отмена'));
+    expect(find.bySemanticsLabel('Показать товар'), findsOneWidget);
+    expect(find.text('Товар скрыт'), findsOneWidget);
+  });
+
+  testWidgets('Unsaved editor changes prompt before going back', (tester) async {
+    await openFrame(tester, '366:16062');
+    await tester.enterText(find.byType(TextField).first, 'Другое название');
+    await tester.tap(find.bySemanticsLabel('Назад'));
     await tester.pumpAndSettle();
-    expect(find.text('дизайн в разработке'), findsNothing);
-    expect(find.text('добавить товар'), findsOneWidget);
+    expect(find.text('Несохранённые изменения'), findsOneWidget);
+    await tester.tap(find.text('продолжить редактирование'));
+    await tester.pumpAndSettle();
+    expect(find.text('изменить товар'), findsOneWidget);
+    expect(find.text('Несохранённые изменения'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Назад'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('выйти без сохранения'));
+    await tester.pumpAndSettle();
+    expect(find.text('изменить товар'), findsNothing);
+  });
+
+  testWidgets('Catalog separates published and hidden items', (tester) async {
+    await openFrame(tester, '366:16277');
+    expect(find.text('опубликованные'), findsOneWidget);
+    expect(find.text('скрытые'), findsOneWidget);
+    expect(find.text('alo кроссовки'), findsWidgets);
+    await tester.tap(find.text('скрытые'));
+    await tester.pumpAndSettle();
+    expect(find.text('alo кроссовки'), findsNothing);
   });
 }
