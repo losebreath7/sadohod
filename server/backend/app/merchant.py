@@ -532,6 +532,8 @@ def submit_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session 
     owner = merchant_product(pid, seller, db)
     if owner.status not in ('draft', 'rejected'):
         raise HTTPException(409, 'Товар уже отправлен или опубликован.')
+    from .product_safety import require_publishable
+    require_publishable(db, pid)
     p = db.get(Product, pid)
     if not p.images:
         raise HTTPException(409, 'Добавьте хотя бы одну фотографию.')
@@ -627,6 +629,8 @@ def decide_pavilion(rid: str, body: DecisionInput, db: Session = Depends(get_db)
 
 
 def publish_listing(db, row):
+    from .product_safety import require_publishable
+    require_publishable(db, row.product_id)
     claim = db.scalar(select(PavilionClaim).where(PavilionClaim.pavilion_id == row.pavilion_id, PavilionClaim.seller_id == row.seller_id))
     if not claim:
         raise HTTPException(409, 'Павильон больше не закреплён за продавцом.')
