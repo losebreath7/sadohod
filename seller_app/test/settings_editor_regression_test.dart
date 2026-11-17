@@ -95,24 +95,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('editor uses actions menu and pavilion code is not duplicated',
+  testWidgets('editor uses Figma visibility eye and pavilion code once',
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await setUpPreview(tester, '366:16062');
     expect(find.text('изменить товар'), findsOneWidget);
     expect(find.text('Б-2В-81'), findsOneWidget);
-    expect(find.byIcon(Icons.more_horiz), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.more_horiz));
-    await tester.pumpAndSettle();
-    expect(find.text('действия с товаром'), findsOneWidget);
-    expect(find.text('изменить фотографии'), findsOneWidget);
-    expect(find.text('Очистить форму'), findsOneWidget);
-    expect(find.text('отмена'), findsOneWidget);
-    expect(find.text('закрыть'), findsNothing);
-    await tester.tap(find.text('отмена'));
-    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Скрыть товар'), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
     expect(find.text('действия с товаром'), findsNothing);
+    expect(find.text('Очистить форму'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
 }
