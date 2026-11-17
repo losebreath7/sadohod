@@ -85,9 +85,9 @@ def make_published(c, auth, pavilion_id, title='Куртка'):
     listing = c.post(f'/api/v1/merchant/products/{pid}/listings', headers=auth,
                      json={'pavilion_id': pavilion_id, 'price': 2500, 'sale_modes': ['wholesale', 'retail']})
     assert listing.status_code == 201, listing.text
-    assert c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth).status_code == 200
-    assert c.get('/api/v1/products/'+pid).status_code == 404
-    approve(c, 'products/'+pid+'/decision')
+    result = c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth)
+    assert result.status_code == 200, result.text
+    assert result.json()['status'] == 'approved'
     assert c.get('/api/v1/products/'+pid).status_code == 200
     return pid
 
@@ -141,16 +141,14 @@ def test_second_pavilion_requires_moderation_and_ownership(env):
     assert len(items) == 2
     added = c.post(f'/api/v1/merchant/products/{pid}/listings',headers=a,
                    json={'pavilion_id':items[1]['id'],'price':2900,'sale_modes':['retail']})
-    assert added.status_code == 201 and added.json()['status']=='pending'
-    assert len(c.get('/api/v1/products/'+pid).json()['offers']) == 1
-    approve(c,'listings/'+added.json()['id']+'/decision')
+    assert added.status_code == 201 and added.json()['status']=='approved'
     offers = c.get('/api/v1/products/'+pid).json()['offers']
     assert len(offers) == 2
     assert {o['price'] for o in offers} == {2500,2900}
     assert c.get('/api/v1/merchant/pavilions',headers=b).json()['items'][0]['id'] == second_id
 
 
-def test_rejected_application_duplicate_pavilion_and_rejected_product(env):
+def test_rejected_application_duplicate_pavilion_and_auto_published_product(env):
     c,codes,factory,_ = env
     auth = login(c,codes,'seller@test.com')
     admin_client(c)
@@ -170,14 +168,15 @@ def test_rejected_application_duplicate_pavilion_and_rejected_product(env):
     c.post(f'/api/v1/merchant/products/{pid}/images',headers=auth,files={'files':('x.jpg',photo(),'image/jpeg')})
     c.post(f'/api/v1/merchant/products/{pid}/listings',headers=auth,
            json={'pavilion_id':pavilion_id,'price':400,'sale_modes':['wholesale']})
-    c.post(f'/api/v1/merchant/products/{pid}/submit',headers=auth)
-    approve(c,'products/'+pid+'/decision',decision='rejected')
-    assert c.get('/api/v1/products/'+pid).status_code == 404
-    assert c.get('/api/v1/merchant/products/'+pid,headers=auth).json()['status']=='rejected'
-    assert c.post(f'/api/v1/merchant/products/{pid}/submit',headers=auth).status_code==200  # Resubmission after rejection is supported
+    published = c.post(f'/api/v1/merchant/products/{pid}/submit',headers=auth)
+    assert published.status_code == 200 and published.json()['status'] == 'approved'
+    assert c.get('/api/v1/products/'+pid).status_code == 200
+    assert c.post('/api/v1/admin/merchant/products/'+pid+'/decision',
+                  json={'decision':'rejected'}).status_code == 409
 
 
-def test_approved_product_edit_hides_until_remoderated(env):
+
+def test_approved_product_edit_stays_published_without_moderation(env):
     c,codes,factory,_ = env
     auth=login(c,codes,'editor@test.com');admin_client(c)
     approve(c,'applications/'+applicant(c,'87',auth)+'/decision')
@@ -186,9 +185,7 @@ def test_approved_product_edit_hides_until_remoderated(env):
     edit=c.put('/api/v1/merchant/products/'+pid,headers=auth,
                json={'title':'Куртка новая','category':'Одежда','sizes':['L']})
     assert edit.status_code==200,edit.text
-    assert c.get('/api/v1/products/'+pid).status_code==404
-    assert c.post('/api/v1/merchant/products/'+pid+'/submit',headers=auth).status_code==200
-    approve(c,'products/'+pid+'/decision')
+    assert edit.json()['status'] == 'approved'
     assert c.get('/api/v1/products/'+pid).json()['title']=='Куртка новая'
 
 
@@ -221,7 +218,7 @@ def test_admin_invitation_is_single_use_email_scoped(env):
     assert c.get('/api/v1/merchant/pavilions',headers=owner).status_code==200
 
 
-def test_price_update_pause_resume_and_moderation(env):
+def test_price_update_pause_resume_immediate(env):
     c,codes,_,_=env
     owner=login(c,codes,'owner2@test.com')
     admin_client(c)
@@ -232,17 +229,12 @@ def test_price_update_pause_resume_and_moderation(env):
     lid=listing['id']
     change=c.put('/api/v1/merchant/listings/'+lid,headers=owner,json={
         'pavilion_id':pavilion,'price':3100,'sale_modes':['retail']})
-    assert change.status_code==200 and change.json()['status']=='pending'
-    # Old approved price stays visible until a moderator accepts the change.
-    assert c.get('/api/v1/products/'+pid).json()['price']==2500
-    approve(c,'listings/'+lid+'/decision')
+    assert change.status_code==200 and change.json()['status']=='approved'
     assert c.get('/api/v1/products/'+pid).json()['price']==3100
     pause=c.post('/api/v1/merchant/listings/'+lid+'/pause',headers=owner)
     assert pause.status_code==200, pause.text
     assert c.get('/api/v1/products/'+pid).status_code==404
     assert c.post('/api/v1/merchant/listings/'+lid+'/resume',headers=owner).status_code==200
-    assert c.get('/api/v1/products/'+pid).status_code==404
-    approve(c,'listings/'+lid+'/decision')
     assert c.get('/api/v1/products/'+pid).status_code==200
 
 

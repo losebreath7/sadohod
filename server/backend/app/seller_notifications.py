@@ -56,6 +56,9 @@ def _record(db: Session, buyer_id: str | None, kind: str, target: str,
             status: str, subject: str, note: str = ''):
     if buyer_id is None or status not in ('pending', 'approved', 'rejected'):
         return
+    # Product and listing publication is immediate: no moderation notices.
+    if kind in ('product', 'listing'):
+        return
     subject = (subject or 'Без названия').strip()
     titles = {
         'application': {

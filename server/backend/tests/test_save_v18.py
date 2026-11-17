@@ -35,14 +35,13 @@ def test_create_upload_save_retries_do_not_duplicate(env):
     for _ in range(2):
         r=c.put(f'/api/v1/merchant/products/{pid}/save',headers=auth,json=body)
         assert r.status_code==200,r.text
-        assert r.json()['status']=='pending'
+        assert r.json()['status']=='approved'
     assert upload(c,auth,pid).status_code==201  # lost upload response can be replayed after submit
-    assert c.get('/api/v1/products/'+pid).status_code==404
+    assert c.get('/api/v1/products/'+pid).status_code==200
     with factory() as db:
         assert db.query(Product).count()==1
         assert db.query(ProductImage).count()==1
         assert db.query(MerchantListing).count()==1
-    approve(c,f'products/{pid}/decision')
     assert c.get('/api/v1/products/'+pid).json()['price']==3500
 
 

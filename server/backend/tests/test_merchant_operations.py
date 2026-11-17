@@ -73,7 +73,7 @@ def test_copy_rolls_back_files_and_rows(env, monkeypatch):
         assert db.query(Product).count() == before
 
 
-def test_move_is_atomic_and_requires_moderation(env):
+def test_move_is_atomic_and_immediately_published(env):
     c, auth, _, source, dest, factory, _ = setup(env)
     pid = make_published(c, auth, source)
     body = {'request_id': 'move-request-1', 'product_ids': [pid, 'missing'],
@@ -86,13 +86,11 @@ def test_move_is_atomic_and_requires_moderation(env):
     assert c.post('/api/v1/merchant/products/actions/move', headers=auth, json=body).json() == r.json()
     data = c.get('/api/v1/merchant/products/' + pid, headers=auth).json()
     row = data['listings'][0]
-    assert row['pavilion_id'] == dest and row['status'] == 'pending'
-    assert c.get('/api/v1/products/' + pid).status_code == 404
-    approve(c, 'listings/' + row['id'] + '/decision')
+    assert row['pavilion_id'] == dest and row['status'] == 'approved'
     assert c.get('/api/v1/products/' + pid).status_code == 200
 
 
-def test_tenant_isolation_and_pending_block(env):
+def test_tenant_isolation_and_immediate_changes(env):
     c, auth, other, source, dest, factory, _ = setup(env)
     pid = make_published(c, auth, source)
     iid = c.get('/api/v1/merchant/products/' + pid, headers=auth).json()['image_items'][0]['id']
@@ -103,9 +101,10 @@ def test_tenant_isolation_and_pending_block(env):
         'destination_pavilion_ids': [dest]}).status_code == 403
     assert c.put('/api/v1/merchant/products/' + pid, headers=auth,
                  json={'title': 'Изменено', 'category': 'Одежда'}).status_code == 200
-    assert c.post('/api/v1/merchant/products/' + pid + '/submit', headers=auth).status_code == 200
-    assert c.delete('/api/v1/merchant/products/' + pid, headers=auth).status_code == 409
-    assert c.delete(f'/api/v1/merchant/products/{pid}/images/{iid}', headers=auth).status_code == 409
+    assert c.get('/api/v1/products/' + pid).json()['title'] == 'Изменено'
+    # Owner can edit and delete directly; another account still cannot.
+    assert c.delete('/api/v1/merchant/products/' + pid, headers=auth).status_code == 200
+    assert c.delete(f'/api/v1/merchant/products/{pid}/images/{iid}', headers=auth).status_code == 404
 
 
 def test_archive_bulk_all_or_nothing_and_idempotent(env):
