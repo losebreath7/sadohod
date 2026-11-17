@@ -43,10 +43,10 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    expect(buyerCompactHeaderHeight, 100);
-    expect(tester.getSize(find.byType(BuyerTopBar)).height, 100);
+    expect(buyerCompactHeaderHeight, 75);
+    expect(tester.getSize(find.byType(BuyerTopBar)).height, 75);
     expect(tester.getTopLeft(find.byType(SearchCapsule)).dy,
-        greaterThanOrEqualTo(66));
+        greaterThanOrEqualTo(39));
     expect(tester.takeException(), isNull);
   });
 

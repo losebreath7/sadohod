@@ -94,23 +94,32 @@ class DarkAction extends StatelessWidget {
 }
 
 class ProductTile extends StatelessWidget {
-  const ProductTile({required this.product, super.key});
+  const ProductTile({required this.product, this.imageFit = BoxFit.cover, super.key});
   final DemoProduct product;
+  final BoxFit imageFit;
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      GestureDetector(
-        onTap: () => context.push('/product/${product.id}'),
-        child: PhotoGallery(product.photos, small: true),
-      ),
+      Stack(children: [
+        GestureDetector(
+          onTap: () => context.push('/product/${product.id}'),
+          child: PhotoGallery(product.photos, small: true, fit: imageFit),
+        ),
+        Positioned(top: 6, right: 6,
+          child: SizedBox(width: 28, height: 28,
+            child: FavoriteButton(product.id, small: true, alignRight: true))),
+      ]),
       SizedBox(height: 20, child: Row(children: [
         Expanded(child: GestureDetector(
           onTap: () => context.push('/product/${product.id}'),
           child: Text(product.pavilion, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12, height: 1.1)),
         )),
-        SizedBox(width: 22, height: 20, child: FavoriteButton(product.id, small: true, alignRight: true)),
+        if (product.price != null)
+          Text(formatRubles(product.price!),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, height: 1.1, fontWeight: FontWeight.w500)),
       ])),
       Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 10, color: Color(0xff6c6c6c), height: 1.1)),
@@ -119,8 +128,9 @@ class ProductTile extends StatelessWidget {
 }
 
 class ProductGrid extends StatelessWidget {
-  const ProductGrid({required this.products, super.key});
+  const ProductGrid({required this.products, this.imageFit = BoxFit.cover, super.key});
   final List<DemoProduct> products;
+  final BoxFit imageFit;
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -147,7 +157,7 @@ class ProductGrid extends StatelessWidget {
             childAspectRatio: tileWidth / tileHeight,
           ),
           itemBuilder: (context, index) =>
-              ProductTile(product: products[index]),
+              ProductTile(product: products[index], imageFit: imageFit),
         );
       },
     );

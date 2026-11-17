@@ -58,13 +58,27 @@ async def capture(app, port, output):
                 errors = []
                 page.on('pageerror', lambda exc: errors.append(str(exc)[:250]))
                 try:
+                    # For saved products exercise the actual Flutter UI, not
+                    # a seeded localStorage snapshot. The preview runs in
+                    # a 1440x1000 Chrome viewport with a 402px iPhone shell.
+                    entry_path = '/#/home' if name == 'buyer-shell-favorites' else path
                     response = await page.goto(
-                        f'http://127.0.0.1:{port}{path}',
+                        f'http://127.0.0.1:{port}{entry_path}',
                         wait_until='domcontentloaded', timeout=45000)
                     if response is None or response.status != 200:
                         raise RuntimeError(f'Bad HTTP response: {response}')
                     await page.locator('flt-glass-pane').wait_for(state='attached', timeout=30000)
                     await page.wait_for_timeout(6500)
+                    if name == 'buyer-shell-favorites':
+                        # Heart on first home product, then bottom favorites tab.
+                        await page.mouse.click(690, 508)
+                        await page.wait_for_timeout(800)
+                        await page.mouse.click(720, 870)
+                        await page.wait_for_timeout(1500)
+                        if '/favorites' not in page.url:
+                            raise AssertionError(
+                                f'Buyer favorites tab did not open: {page.url}')
+                        print('Opened favorites after saving the first demo product via UI.')
                     image = output / f'{name}.png'
                     await page.screenshot(path=str(image), full_page=True)
                     if image.stat().st_size < 2500:

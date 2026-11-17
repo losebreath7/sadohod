@@ -35,7 +35,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       (needle.isEmpty || '${p.title} ${p.category} ${p.pavilion}'.toLowerCase().contains(needle))).toList();
     if (saved.isEmpty) return const Padding(padding: EdgeInsets.only(top: 28),
       child: Center(child: Text('Пока нет избранных товаров', style: TextStyle(fontSize: 12))));
-    if (!_oneStore) return ProductGrid(products: saved);
+    if (!_oneStore) return ProductGrid(products: saved, imageFit: BoxFit.contain);
 
     // Do NOT select a seller. Rearrange the whole favourites feed by seller,
     // then by pavilion, in the stable order of their first appearance.
@@ -64,7 +64,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ..sort((a, b) => a.key.compareTo(b.key)))) ...[
           Padding(padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
             child: Text(pavilion.key, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))),
-          ProductGrid(products: pavilion.value),
+          ProductGrid(products: pavilion.value, imageFit: BoxFit.contain),
         ],
     ]);
   }
@@ -81,7 +81,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             height: buyerCompactHeaderHeight,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.only(top: 64),
+            padding: const EdgeInsets.only(top: 35),
             alignment: Alignment.center,
             child: const Text('любимые продавцы', style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold)),

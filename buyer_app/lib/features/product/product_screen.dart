@@ -96,7 +96,16 @@ class _ProductScreenState extends State<ProductScreen> {
                 builder: (_) => _FullGallery(photos: p.photos, initialPage: index),
               )),
               const SizedBox(height: 17),
-              Text(p.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(children: [
+                Expanded(child: Text(p.title, maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                if ((selected == null ? p.price : selected.price) != null) ...[
+                  const SizedBox(width: 10),
+                  Text(formatRubles((selected == null ? p.price : selected.price)!),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ]),
               const SizedBox(height: 15),
               if (seller != null) ...[
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
