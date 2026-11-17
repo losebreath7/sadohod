@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:go_router/go_router.dart';
 
@@ -122,12 +123,7 @@ class ProductTile extends StatelessWidget {
                 product.pavilion,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: Palette.ink,
-                ),
+                style: BuyerProductType.catalogAddress,
               ),
             ),
           ),
@@ -137,12 +133,7 @@ class ProductTile extends StatelessWidget {
               formatRubles(product.price!),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                color: Palette.ink,
-              ),
+              style: BuyerProductType.catalogPrice,
             ),
           ],
         ],
@@ -154,11 +145,7 @@ class ProductTile extends StatelessWidget {
           product.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 12,
-            height: 1.2,
-            color: Palette.muted,
-          ),
+          style: BuyerProductType.catalogTitle,
         ),
       ),
     ],

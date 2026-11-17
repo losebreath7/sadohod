@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -85,7 +86,7 @@ class _ProductScreenState extends State<ProductScreen> {
             child: Row(children: [
               const RoundBack(),
               Expanded(child: Text(address, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                style: BuyerProductType.detailAddress)),
               SizedBox(width: 30, height: 25, child: FavoriteButton(p.id)),
             ]),
           ),
@@ -101,11 +102,11 @@ class _ProductScreenState extends State<ProductScreen> {
               Row(children: [
                 Expanded(child: Text(p.title, maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                  style: BuyerProductType.detailTitle)),
                 if ((selected == null ? p.price : selected.price) != null) ...[
                   const SizedBox(width: 10),
                   Text(formatRubles((selected == null ? p.price : selected.price)!),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: BuyerProductType.detailPrice),
                 ],
               ]),
               const SizedBox(height: 15),
@@ -116,7 +117,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   Expanded(child: InkWell(
                     onTap: () => context.push('/seller/${seller.id}'),
                     child: Text(seller.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 16)),
+                      style: const TextStyle(fontSize: 14, height: 1.3)),
                   )),
                   if ((selected?.saleModes ?? p.saleModes).contains('wholesale')) const _ModePill('опт'),
                   if ((selected?.saleModes ?? p.saleModes).contains('retail')) ...[
@@ -144,7 +145,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: _addressLines(address, seller?.zone ?? '').map((line) =>
-                          Text(line, style: const TextStyle(fontSize: 12, height: 1.25, color: Color(0xff6c6c6c)))).toList(),
+                          Text(line, style: BuyerProductType.secondary)).toList(),
                       )),
                       const CircleAvatar(backgroundColor: Colors.black, radius: 17,
                         child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 23)),

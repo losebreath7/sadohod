@@ -41,6 +41,7 @@ List<RowData> rows(dynamic value) => (value is List ? value : const [])
 TextStyle type(double size, {bool bold = false, Color color = Colors.black}) =>
     TextStyle(
       fontFamily: SadohodFont.family,
+      fontFamilyFallback: SadohodFont.fallback,
       fontSize: size,
       fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
       color: color,
@@ -3175,7 +3176,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       : '${p['title']}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: type(13, color: brown),
+                  style: SellerProductType.cardTitle,
                 ),
                 const SizedBox(height: 5),
                 if (ls.isNotEmpty && ls.first['price'] != null)
@@ -3183,7 +3184,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     '≈ ${ls.first['price']} ₽',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: type(14, bold: true, color: brown),
+                    style: SellerProductType.cardPrice,
                   ),
               ],
             ),
