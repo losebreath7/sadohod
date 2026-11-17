@@ -65,7 +65,7 @@ def report_product(product_id: str, body: ProductReportInput,
                    buyer: Buyer = Depends(current_buyer),
                    db: Session = Depends(get_db)):
     product = db.get(Product, product_id)
-    if product is None or not product.details or not product.details.active:
+    if product is None or (product.details is not None and not product.details.active):
         raise HTTPException(404, 'Товар не найден')
     if db.scalar(select(Offer.id).where(Offer.product_id == product_id)) is None:
         raise HTTPException(404, 'Товар не найден')
@@ -86,24 +86,27 @@ def report_product(product_id: str, body: ProductReportInput,
 def take_down(db: Session, product_id: str, moderator_id: str, reason: str) -> None:
     product = db.get(Product, product_id)
     owner = db.get(MerchantProduct, product_id)
-    if product is None or owner is None or owner.status == 'deleted':
+    if product is None or (owner is not None and owner.status == 'deleted'):
         raise HTTPException(404, 'Товар не найден')
     if is_held(db, product_id):
         raise HTTPException(409, 'Товар уже снят модератором')
     # Lock seller row in the same order as merchant operations; concurrent
     # publication and enforcement serialize on PostgreSQL.
     from .models import Seller
-    db.scalar(select(Seller).where(Seller.id == owner.seller_id).with_for_update(of=Seller))
-    db.refresh(owner)
-    if is_held(db, product_id):
-        raise HTTPException(409, 'Товар уже снят модератором')
-    from .merchant_operations import drop_offer
-    for row in db.scalars(select(MerchantListing).where(
-        MerchantListing.product_id == product_id)).all():
-        if row.offer_id:
-            drop_offer(db, row)
-        if row.status == 'approved':
-            row.status = 'paused'
+    if owner is not None:
+        db.scalar(select(Seller).where(Seller.id == owner.seller_id).with_for_update(of=Seller))
+        db.refresh(owner)
+        if is_held(db, product_id):
+            raise HTTPException(409, 'Товар уже снят модератором')
+        from .merchant_operations import drop_offer
+        for row in db.scalars(select(MerchantListing).where(
+            MerchantListing.product_id == product_id)).all():
+            if row.offer_id:
+                drop_offer(db, row)
+            if row.status == 'approved':
+                row.status = 'paused'
+    # Legacy/demo catalog entries have no MerchantProduct row. Keep their old
+    # offers intact for history; the visibility flag hides them from all buyers.
     if product.details is None:
         product.details = ProductDetails(active=False, sizes=[])
     product.details.active = False
@@ -117,10 +120,11 @@ def take_down(db: Session, product_id: str, moderator_id: str, reason: str) -> N
         hold.reason = reason
         hold.moderator_id = moderator_id
         hold.updated_at = now
-    owner.note = reason
+    if owner is not None:
+        owner.note = reason
     buyer_id = db.scalar(select(ShopMembership.buyer_id).where(
         ShopMembership.seller_id == owner.seller_id,
-        ShopMembership.role == 'owner'))
+        ShopMembership.role == 'owner')) if owner is not None else None
     if buyer_id:
         db.add(SellerNotification(
             id=secrets.token_hex(16), buyer_id=buyer_id,
