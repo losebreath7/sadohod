@@ -63,7 +63,7 @@ class _AccountScreenState extends State<AccountScreen> {
     builder: (context, _) {
       if (AccountStore.instance.signedIn) return const ProfileScreen();
       return ListView(
-        padding: const EdgeInsets.fromLTRB(30, 23, 30, 30),
+        padding: const EdgeInsets.fromLTRB(30, 72, 30, 30),
         children: [
           const Text(
             'личный кабинет',
@@ -212,7 +212,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.fromLTRB(30, 12, 30, 30),
+    padding: const EdgeInsets.fromLTRB(30, 72, 30, 30),
     children: [
       Row(
         children: [

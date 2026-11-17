@@ -78,18 +78,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         color: const Color(0xfff1f1f1),
         child: Column(children: [
           if (widget.sellers) Container(
-            height: 75,
+            height: buyerCompactHeaderHeight,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.only(top: 35),
+            padding: const EdgeInsets.only(top: 64),
             alignment: Alignment.center,
             child: const Text('любимые продавцы', style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold)),
           ) else Container(
-            height: 75,
+            height: buyerCompactHeaderHeight,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.fromLTRB(30, 39, 30, 10),
+            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
             child: Row(children: [
               GestureDetector(onTap: _toTop,
                 child: const SizedBox(width: 40, height: 28, child: Center(

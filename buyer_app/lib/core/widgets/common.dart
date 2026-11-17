@@ -104,13 +104,13 @@ class ProductTile extends StatelessWidget {
         onTap: () => context.push('/product/${product.id}'),
         child: PhotoGallery(product.photos, small: true),
       ),
-      SizedBox(height: 17, child: Row(children: [
+      SizedBox(height: 20, child: Row(children: [
         Expanded(child: GestureDetector(
           onTap: () => context.push('/product/${product.id}'),
           child: Text(product.pavilion, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12, height: 1.1)),
         )),
-        SizedBox(width: 18, height: 17, child: FavoriteButton(product.id, small: true, alignRight: true)),
+        SizedBox(width: 22, height: 20, child: FavoriteButton(product.id, small: true, alignRight: true)),
       ])),
       Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 10, color: Color(0xff6c6c6c), height: 1.1)),

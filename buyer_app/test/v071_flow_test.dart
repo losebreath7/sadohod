@@ -1,7 +1,6 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod/app/app.dart';
 import 'package:sadohod/core/widgets/design.dart';
@@ -55,9 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byWidgetPredicate(
-        (widget) => widget is SvgPicture && widget.semanticsLabel == 'садоход',
-      ),
+      find.byType(SadohodWordmark),
       findsOneWidget,
     );
 
