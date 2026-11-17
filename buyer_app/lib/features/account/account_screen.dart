@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -316,61 +317,143 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: AccountStore.instance,
     builder: (context, _) {
       final a = AccountStore.instance;
+      // Mirror the seller profile menu: same size, row height and spacing.
       final menu = <(String, String, String, double, double)>[
-        ('34999', 'профиль', '/profile', 29, 29),
-        ('3134f', 'избранные товары', '/favorites', 17, 14),
-        ('045c1', 'любимые продавцы', '/favorite-sellers', 19, 17),
-        ('57599', 'поддержка', '/support', 17, 17),
-        ('e6ee6', 'настройки', '/settings', 20, 20),
-        ('v082_menu_location', 'навигация', '/map', 17, 20),
-        ('v082_menu_cooperation', 'сотрудничество', '/cooperation', 21, 14),
+        ('34999', 'профиль', '/profile', 30, 30),
+        ('3134f', 'избранные товары', '/favorites', 24, 24),
+        ('045c1', 'любимые продавцы', '/favorite-sellers', 24, 24),
+        ('57599', 'поддержка', '/support', 24, 24),
+        ('e6ee6', 'настройки', '/settings', 24, 24),
+        ('v082_menu_location', 'навигация', '/map', 24, 24),
+        ('v082_menu_cooperation', 'сотрудничество', '/cooperation', 24, 24),
       ];
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(30, 10, 30, 24),
-        children: [
-          SizedBox(height: 180, child: Stack(children: [
-            Container(
-              height: 150,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10)),
-              child: a.cover == null ? null : Image.memory(a.cover!, fit: BoxFit.cover, width: double.infinity),
+
+      // Both profiles use the same safe top inset and cover/avatar geometry.
+      final topInset = math.max(
+        94.0, MediaQuery.paddingOf(context).top + 24,
+      );
+      return LayoutBuilder(
+        builder: (context, viewport) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(30, 0, 30, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: viewport.maxHeight - 24),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
+                  SizedBox(height: topInset),
+                  SizedBox(
+                    height: 181,
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: 150,
+                          width: double.infinity,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: a.cover == null
+                              ? null
+                              : Image.memory(a.cover!, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          top: 88,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: CircleAvatar(
+                              radius: 46.5,
+                              backgroundColor: const Color(0xffdddddd),
+                              backgroundImage: a.avatar == null
+                                  ? null
+                                  : MemoryImage(a.avatar!),
+                              child: a.avatar == null
+                                  ? const Icon(Icons.person,
+                                      color: Color(0xff888888), size: 55)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    a.name.isEmpty ? 'Пользователь' : a.name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (a.syncError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        a.syncError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  const SizedBox(height: 50),
+                  for (final m in menu)
+                    InkWell(
+                      onTap: () => context.push(m.$3),
+                      child: SizedBox(
+                        height: 44,
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Center(
+                                child: SizedBox(
+                                  width: m.$4,
+                                  height: m.$5,
+                                  child: DesignIcon(m.$1),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Text(
+                              m.$2,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // The seller invitation stays near the bottom on tall
+                  // screens and remains scrollable above the tab bar on short.
+                  const SizedBox(height: 35),
+                  const Spacer(),
+                  Center(
+                    child: InkWell(
+                      onTap: () => context.push('/cooperation'),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          'вы продавец?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xffa5a5a5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Positioned(bottom: 0, left: 0, right: 0,
-              child: Center(child: CircleAvatar(
-                radius: 46, backgroundColor: const Color(0xffdddddd),
-                backgroundImage: a.avatar == null ? null : MemoryImage(a.avatar!),
-                child: a.avatar == null ? const Icon(Icons.person, color: Color(0xff888888), size: 55) : null,
-              )),
-            ),
-          ])),
-          const SizedBox(height: 15),
-          Text(a.name.isEmpty ? 'Пользователь' : a.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-          if (a.syncError != null) Padding(padding: const EdgeInsets.only(top: 12),
-            child: Text(a.syncError!, textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red, fontSize: 12))),
-          const SizedBox(height: 35),
-          for (final m in menu)
-            InkWell(
-              onTap: () => context.push(m.$3),
-              child: SizedBox(height: 40, child: Row(children: [
-                SizedBox(width: 29, height: 29, child: Center(child: SizedBox(
-                  width: m.$4, height: m.$5, child: DesignIcon(m.$1)))),
-                const SizedBox(width: 12),
-                Text(m.$2, style: const TextStyle(fontSize: 12)),
-              ])),
-            ),
-          const SizedBox(height: 35),
-          Center(child: InkWell(onTap: () => context.push('/cooperation'),
-            child: const Text('вы продавец?',
-              style: TextStyle(fontSize: 12, color: Color(0xffa5a5a5))))),
-        ],
+          ),
+        ),
       );
     },
   );
