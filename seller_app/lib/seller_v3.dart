@@ -389,15 +389,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           originalProduct['listings'] = updated.first['listings'];
         }
       } else {
-        for (final listing in rows(product['listings'])) {
-          listing['status'] = wasVisible ? 'paused' : 'approved';
-          listing['published'] = !wasVisible;
-        }
-        product['listings'] = rows(product['listings']).map((l) => {
-          ...l,
+        final updated = rows(product['listings']).map((listing) => {
+          ...listing,
           'status': wasVisible ? 'paused' : 'approved',
           'published': !wasVisible,
         }).toList();
+        product['listings'] = updated;
+        for (final item in products) {
+          if (item['id'] == product['id']) item['listings'] = updated;
+        }
       }
       if (!mounted) return;
       setState(() {});
@@ -1549,8 +1549,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (screen == 'shop' && local.isEmpty) return false;
     if (hidden) {
       if (!local.any((l) => l['status'] == 'paused')) return testPreview;
-    } else if (screen != 'shop' && local.isNotEmpty &&
-        local.every((l) => l['status'] == 'paused')) {
+    } else if (screen != 'shop' &&
+        (p['status'] != 'approved' ||
+         !local.any((l) =>
+             l['published'] == true || l['status'] == 'approved'))) {
       return false;
     }
     if (screen == 'shop' &&
@@ -3026,9 +3028,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   Widget productCard(RowData p, double width) {
     final images = (p['images'] as List? ?? []).cast<String>();
-    final ls = rows(p['listings'])
+    final scoped = rows(p['listings'])
         .where((l) => screen != 'shop' || l['pavilion_id'] == pavilion['id'])
         .toList();
+    final matches = scoped.where((l) => hidden
+        ? l['status'] == 'paused'
+        : l['published'] == true || l['status'] == 'approved').toList();
+    final ls = matches.isNotEmpty ? matches : (testPreview ? scoped : <RowData>[]);
     return tap(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3074,7 +3080,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                if (hidden && ls.any((l) => l['status'] == 'paused'))
+                if (hidden && (testPreview || ls.any((l) => l['status'] == 'paused')))
                   Positioned.fill(
                     child: ColoredBox(
                       color: Colors.white.withValues(alpha: .38),
