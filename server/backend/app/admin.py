@@ -154,6 +154,9 @@ def edit_product(pid: str, data: ProductInput, session: Session = Depends(get_db
 
 @router.put('/products/{pid}/visibility')
 def visibility(pid: str, data: VisibilityInput, session: Session = Depends(get_db)):
+    from .product_safety import require_publishable
+    if data.active:
+        require_publishable(session, pid)
     product=get_product(session,pid)
     if data.active and (not product.images or not product.offers):
         raise HTTPException(409,'Перед публикацией добавьте фотографию и предложение продавца.')
