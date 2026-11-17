@@ -257,10 +257,10 @@ class SearchCapsule extends StatelessWidget {
       onTap: onTap,
       readOnly: onTap != null,
       textInputAction: TextInputAction.search,
-      style: const TextStyle(fontSize: 12),
+      style: const TextStyle(fontSize: 13, color: BuyerColors.ink),
       decoration: InputDecoration(
         hintText: 'поиск',
-        hintStyle: const TextStyle(color: Color(0xffa5a5a5)),
+        hintStyle: const TextStyle(fontSize: 12, color: BuyerColors.muted),
         isDense: true,
         prefixIconConstraints: const BoxConstraints(minWidth: 33, minHeight: 20),
         prefixIcon: const SizedBox(width: 33, child: Center(child: SizedBox(
