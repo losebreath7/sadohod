@@ -847,7 +847,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       products = products.take(1).toList();
       screen = 'catalog';
     }
-    if (screen.contains('Hidden') || screen == 'hidden') hidden = true;
+    if (screen.contains('Hidden') || screen == 'hidden') {
+      hidden = true;
+      // Figma hidden-state previews must contain genuinely paused listings,
+      // not published products forced into the hidden tab.
+      for (final item in products) {
+        item['listings'] = rows(item['listings']).map((listing) => {
+          ...listing,
+          'status': 'paused',
+          'published': false,
+        }).toList();
+      }
+    }
     if ([
       'select',
       'selected',
@@ -1548,7 +1559,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         : ls;
     if (screen == 'shop' && local.isEmpty) return false;
     if (hidden) {
-      if (!local.any((l) => l['status'] == 'paused')) return testPreview;
+      if (!local.any((l) => l['status'] == 'paused')) return false;
     } else if (screen != 'shop' &&
         (p['status'] != 'approved' ||
          !local.any((l) =>
@@ -3034,7 +3045,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final matches = scoped.where((l) => hidden
         ? l['status'] == 'paused'
         : l['published'] == true || l['status'] == 'approved').toList();
-    final ls = matches.isNotEmpty ? matches : (testPreview ? scoped : <RowData>[]);
+    final ls = matches;
     return tap(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3080,7 +3091,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                if (hidden && (testPreview || ls.any((l) => l['status'] == 'paused')))
+                if (hidden && ls.any((l) => l['status'] == 'paused'))
                   Positioned.fill(
                     child: ColoredBox(
                       color: Colors.white.withValues(alpha: .38),
