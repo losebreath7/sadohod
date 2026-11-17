@@ -112,25 +112,55 @@ class ProductTile extends StatelessWidget {
             child: FavoriteButton(product.id, small: true, alignRight: true))),
       ]),
       const SizedBox(height: 9),
-      GestureDetector(
-        onTap: () => context.push('/product/${product.id}'),
-        child: Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13, height: 1.2,
-            fontWeight: FontWeight.w500, color: Palette.ink)),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.push('/product/${product.id}'),
+              child: Text(
+                product.pavilion,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: Palette.ink,
+                ),
+              ),
+            ),
+          ),
+          if (product.price != null) ...[
+            const SizedBox(width: 6),
+            Text(
+              formatRubles(product.price!),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: Palette.ink,
+              ),
+            ),
+          ],
+        ],
       ),
       const SizedBox(height: 5),
-      Row(children: [
-        Expanded(child: Text(product.pavilion,
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, height: 1.2, color: Palette.muted))),
-        if (product.price != null) ...[
-          const SizedBox(width: 6),
-          Text(formatRubles(product.price!), maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, height: 1.2,
-              fontWeight: FontWeight.w700, color: Palette.ink)),
-        ],
-      ]),
+      GestureDetector(
+        onTap: () => context.push('/product/${product.id}'),
+        child: Text(
+          product.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1.2,
+            color: Palette.muted,
+          ),
+        ),
+      ),
     ],
   );
 }
