@@ -376,11 +376,11 @@ def edit_product(pid: str, data: DraftProductInput, buyer: Buyer = Depends(curre
     p.title = data.title.strip() or 'Без названия'; p.category = data.category.strip() or 'Без категории'; p.description = data.description.strip()
     p.colors = data.colors
     p.details.sizes = data.sizes
-    if owner.status == 'approved':
-        # Previously approved offers remain recorded, but the edited product is
-        # hidden until a fresh moderation decision is made.
-        p.details.active = False
-    owner.status = 'draft'; owner.note = ''
+    # An approved product stays live while its metadata is edited.
+    # Existing offers are not removed or re-queued for manual review.
+    if owner.status != 'approved':
+        owner.status = 'draft'
+    owner.note = ''
     assign_category(db, p)
     safe_commit(db)
     return as_product(db, owner)
@@ -409,8 +409,8 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
                 raise HTTPException(409, 'Фотографии изменились: нужен новый ключ запроса.')
             return as_product(db, owner)
         db.add(MerchantOperation(seller_id=seller.id, request_id=request_id, digest=fingerprint, result={'id': pid}))
-    if owner.status not in ('draft', 'rejected'):
-        raise HTTPException(409, 'Для замены фотографий отправьте товар на повторную модерацию.')
+    if owner.status not in ('draft', 'rejected', 'approved'):
+        raise HTTPException(409, 'Товар сейчас недоступен для изменения фотографий.')
     replaced_filename = None
     if replace_id:
         from sqlalchemy import delete, text
@@ -440,7 +440,7 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
     # before classification; another request may already have submitted the draft.
     shop_for(buyer, db)
     owner = merchant_product(pid, seller, db)
-    if owner.status in ('draft', 'rejected'):
+    if owner.status in ('draft', 'rejected', 'approved'):
         assign_category(db, db.get(Product, pid))
         safe_commit(db)
     return as_product(db, merchant_product(pid, seller, db))
@@ -461,8 +461,12 @@ def add_listing(pid: str, data: ListingInput, buyer: Buyer = Depends(current_buy
     row = MerchantListing(id=uid('l-'), product_id=pid, seller_id=seller.id,
                           pavilion_id=data.pavilion_id, price=data.price,
                           wholesale='wholesale' in data.sale_modes, retail='retail' in data.sale_modes,
-                          status='pending' if owner.status == 'approved' else 'draft')
-    db.add(row); safe_commit(db)
+                          status='approved' if owner.status == 'approved' else 'draft')
+    db.add(row)
+    if owner.status == 'approved':
+        publish_listing(db, row)
+        db.get(Product, pid).details.active = True
+    safe_commit(db)
     return as_listing(db, row)
 
 
@@ -476,8 +480,11 @@ def edit_listing(lid: str, data: ListingInput, buyer: Buyer = Depends(current_bu
     if owner.status == 'pending' or row.status == 'pending':
         raise HTTPException(409, 'Предложение на модерации.')
     row.price = data.price; row.wholesale = 'wholesale' in data.sale_modes; row.retail = 'retail' in data.sale_modes
-    # Published offer keeps last approved values until moderation finishes.
-    row.status = 'pending' if owner.status == 'approved' else 'draft'
+    # Published and paused placements retain visibility when their price changes.
+    if owner.status == 'approved' and row.status != 'paused':
+        publish_listing(db, row)
+    elif owner.status != 'approved':
+        row.status = 'draft'
     row.note = ''
     safe_commit(db)
     return as_listing(db, row)
@@ -513,7 +520,8 @@ def resume_listing(lid: str, buyer: Buyer = Depends(current_buyer), db: Session 
     owner = merchant_product(row.product_id, seller, db)
     if row.status != 'paused' or owner.status != 'approved':
         raise HTTPException(409, 'Возобновить можно только предложение одобренного товара.')
-    row.status = 'pending'  # reactivation always requires moderation
+    publish_listing(db, row)
+    db.get(Product, row.product_id).details.active = True
     safe_commit(db)
     return as_listing(db, row)
 
@@ -532,10 +540,12 @@ def submit_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session 
         raise HTTPException(409, 'Выберите хотя бы один подтверждённый павильон.')
     if not any(r.status in ('draft', 'pending', 'approved', 'rejected') for r in rows):
         raise HTTPException(409, 'Нет доступных предложений для публикации.')
-    owner.status = 'pending'; owner.note = ''; p.details.active = False
     for r in rows:
         if r.status in ('draft', 'rejected'):
-            r.status = 'pending'; r.note = ''
+            publish_listing(db, r)
+    owner.status = 'approved'
+    owner.note = ''
+    p.details.active = any(r.offer_id is not None for r in rows)
     safe_commit(db)
     return as_product(db, owner)
 
@@ -625,8 +635,8 @@ def publish_listing(db, row):
     p = db.get(Product, row.product_id)
     if p is None or not p.images:
         raise HTTPException(409, 'Без изображения публиковать нельзя.')
-    if is_unassigned(p.category):
-        raise HTTPException(409, 'Укажите категорию товара перед публикацией.')
+    # Category inference is advisory; missing category must not block an
+    # approved seller's publication. Content screening will be separate.
     if row.offer_id:
         offer = db.get(Offer, row.offer_id)
         if not offer:
