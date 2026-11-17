@@ -1,60 +1,58 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+/// Original review flower vectors exported from Figma Page 1:
+/// 134:160, 134:161, 134:162, 134:163, 134:159.
+/// The painter-generated approximation was removed.
 const reviewColors = [
-  Color(0xff569d70), Color(0xfff3c953), Color(0xff91b7db),
-  Color(0xfff06b89), Color(0xffe68a5b),
+  Color(0xff569365),
+  Color(0xfff4cb5e),
+  Color(0xff89aacF),
+  Color(0xffff6480),
+  Color(0xffeb8f5e),
+];
+
+const reviewFlowerAssets = [
+  'assets/figma/review_green.svg',
+  'assets/figma/review_yellow.svg',
+  'assets/figma/review_blue.svg',
+  'assets/figma/review_pink.svg',
+  'assets/figma/review_orange.svg',
 ];
 
 class ReviewFlower extends StatelessWidget {
-  const ReviewFlower({super.key, required this.color, this.fill = 1, this.size = 19});
-  final Color color;
+  const ReviewFlower({super.key, required this.index, this.fill = 1, this.size = 19});
+  final int index;
   final double fill;
   final double size;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size, height: size,
-    child: CustomPaint(painter: _FlowerPainter(color, fill.clamp(0, 1))),
-  );
-}
-
-class _FlowerPainter extends CustomPainter {
-  const _FlowerPainter(this.color, this.fill);
-  final Color color;
-  final double fill;
-
-  void _draw(Canvas canvas, Size size, Color ink) {
-    final side = size.shortestSide;
-    final paint = Paint()..color = ink;
-    canvas.save();
-    canvas.translate(size.width / 2, size.height / 2);
-    for (var i = 0; i < 5; i++) {
-      canvas.save();
-      canvas.rotate(2 * math.pi * i / 5);
-      canvas.drawOval(Rect.fromCenter(
-        center: Offset(0, -side * .23),
-        width: side * .48, height: side * .57,
-      ), paint);
-      canvas.restore();
-    }
-    canvas.drawCircle(Offset.zero, side * .16, paint);
-    canvas.restore();
+  Widget build(BuildContext context) {
+    final asset = reviewFlowerAssets[index];
+    final fraction = fill.clamp(0.0, 1.0);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(children: [
+        SvgPicture.asset(asset, width: size, height: size,
+          colorFilter: const ColorFilter.mode(
+            Color(0xffd9d9d9), BlendMode.srcIn)),
+        if (fraction > 0)
+          SizedBox(
+            width: size * fraction,
+            height: size,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                minWidth: size, maxWidth: size,
+                minHeight: size, maxHeight: size,
+                child: SvgPicture.asset(asset, width: size, height: size),
+              ),
+            ),
+          ),
+      ]),
+    );
   }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _draw(canvas, size, const Color(0xffd8d8d8));
-    if (fill <= 0) return;
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * fill, size.height));
-    _draw(canvas, size, color);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_FlowerPainter old) =>
-      old.color != color || old.fill != fill;
 }
 
 class ReviewRatingFlowers extends StatelessWidget {
@@ -69,7 +67,7 @@ class ReviewRatingFlowers extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < 5; i++) ...[
-          ReviewFlower(color: reviewColors[i],
+          ReviewFlower(index: i,
             fill: (rating - i).clamp(0.0, 1.0), size: size),
           if (i != 4) const SizedBox(width: 3),
         ],
