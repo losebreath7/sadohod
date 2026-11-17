@@ -22,6 +22,7 @@ class SellerApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       fontFamily: SadohodFont.family,
+      fontFamilyFallback: SadohodFont.fallback,
       scaffoldBackgroundColor: SellerColors.background,
       colorScheme: ColorScheme.fromSeed(seedColor: SellerColors.brown),
       splashFactory: NoSplash.splashFactory,
