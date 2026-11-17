@@ -74,7 +74,7 @@ def sync_taxonomy(db, product, state):
         leaf = legacy
     elif state.status == 'conflict':
         leaf = None
-    elif legacy and (leaf is None or legacy not in path_ids(leaf)):
+    elif legacy and (leaf is None or path_ids(legacy)[0] != path_ids(leaf)[0]):
         leaf = legacy
 
     # Alembic seeds the entire taxonomy in deployed databases. The fallback
