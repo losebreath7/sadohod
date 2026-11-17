@@ -23,6 +23,94 @@ abstract final class SadohodFont {
   static const lineHeightBody = 1.45;
 }
 
+/// Semantic typography. Shared geometry and Helvetica, separate theme colours.
+/// Use these styles for product information instead of page-local font sizes.
+abstract final class BuyerProductType {
+  static const catalogAddress = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+    color: BuyerColors.ink,
+  );
+  static const catalogPrice = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+    color: BuyerColors.ink,
+  );
+  static const catalogTitle = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.2,
+    color: BuyerColors.muted,
+  );
+  static const detailAddress = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+    color: BuyerColors.ink,
+  );
+  static const detailTitle = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.25,
+    color: BuyerColors.ink,
+  );
+  static const detailPrice = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.25,
+    color: BuyerColors.ink,
+  );
+  static const secondary = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.25,
+    color: BuyerColors.muted,
+  );
+}
+
+abstract final class SellerProductType {
+  static const cardTitle = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    height: 1.2,
+    color: SellerColors.brown,
+  );
+  static const cardPrice = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    color: SellerColors.brown,
+  );
+  static const secondary = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.25,
+    color: SellerColors.brown,
+  );
+}
+
 abstract final class SadohodSpace {
   static const x1 = 4.0;
   static const x2 = 8.0;
