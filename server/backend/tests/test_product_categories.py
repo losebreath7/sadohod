@@ -47,7 +47,7 @@ def test_new_product_edit_and_patch15_empty_fields(env):
     assert filled.json()['category'] == 'Одежда'
 
 
-def test_unknown_category_requires_moderator_and_stays_private(env):
+def test_unknown_category_is_public_without_moderator(env):
     c, codes, _, _ = env
     auth = login(c, codes, 'moderation@test.com')
     admin_client(c)
@@ -58,15 +58,9 @@ def test_unknown_category_requires_moderator_and_stays_private(env):
                   files={'files': ('image.jpg', photo(), 'image/jpeg')}).status_code == 201
     assert c.post(f'/api/v1/merchant/products/{pid}/listings', headers=auth,
                   json={'pavilion_id': pavilion, 'price': 1000, 'sale_modes': ['retail']}).status_code == 201
-    assert c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth).status_code == 200
-    url = f'/api/v1/admin/merchant/products/{pid}/decision'
-    for category in (None, '', 'Без категории'):
-        body = {'decision': 'approved'}
-        if category is not None:
-            body['category'] = category
-        assert c.post(url, json=body).status_code == 409
-        assert c.get('/api/v1/products/' + pid).status_code == 404
-        assert c.get(f'/api/v1/merchant/products/{pid}', headers=auth).json()['status'] == 'pending'
-    result = c.post(url, json={'decision': 'approved', 'category': 'Сумки'})
+    result = c.post(f'/api/v1/merchant/products/{pid}/submit', headers=auth)
     assert result.status_code == 200, result.text
-    assert c.get('/api/v1/products/' + pid).json()['category'] == 'Сумки'
+    assert result.json()['status'] == 'approved'
+    assert c.get('/api/v1/products/' + pid).status_code == 200
+    assert c.get('/api/v1/products/' + pid).json()['category'] == UNASSIGNED
+    assert c.get('/api/v1/admin/merchant/queue').json()['products'] == []
