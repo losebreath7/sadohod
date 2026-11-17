@@ -47,10 +47,10 @@ def test_postgres_legacy_copy_and_fresh_database():
         assert snapshot(copied, original_columns) == before
         assert snapshot(source) == before
         assert 'alembic_version' not in sa.inspect(source).get_table_names()
-        assert revision(copied) == '20261117_06'
+        assert revision(copied) == '20261117_07'
         run_concurrent_replies(copied)
         upgrade_database(fresh)
-        assert revision(fresh) == '20261117_06'
+        assert revision(fresh) == '20261117_07'
         with fresh.connect() as c:
             baseline.validate_vectors(c, sa.inspect(c))
         # An invalid vector dimension must roll back the adoption completely.

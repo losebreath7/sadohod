@@ -3,12 +3,14 @@
    with untrusted data. All moderation happens through authenticated API calls. */
 const $=id=>document.getElementById(id);
 const API='/api/v1/moderation';
-const kinds=['applications','pavilions','products','listings','reviews','reports'];
+const kinds=['applications','pavilions','products','listings','reviews','reports','product_reports'];
 const names={all:'Все заявки',applications:'Заявки продавцов',pavilions:'Павильоны',
   products:'Товары',listings:'Предложения',reviews:'Отзывы',reports:'Жалобы',
+  product_reports:'Жалобы на товары',
   chats:'Обращения',history:'История решений'};
 const typeName={applications:'ПРОДАВЕЦ',pavilions:'ПАВИЛЬОН',products:'ТОВАР',
-  listings:'ПРЕДЛОЖЕНИЕ',reviews:'ОТЗЫВ',reports:'ЖАЛОБА'};
+  listings:'ПРЕДЛОЖЕНИЕ',reviews:'ОТЗЫВ',reports:'ЖАЛОБА',
+  product_reports:'ЖАЛОБА НА ТОВАР'};
 const state={token:sessionStorage.getItem('sadohod-moderator')||'',staff:null,
   section:'all',queue:{},history:[],chats:[],items:[],selected:null,
   activeThread:null,busy:false,confirm:null};
@@ -45,6 +47,7 @@ function label(row,kind){
   if(kind==='listings')return 'Предложение · '+(row.price??'—')+' ₽';
   if(kind==='reviews')return (row.seller_name||'Продавец')+' · '+row.rating+'/5';
   if(kind==='reports')return 'Жалоба на отзыв';
+  if(kind==='product_reports')return row.title||'Жалоба на товар';
   if(kind==='chats')return (row.name||row.email||'Пользователь')+' · '+chatName(row.kind);
   return 'Заявка';
 }
@@ -55,6 +58,7 @@ function supporting(row,kind){
   if(kind==='listings')return [row.pavilion?.zone,row.pavilion?.code,short(row.product_id,12)].filter(Boolean).join(' · ');
   if(kind==='reviews')return short(row.text||'Без текста',90);
   if(kind==='reports')return short(row.reason,90);
+  if(kind==='product_reports')return short(row.reason,90);
   if(kind==='chats')return short(row.last_message,90);
   return '';
 }
@@ -75,7 +79,7 @@ function renderCounts(){
   $('metricAll').textContent=total;
   $('metricSellers').textContent=count('applications')+count('pavilions');
   $('metricProducts').textContent=count('products')+count('listings');
-  $('metricReviews').textContent=count('reviews')+count('reports');
+  $('metricReviews').textContent=count('reviews')+count('reports')+count('product_reports');
 }
 function refreshHead(){
   const section=state.section;
@@ -135,7 +139,7 @@ function historyCard(row){
   card.type='button';card.setAttribute('aria-label','История решения '+row.target_id);
   const line=node('div','queue-top');
   append(line,node('b','',row.moderator||'Модератор'),node('span','queue-time',fmt(row.created_at)));
-  const decisionText=({approved:'Одобрено',rejected:'Отклонено',hide:'Скрыто',dismiss:'Жалоба отклонена'})[row.decision]||row.decision;
+  const decisionText=({approved:'Одобрено',rejected:'Отклонено',hide:'Скрыто',takedown:'Товар снят',dismiss:'Жалоба отклонена'})[row.decision]||row.decision;
   append(card,line,node('p','',(typeName[row.kind]||'ЗАПИСЬ')+' · '+decisionText+' · '+short(row.target_id,18)));
   if(row.note)card.appendChild(node('div','minor',row.note));
   card.addEventListener('click',()=>{state.selected=row._key;renderList();});
@@ -223,6 +227,11 @@ function renderDetail(){
       if(r.review.photo_count)loadReviewPhotos(body,r);
     }
   }
+  if(r._kind==='product_reports'){
+    dl(info,[['Товар',r.title],['ID товара',r.product_id],['ID жалобы',r.id]]);
+    section(body,'Причина жалобы').appendChild(node('div','detail-text',r.reason));
+    addPictures(body,r.images||[]);
+  }
   if(r._kind==='history'){
     dl(info,[['Модератор',r.moderator],['Тип',typeName[r.kind]||r.kind],
       ['Действие',r.decision],['ID заявки',r.target_id]]);
@@ -249,33 +258,40 @@ function renderDetail(){
     if(r._kind==='reports'){
       append(actions,decisionButton('Скрыть отзыв','primary',()=>confirmDecision(r,'hide')),
         decisionButton('Отклонить жалобу','secondary',()=>confirmDecision(r,'dismiss')));
+    }else if(r._kind==='product_reports'){
+      append(actions,decisionButton('Снять товар','primary',()=>confirmDecision(r,'hide')),
+        decisionButton('Отклонить жалобу','secondary',()=>confirmDecision(r,'dismiss')));
     }else{
       append(actions,decisionButton('Одобрить','primary',()=>confirmDecision(r,'approved')),
         decisionButton('Отклонить','secondary',()=>confirmDecision(r,'rejected')));
     }
     d.appendChild(actions);d.appendChild(node('div','detail-note',
-      r._kind==='reports'?'Жалоба будет закрыта. Действие записывается в историю.'
+      ['reports','product_reports'].includes(r._kind)?'Жалоба будет закрыта. Действие записывается в историю.'
       :'Действие применяется к существующим данным и записывается в историю модерации.'));
   }
 }
 function decisionButton(text,cls,fn){const b=node('button',cls,text);b.type='button';b.onclick=fn;return b;}
 function confirmDecision(row,action){
   state.confirm={row,action};
-  const reject=action==='rejected',report=row._kind==='reports';
+  const reject=action==='rejected',productReport=row._kind==='product_reports';
+  const report=row._kind==='reports'||productReport;
   $('confirmKicker').textContent=report?'РАССМОТРЕНИЕ ЖАЛОБЫ':'РЕШЕНИЕ ПО ЗАЯВКЕ';
-  $('confirmTitle').textContent=report?(action==='hide'?'Скрыть отзыв?':'Отклонить жалобу?')
+  $('confirmTitle').textContent=productReport?(action==='hide'?'Снять товар с публикации?':'Отклонить жалобу?')
+    :report?(action==='hide'?'Скрыть отзыв?':'Отклонить жалобу?')
     :reject?'Отклонить заявку?':'Одобрить заявку?';
-  $('confirmDescription').textContent=report?'Решение сохранится в истории модерации.'
+  $('confirmDescription').textContent=productReport&&action==='hide'?'Товар исчезнет из каталога. Продавец получит уведомление с причиной.'
+    :report?'Решение сохранится в истории модерации.'
     :reject?'Укажите, что именно нужно исправить. Причину увидит заявитель.'
     :'Проверьте сведения перед подтверждением. Решение изменит статус заявки.';
-  $('reasonWrap').hidden=!reject;
+  $('reasonWrap').hidden=!(reject||(productReport&&action==='hide'));
   $('categoryWrap').hidden=!(row._kind==='products'&&!reject);
   $('categoryInput').value=row.category&&row.category!=='Без категории'?row.category:'';
   $('reason').value='';$('confirmError').hidden=true;
-  $('submitConfirm').textContent=report?(action==='hide'?'Скрыть':'Закрыть жалобу')
+  $('submitConfirm').textContent=productReport?(action==='hide'?'Снять с публикации':'Закрыть жалобу')
+    :report?(action==='hide'?'Скрыть':'Закрыть жалобу')
     :reject?'Отклонить заявку':'Одобрить заявку';
   $('confirmOverlay').hidden=false;
-  if(reject)$('reason').focus();else $('submitConfirm').focus();
+  if(reject||(productReport&&action==='hide'))$('reason').focus();else $('submitConfirm').focus();
 }
 function closeDialog(){state.confirm=null;$('confirmOverlay').hidden=true;}
 async function submitDecision(){
@@ -286,6 +302,10 @@ async function submitDecision(){
     $('confirmError').textContent='Напишите причину отклонения (не менее 3 символов).';
     $('confirmError').hidden=false;$('reason').focus();return;
   }
+  if(row._kind==='product_reports'&&action==='hide'&&note.length<5){
+    $('confirmError').textContent='Напишите причину снятия товара (не менее 5 символов).';
+    $('confirmError').hidden=false;$('reason').focus();return;
+  }
   if(row._kind==='products'&&action==='approved'&&!$('categoryInput').value.trim()){
     $('confirmError').textContent='Укажите категорию товара.';
     $('confirmError').hidden=false;$('categoryInput').focus();return;
@@ -293,6 +313,8 @@ async function submitDecision(){
   state.busy=true;$('submitConfirm').disabled=true;
   try{
     if(row._kind==='reports')await api('/reports/'+encodeURIComponent(row.id)+'/resolve','POST',
+      {decision:action,note});
+    else if(row._kind==='product_reports')await api('/product-reports/'+encodeURIComponent(row.id)+'/resolve','POST',
       {decision:action,note});
     else await api('/'+row._kind+'/'+encodeURIComponent(row.id)+'/decision','POST',
       {decision:action,note,category:row._kind==='products'&&action==='approved'?
