@@ -269,13 +269,12 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
           Positioned(left: -4, right: -4, top: -14, height: 114,
             child: IgnorePointer(child: Opacity(opacity: pinnedCover,
               child: SvgPicture.asset('assets/figma/388b2.svg', fit: BoxFit.fill)))),
-        // Original 98 x 13 Figma wordmark, lowered below iPhone's 62 px safe inset.
-        // Intro elements stay fixed to preserve the approved photo/search/grid geometry.
-        // Foreground painting prevents the white pinned-header mask from
-        // hiding the logo while the opening header is still visible.
+        // Original 98 x 13 Figma wordmark at y=58. The intro text keeps its
+        // Figma y-position, so the 16 px spacing below the logo is restored.
+        // Foreground painting prevents the pinned-header mask from hiding it.
         if (offset < 71)
           Positioned(
-            top: 70 - offset, left: 30, right: 30, height: 13,
+            top: 58 - offset, left: 30, right: 30, height: 13,
             child: IgnorePointer(
               child: Center(
                 child: const SadohodWordmark(),

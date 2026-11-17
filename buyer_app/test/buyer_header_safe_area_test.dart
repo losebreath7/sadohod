@@ -50,7 +50,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('home wordmark is below Dynamic Island in the large header',
+  testWidgets('home Figma logo starts at y=58 with 16px gap to intro',
       (tester) async {
     tester.view.physicalSize = const Size(402, 874);
     tester.view.devicePixelRatio = 1;
@@ -59,9 +59,16 @@ void main() {
     await tester.pumpWidget(const SadohodApp());
     appRouter.go('/home');
     await tester.pumpAndSettle();
-    expect(find.byType(SadohodWordmark), findsOneWidget);
-    expect(tester.getTopLeft(find.byType(SadohodWordmark)).dy,
-        greaterThanOrEqualTo(62));
+    final logo = find.byType(SadohodWordmark);
+    expect(logo, findsOneWidget);
+    expect(tester.getTopLeft(logo).dy, closeTo(58.0, 0.1));
+    expect(tester.getSize(logo), const Size(98, 13));
+    final subtitle = find.text('находи и забирай   //   без посредников');
+    expect(subtitle, findsOneWidget);
+    expect(
+      tester.getTopLeft(subtitle).dy - tester.getBottomLeft(logo).dy,
+      closeTo(16.0, 0.1),
+    );
     expect(tester.takeException(), isNull);
   });
 }
