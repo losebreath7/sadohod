@@ -177,6 +177,7 @@ abstract final class SellerColors {
   static const burgundy = Color(0xFF5F0F10);
   static const muted = Color(0xFFA5A5A5);
   static const blue = Color(0xFFA5BCD6);
+  static const fieldLabel = Color(0xFF665950);
   // Existing seller warning/error colour retained for compatibility.
   static const danger = Color(0xFF670D10);
 }
