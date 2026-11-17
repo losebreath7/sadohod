@@ -48,7 +48,7 @@ def test_threshold_category_and_crop_reach_search(monkeypatch, client):
     from backend.app import api, ml_index
     monkeypatch.setattr(api,'SEARCH_BACKEND','clip')
     seen=[]
-    def retrieve(session,data,limit,category=None):
+    def retrieve(session,data,limit,category=None,category_ids=None):
         seen.append(Image.open(BytesIO(data)).size)
         if category == 'Сумки':
             return [('i-p02',.7)]
