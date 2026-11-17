@@ -126,14 +126,15 @@ class _PhotoGalleryState extends State<PhotoGallery> {
         PageView.builder(
           itemCount: widget.photos.length,
           onPageChanged: (i) => setState(() => current = i),
-          itemBuilder:             return GestureDetector(
+          itemBuilder: (context, i) {
+            final url = widget.photos[i];
+            return GestureDetector(
               onTap: widget.onTap == null ? null : () => widget.onTap!(i),
               child: SadohodProductPhoto(
                 path: url,
                 fit: widget.fit,
                 placeholder: const Color(0xFFEAEAEA),
               ),
-            );ilterQuality.high, errorBuilder: failure),
             );
           },
         ),
