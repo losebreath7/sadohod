@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('Helvetica is shared and app colour identities stay distinct', () {
     expect(SadohodFont.family, 'packages/sadohod_shared_core/Helvetica');
     expect(SadohodThemePalette.buyer.background, BuyerColors.paper);
