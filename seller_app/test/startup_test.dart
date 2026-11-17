@@ -47,8 +47,16 @@ class StartupApi extends SellerApi {
                 {
                   'id': 't1',
                   'title': 'Тестовый товар',
+                  'status': 'approved',
                   'images': [],
-                  'listings': [],
+                  'listings': [
+                    {
+                      'pavilion_id': 'p1',
+                      'status': 'approved',
+                      'published': true,
+                      'price': 300,
+                    },
+                  ],
                 },
               ]
             : [],
