@@ -89,6 +89,15 @@ class _BuyerDevicePreviewLabState extends State<BuyerDevicePreviewLab> {
   @override
   void initState() {
     super.initState();
+    // Optional QA-only query string: ?previewDevice=Compact%20320
+    // Allows automated screenshots without clicking Flutter canvas controls.
+    final requested = Uri.base.queryParameters['previewDevice'];
+    for (final preset in previewDevices) {
+      if (preset.name == requested) {
+        device = preset;
+        break;
+      }
+    }
     _load();
   }
 
