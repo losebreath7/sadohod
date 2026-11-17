@@ -39,6 +39,7 @@ def index_catalog(session: Session, embed=embed_image, media=MEDIA, model_id=MOD
     return changed
 
 
-def nearest_ml_images(session: Session, data: bytes, limit=12, embed=embed_image, model_id=MODEL_ID, category=None):
+def nearest_ml_images(session: Session, data: bytes, limit=12, embed=embed_image, model_id=MODEL_ID, category=None, category_ids=None):
     from .search import ranked_images
-    return ranked_images(session, embed(data), limit, category, model_id)
+    return ranked_images(session, embed(data), limit, category, model_id,
+                         category_ids=category_ids)
