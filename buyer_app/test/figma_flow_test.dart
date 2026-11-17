@@ -5,6 +5,7 @@ import 'package:sadohod/app/app.dart';
 import 'package:sadohod/data/account.dart';
 import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/core/widgets/common.dart';
+import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
 
 void main() {
