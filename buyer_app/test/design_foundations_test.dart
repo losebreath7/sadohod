@@ -50,4 +50,15 @@ void main() {
     expect(SellerProductType.cardPrice.color, SellerColors.brown);
     expect(BuyerProductType.detailTitle.color, BuyerColors.ink);
   });
+
+  test('R19.2 controls have consistent semantic dimensions and readable seller search', () {
+    expect(SadohodControl.compactSearchHeight, 32);
+    expect(SadohodControl.sellerActionHeight, 48);
+    expect(SadohodControl.buyerPrimaryActionHeight, 58);
+    expect(SadohodControl.tabBarHeight, 56);
+    expect(SadohodControl.minTapTarget, 44);
+    expect(SadohodControl.sellerSearchText.fontFamily, SadohodFont.family);
+    expect(SadohodControl.sellerSearchText.color, SellerColors.brown);
+    expect(SadohodControl.sellerSearchHint.color, SellerColors.brown);
+  });
 }
