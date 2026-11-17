@@ -72,6 +72,12 @@ def test_doll_is_auto_classified_and_found_in_all_parent_categories(env):
         item['id'] for item in
         c.get('/api/v1/products', params={'category': 'shoes'}).json()['items']
     }
+    # The classic image backend must apply descendant filters too.
+    image_search = c.post('/api/v1/search/image?category=toys',
+                          files={'file': ('query.jpg', photo(), 'image/jpeg')})
+    assert image_search.status_code == 200, image_search.text
+    assert pid in {item['product']['id']
+                   for item in image_search.json()['items']}
     tree = c.get('/api/v1/categories/tree').json()['items']
     assert next(item for item in tree if item['id'] == 'toys-dolls')['parent_id'] == 'toys-kids'
 
