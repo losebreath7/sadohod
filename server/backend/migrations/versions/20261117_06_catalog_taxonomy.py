@@ -45,7 +45,7 @@ def upgrade():
     for row in existing:
         leaf = resolve_leaf(row.title)
         legacy = LEGACY.get(row.category)
-        if legacy and (leaf is None or legacy not in path_ids(leaf)):
+        if legacy and (leaf is None or path_ids(legacy)[0] != path_ids(leaf)[0]):
             leaf = legacy
         if leaf:
             links.append({'product_id': row.id, 'category_id': leaf,
