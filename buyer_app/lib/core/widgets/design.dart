@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
@@ -127,13 +128,13 @@ class _PhotoGalleryState extends State<PhotoGallery> {
           onPageChanged: (i) => setState(() => current = i),
           itemBuilder: (context, i) {
             final url = widget.photos[i];
-            Widget failure(BuildContext c, Object e, StackTrace? s) =>
-              const ColoredBox(color: Color(0xffeaeaea), child: Center(child: Icon(Icons.broken_image_outlined)));
             return GestureDetector(
               onTap: widget.onTap == null ? null : () => widget.onTap!(i),
-              child: url.startsWith('http')
-                ? Image.network(url, fit: widget.fit, filterQuality: FilterQuality.high, errorBuilder: failure)
-                : Image.asset(url, fit: widget.fit, filterQuality: FilterQuality.high, errorBuilder: failure),
+              child: SadohodProductPhoto(
+                path: url,
+                fit: widget.fit,
+                placeholder: const Color(0xFFEAEAEA),
+              ),
             );
           },
         ),

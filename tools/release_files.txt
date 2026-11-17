@@ -141,6 +141,7 @@ buyer_app/pubspec.lock
 buyer_app/pubspec.yaml
 buyer_app/README.md
 buyer_app/test/catalog_test.dart
+buyer_app/test/design_foundations_test.dart
 buyer_app/test/figma_flow_test.dart
 buyer_app/test/v071_flow_test.dart
 buyer_app/web/favicon.png
@@ -157,6 +158,7 @@ docker-compose.update.yml
 docker-compose.yml
 docs/AUTO_REPLIES_R6.md
 docs/CHAT_ATTACHMENT_FIX_R3.md
+docs/DESIGN_SYSTEM_R18.md
 docs/MIGRATIONS_R4.md
 docs/MODERATION_WORKSPACE.md
 docs/PAVILION_FLOW_R7.md
@@ -378,15 +380,21 @@ seller_app/lib/draft_store.dart
 seller_app/lib/main.dart
 seller_app/lib/product_actions.dart
 seller_app/lib/seller_features.dart
+seller_app/lib/seller_notifications.dart
+seller_app/lib/seller_settings.dart
 seller_app/lib/seller_telegram_chat.dart
 seller_app/lib/seller_v3.dart
 seller_app/pubspec.lock
 seller_app/pubspec.yaml
 seller_app/test/chat_layout_r8_test.dart
+seller_app/test/design_foundations_test.dart
 seller_app/test/drafts_test.dart
 seller_app/test/field_vertical_alignment_test.dart
 seller_app/test/pavilion_flow_test.dart
 seller_app/test/product_actions_test.dart
+seller_app/test/product_lifecycle_test.dart
+seller_app/test/seller_notifications_test.dart
+seller_app/test/settings_editor_regression_test.dart
 seller_app/test/startup_test.dart
 seller_app/test/widget_test.dart
 seller_app/web/favicon.png
@@ -429,6 +437,7 @@ server/backend/app/product_categories.py
 server/backend/app/search_upload.py
 server/backend/app/search.py
 server/backend/app/seed.py
+server/backend/app/seller_notifications.py
 server/backend/app/telegram_bridge.py
 server/backend/app/telegram_diagnostics.py
 server/backend/Dockerfile
@@ -452,6 +461,8 @@ server/backend/migrations/script.py.mako
 server/backend/migrations/versions/20261115_01_baseline.py
 server/backend/migrations/versions/20261115_02_chat_auto_replies.py
 server/backend/migrations/versions/20261116_03_moderation.py
+server/backend/migrations/versions/20261116_04_optional_price.py
+server/backend/migrations/versions/20261116_05_seller_notifications.py
 server/backend/requirements-dev.txt
 server/backend/requirements-ml.txt
 server/backend/requirements.txt
@@ -469,6 +480,7 @@ server/backend/tests/test_features.py
 server/backend/tests/test_merchant_chat_attachments_r7_patch.py
 server/backend/tests/test_merchant_operations.py
 server/backend/tests/test_merchant_v080.py
+server/backend/tests/test_migration_graph.py
 server/backend/tests/test_migrations.py
 server/backend/tests/test_ml_index.py
 server/backend/tests/test_moderation_workspace.py
@@ -477,10 +489,12 @@ server/backend/tests/test_postgres_migrations.py
 server/backend/tests/test_postgres_onboarding.py
 server/backend/tests/test_postgres_search_change.py
 server/backend/tests/test_product_categories.py
+server/backend/tests/test_product_lifecycle.py
 server/backend/tests/test_sale_modes_v071.py
 server/backend/tests/test_save_v18.py
 server/backend/tests/test_search_upload_bounds.py
 server/backend/tests/test_seller_lock_postgres_sql.py
+server/backend/tests/test_seller_notifications.py
 server/backend/tests/test_telegram_bridge_v083.py
 server/backend/tests/test_v04.py
 server/backend/tools/__init__.py
@@ -587,7 +601,9 @@ server/preview/test_seller.cjs
 shared/flutter_core/lib/api_base_url.dart
 shared/flutter_core/lib/build_info.dart
 shared/flutter_core/lib/chat_widgets.dart
+shared/flutter_core/lib/design_tokens.dart
 shared/flutter_core/lib/device_preview_shell.dart
+shared/flutter_core/lib/product_photo.dart
 shared/flutter_core/pubspec.yaml
 tools/check.ps1
 tools/compose.qa.yml
@@ -606,14 +622,3 @@ tools/test_version.py
 ПРОВЕРИТЬ САДОХОД.bat
 ПРОВЕРИТЬ СЕРВЕРНЫЕ ТЕСТЫ.bat
 УПРАВЛЕНИЕ МОДЕРАТОРАМИ.bat
-server/backend/migrations/versions/20261116_04_optional_price.py
-server/backend/tests/test_product_lifecycle.py
-server/backend/tests/test_migration_graph.py
-seller_app/test/product_lifecycle_test.dart
-server/backend/app/seller_notifications.py
-server/backend/migrations/versions/20261116_05_seller_notifications.py
-server/backend/tests/test_seller_notifications.py
-seller_app/lib/seller_notifications.dart
-seller_app/test/seller_notifications_test.dart
-seller_app/lib/seller_settings.dart
-seller_app/test/settings_editor_regression_test.dart

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/device_preview_shell.dart';
 import 'api.dart';
 import 'seller_v3.dart';
@@ -20,9 +21,9 @@ class SellerApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,
-      fontFamily: 'Helvetica',
-      scaffoldBackgroundColor: beige,
-      colorScheme: ColorScheme.fromSeed(seedColor: brown),
+      fontFamily: SadohodFont.family,
+      scaffoldBackgroundColor: SellerColors.background,
+      colorScheme: ColorScheme.fromSeed(seedColor: SellerColors.brown),
       splashFactory: NoSplash.splashFactory,
     ),
     home: SellerV3(api: api),

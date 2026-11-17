@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 
 abstract final class Palette {
-  static const ink = Color(0xFF000000);
-  static const muted = Color(0xFF6C6C6C);
-  static const paper = Color(0xFFFFFFFF);
-  static const line = Color(0xFFEAEAEA);
-  static const tile = Color(0xFFF1F1F1);
+  static const ink = BuyerColors.ink;
+  static const muted = BuyerColors.muted;
+  static const paper = BuyerColors.paper;
+  static const line = BuyerColors.line;
+  static const tile = BuyerColors.tile;
 }
 
 class AppTheme {
@@ -23,40 +24,40 @@ class AppTheme {
       ),
       useMaterial3: true,
       scaffoldBackgroundColor: Palette.paper,
-      fontFamily: 'Helvetica',
-      fontFamilyFallback: const ['Arial', 'Roboto'],
+      fontFamily: SadohodFont.family,
+      fontFamilyFallback: SadohodFont.fallback,
       splashFactory: InkRipple.splashFactory,
       textTheme: const TextTheme(
         displayLarge: TextStyle(
-          fontSize: 44,
+          fontSize: SadohodFont.hero,
           fontWeight: FontWeight.w700,
           height: 1.04,
           letterSpacing: -2.2,
           color: Palette.ink,
         ),
         displayMedium: TextStyle(
-          fontSize: 36,
+          fontSize: SadohodFont.display,
           fontWeight: FontWeight.w700,
           height: 1.06,
           letterSpacing: -1.6,
           color: Palette.ink,
         ),
         headlineMedium: TextStyle(
-          fontSize: 27,
+          fontSize: SadohodFont.heading,
           fontWeight: FontWeight.w700,
           height: 1.1,
           letterSpacing: -0.9,
           color: Palette.ink,
         ),
         titleLarge: TextStyle(
-          fontSize: 20,
+          fontSize: SadohodFont.title,
           fontWeight: FontWeight.w600,
           height: 1.2,
           letterSpacing: -0.4,
           color: Palette.ink,
         ),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.45, color: Palette.ink),
-        bodyMedium: TextStyle(fontSize: 13, height: 1.45, color: Palette.ink),
+        bodyLarge: TextStyle(fontSize: SadohodFont.body, height: 1.45, color: Palette.ink),
+        bodyMedium: TextStyle(fontSize: SadohodFont.supporting, height: 1.45, color: Palette.ink),
       ),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
@@ -70,7 +71,7 @@ class AppTheme {
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: SadohodSpace.x4,
           vertical: 14,
         ),
         border: OutlineInputBorder(

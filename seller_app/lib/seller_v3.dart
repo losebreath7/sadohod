@@ -4,6 +4,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,10 +20,10 @@ import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
 
-const beige = Color(0xFFF0EFEB), brown = Color(0xFF48352D);
-const muted = Color(0xFFA5A5A5),
-    blue = Color(0xFFA5BCD6),
-    red = Color(0xFF670D10);
+const beige = SellerColors.background, brown = SellerColors.brown;
+const muted = SellerColors.muted,
+    blue = SellerColors.blue,
+    red = SellerColors.danger;
 const preview = bool.fromEnvironment('FIGMA_PREVIEW');
 typedef RowData = Map<String, dynamic>;
 
@@ -38,7 +40,7 @@ List<RowData> rows(dynamic value) => (value is List ? value : const [])
     .toList();
 TextStyle type(double size, {bool bold = false, Color color = Colors.black}) =>
     TextStyle(
-      fontFamily: 'Helvetica',
+      fontFamily: SadohodFont.family,
       fontSize: size,
       fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
       color: color,
@@ -2010,14 +2012,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 28),
             decoration: BoxDecoration(
-              color: muted,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: brown.withValues(alpha: .16)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                label('мои магазины', 16, color: Colors.white),
-                const Icon(Icons.chevron_right, color: Colors.white, size: 26),
+                label('мои магазины', 16, color: brown),
+                const Icon(Icons.chevron_right, color: brown, size: 26),
               ],
             ),
           ),
@@ -2840,15 +2843,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 height: 48,
                 padding: const EdgeInsets.symmetric(horizontal: 27),
                 decoration: BoxDecoration(
-                  color: muted,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: brown.withValues(alpha: .16)),
                 ),
                 child: Row(
                   children: [
                     Expanded(
-                      child: label('мои магазины', 16, color: Colors.white),
+                      child: label('мои магазины', 16, color: brown),
                     ),
-                    label('›', 30, bold: true, color: Colors.white),
+                    label('›', 30, bold: true, color: brown),
                   ],
                 ),
               ),
@@ -2916,18 +2920,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     Expanded(
                       child: tap(
                         Container(
-                          height: 20,
+                          height: 28,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: hidden == isHidden
-                                ? const Color(0xFFD9D9D9)
+                                ? const Color(0xFFDCD3CC)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: label(
                             isHidden ? 'скрытые' : 'опубликованные',
-                            10,
-                            color: const Color(0xFF7D7D7D),
+                            12,
+                            color: brown,
                           ),
                         ),
                         () => setState(() {
@@ -2956,7 +2960,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           ] else
             LayoutBuilder(
               builder: (ctx, b) {
-                final width = (b.maxWidth - 30) / 2;
+                final width = (b.maxWidth - 16) / 2;
                 final list = <Widget>[
                   if (shop && !hidden && !selecting && !searching)
                     tap(
@@ -2985,8 +2989,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   for (final p in items) productCard(p, width),
                 ];
                 return Wrap(
-                  spacing: 30,
-                  runSpacing: 28,
+                  spacing: 16,
+                  runSpacing: 20,
                   children: [
                     for (final w in list) SizedBox(width: width, child: w),
                   ],
@@ -3158,35 +3162,29 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          // Text flows tightly; surrounding card height keeps the grid aligned.
+          const SizedBox(height: 10),
           SizedBox(
             width: width,
+            height: 58,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${p['title'] ?? ''}'.trim().isEmpty
-                            ? 'Без названия'
-                            : '${p['title']}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: type(10, color: const Color(0xFF7D7D7D)),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (ls.isNotEmpty && ls.first['price'] != null)
-                      Text(
-                        '≈ ${ls.first['price']} ₽',
-                        maxLines: 1,
-                        style: type(10, color: muted),
-                      ),
-                  ],
+                Text(
+                  '${p['title'] ?? ''}'.trim().isEmpty
+                      ? 'Без названия'
+                      : '${p['title']}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: type(13, color: brown),
                 ),
+                const SizedBox(height: 5),
+                if (ls.isNotEmpty && ls.first['price'] != null)
+                  Text(
+                    '≈ ${ls.first['price']} ₽',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: type(14, bold: true, color: brown),
+                  ),
               ],
             ),
           ),
@@ -3247,13 +3245,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         fit: BoxFit.cover,
       );
     }
-    return Image.network(
-      url.startsWith('http') ? url : '${widget.api.baseUrl}$url',
+    return SizedBox(
       width: width,
       height: width,
-      fit: BoxFit.cover,
-      errorBuilder: (_, error, stack) =>
-          Container(color: const Color(0xFFD9D9D9)),
+      child: SadohodProductPhoto(
+        path: url.startsWith('http') ? url : '${widget.api.baseUrl}$url',
+        fit: BoxFit.cover,
+        placeholder: const Color(0xFFD9D9D9),
+      ),
     );
   }
 
