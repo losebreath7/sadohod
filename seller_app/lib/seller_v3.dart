@@ -294,6 +294,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   final photoReplacements = <XFile, String>{};
   RowData originalProduct = {};
   String initialPrice = '';
+  final initialSaleModes = <String>{};
   String? initialFormSnapshot;
   bool allowUnsavedExit = false;
 
@@ -576,6 +577,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       product = restored.product;
       originalProduct = restored.original;
       initialPrice = restored.initialPrice;
+      initialSaleModes
+        ..clear()
+        ..addAll(rows(originalProduct['listings']).isEmpty
+            ? ['retail']
+            : List<String>.from(rows(originalProduct['listings']).first['sale_modes'] ?? ['retail']));
       saleModes
         ..clear()
         ..addAll(restored.saleModes);
@@ -899,6 +905,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
     if (screen == 'newProduct') {
       product = {};
+      initialPrice = '';
+      initialSaleModes
+        ..clear()
+        ..addAll(saleModes);
     }
     if (screen == 'editProfile') fillProfile();
     if (screen == 'editProduct') fillProduct(product);
@@ -1220,6 +1230,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             : List<String>.from(ls.first['sale_modes'] ?? ['retail']),
       );
     initializeListingFields();
+    initialSaleModes
+      ..clear()
+      ..addAll(saleModes);
     initialPrice = c('price').text;
     destinations
       ..clear()
@@ -1500,12 +1513,21 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       return;
     }
     final price = parsePrice(c('price').text);
+    final sharedPriceChanged = c('price').text != initialPrice;
+    final sharedModesChanged = !setEquals(saleModes, initialSaleModes);
+    // The editor has one common price/mode control for every selected pavilion.
+    // Preserve each pavilion's own values unless the seller changes that control.
     final edits = <String, RowData>{
-      for (final id in destinations.where(listingModes.containsKey))
-        id: {
-          'price': parsePrice(c('price:$id').text),
-          'sale_modes': listingModes[id]!.toList(),
-        },
+      if (sharedModesChanged)
+        for (final id in destinations)
+          id: {
+            'price': sharedPriceChanged
+                ? price
+                : rows(originalProduct['listings'])
+                    .where((listing) => '${listing['pavilion_id']}' == id)
+                    .firstOrNull?['price'] ?? price,
+            'sale_modes': saleModes.toList(),
+          },
     };
     if (testPreview) {
       final id =
@@ -1530,7 +1552,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         price: price,
         saleModes: saleModes.toList(),
         listingEdits: edits,
-        priceChanged: c('price').text != initialPrice,
+        priceChanged: sharedPriceChanged,
         destinations: Set.of(destinations),
         photos: List.of(photos),
         deletedPhotos: Set.of(deletedPhotos),
@@ -1614,7 +1636,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       child: Scaffold(
         backgroundColor: beige,
         resizeToAvoidBottomInset: true,
-        bottomNavigationBar: authScreen || selecting && selected.isEmpty
+        bottomNavigationBar: authScreen
             ? null
             : SellerTabBar(
                 index: index,
@@ -1625,6 +1647,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         body: loading
             ? const Center(child: CircularProgressIndicator())
             : Stack(
+                fit: StackFit.expand,
                 children: [
                   AbsorbPointer(absorbing: busy, child: body()),
                   if (actions) actionPanel(),
@@ -2973,6 +2996,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       ),
     );
     return Stack(
+      fit: StackFit.expand,
       children: [
         shop && !selecting
             ? page(
@@ -2991,6 +3015,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             right: 30,
             child: tap(
               Container(
+                key: const ValueKey('selection-actions-bar'),
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 28),
                 decoration: BoxDecoration(
@@ -3238,6 +3263,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         Align(
           alignment: Alignment.bottomCenter,
           child: Container(
+            key: const ValueKey('seller-actions-sheet'),
             padding: const EdgeInsets.fromLTRB(30, 16, 30, 36),
             decoration: const BoxDecoration(
               color: beige,
@@ -3734,10 +3760,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           () => setState(() {
                             final id = '${p['id']}';
                             if (!destinations.add(id)) destinations.remove(id);
-                            if (edit && !listingModes.containsKey(id)) {
-                              listingModes[id] = Set.of(saleModes);
-                              c('price:$id').text = c('price').text;
-                            }
                             if (destinations.isNotEmpty)
                               pavilionValidationError = false;
                           }),
@@ -3748,22 +3770,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 8),
-            if (!edit || rows(originalProduct['listings']).isEmpty) ...[
-              V3Field('цена', c('price'), keyboard: TextInputType.number),
-              const SizedBox(height: 8),
-              saleModeFields(saleModes),
-            ] else ...[
-              for (final id in destinations) ...[
-                V3Field(
-                  'цена',
-                  listingModes.containsKey(id) ? c('price:$id') : c('price'),
-                  keyboard: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                saleModeFields(listingModes[id] ?? saleModes),
-                const SizedBox(height: 12),
-              ],
-            ],
+            V3Field('цена', c('price'), keyboard: TextInputType.number),
+            const SizedBox(height: 8),
+            saleModeFields(saleModes),
             SizedBox(height: edit ? 22 : 8),
             LayoutBuilder(
               builder: (ctx, b) {
