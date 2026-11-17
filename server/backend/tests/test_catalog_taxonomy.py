@@ -15,6 +15,8 @@ from test_merchant_v080 import env, applicant, login, approve, admin_client, pho
     ('Крем для лица', 'beauty-face-cream'),
     ('Кастрюля большая', 'home-pots'),
     ('Чехол для куклы', None),
+    ('Платьевый материал', None),
+    ('Ткань с принтом кроссовки', None),
     ('Сумка с принтом кукла', None),
     ('Куртка и сумка', None),
     ('Артикул 123', None),
