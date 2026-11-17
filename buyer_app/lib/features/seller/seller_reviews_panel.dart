@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../data/account.dart';
 import '../../data/api.dart';
+import 'review_flowers.dart';
 
 /// Public reviews: personal opinions, never marked as verified purchases.
 class SellerReviewsPanel extends StatefulWidget {
@@ -18,17 +19,64 @@ class SellerReviewsPanel extends StatefulWidget {
 
 class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   Map<String, dynamic>? _data;
+  Map<String, dynamic>? _mine;
+  String? _activeToken;
   bool _loading = true;
   String? _error;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _activeToken = AccountStore.instance.token;
+    AccountStore.instance.addListener(_accountChanged);
+    _load();
+  }
+
+  void _accountChanged() {
+    if (_activeToken == AccountStore.instance.token) return;
+    _activeToken = AccountStore.instance.token;
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant SellerReviewsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sellerId != widget.sellerId) {
+      _mine = null;
+      _data = null;
+      _load();
+    }
+  }
+
+  @override
+  void dispose() {
+    AccountStore.instance.removeListener(_accountChanged);
+    super.dispose();
+  }
 
   Future<void> _load() async {
     try {
       final result = await AccountStore.instance.request(
         '/sellers/${widget.sellerId}/reviews', method: 'GET');
-      if (mounted) setState(() { _data = result; _loading = false; _error = null; });
+      Map<String, dynamic>? mine;
+      if (AccountStore.instance.signedIn) {
+        try {
+          final own = await AccountStore.instance.request(
+            '/sellers/${widget.sellerId}/my-review', method: 'GET');
+          if (own['item'] is Map) {
+            mine = Map<String, dynamic>.from(own['item'] as Map);
+            mine['hidden'] = own['hidden'] == true;
+          }
+        } catch (_) {
+          // Public reviews remain visible when private session data fails.
+        }
+      }
+      if (mounted) setState(() {
+        _data = result;
+        _mine = mine;
+        _loading = false;
+        _error = null;
+      });
     } catch (_) {
       if (mounted) setState(() { _loading = false; _error = 'Не удалось загрузить отзывы'; });
     }
