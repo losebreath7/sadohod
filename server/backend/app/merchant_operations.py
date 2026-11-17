@@ -371,6 +371,9 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
     if old is not None:
         return m.as_product(db, m.merchant_product(pid, shop, db))
     owner, product = editable(db, pid, shop)
+    if data.submit:
+        from .product_safety import require_publishable
+        require_publishable(db, pid)
     ids = [r.pavilion_id for r in data.listings]
     if len(set(ids)) != len(ids):
         raise HTTPException(422, 'Павильоны не должны повторяться.')
