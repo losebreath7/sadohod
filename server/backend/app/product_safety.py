@@ -74,6 +74,8 @@ def report_product(product_id: str, body: ProductReportInput,
         ProductReport.product_id == product_id))
     if existing:
         return {'saved': True}
+    if len(body.reason.strip()) < 4:
+        raise HTTPException(422, 'Укажите причину жалобы')
     rate_limit(db, 'product-report:' + buyer.id, 10, window=86400)
     db.add(ProductReport(id=secrets.token_hex(16),
         buyer_id=buyer.id, product_id=product_id, reason=body.reason.strip()))
