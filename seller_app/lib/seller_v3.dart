@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -3243,13 +3244,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         fit: BoxFit.cover,
       );
     }
-    return Image.network(
-      url.startsWith('http') ? url : '${widget.api.baseUrl}$url',
+    return SizedBox(
       width: width,
       height: width,
-      fit: BoxFit.cover,
-      errorBuilder: (_, error, stack) =>
-          Container(color: const Color(0xFFD9D9D9)),
+      child: SadohodProductPhoto(
+        path: url.startsWith('http') ? url : '${widget.api.baseUrl}$url',
+        fit: BoxFit.cover,
+        placeholder: const Color(0xFFD9D9D9),
+      ),
     );
   }
 
