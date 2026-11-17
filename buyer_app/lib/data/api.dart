@@ -58,6 +58,24 @@ class CatalogApi {
     }
   }
 
+  /// Server-backed title, taxonomy and optional image-semantic search.
+  /// Local demo remains strictly text-only: no invented image recognition.
+  Future<List<DemoProduct>> searchText(String query) async {
+    final needle = query.trim();
+    if (needle.isEmpty) return products();
+    if (localDemo) {
+      final q = needle.toLowerCase();
+      return DemoCatalog.products.where((p) =>
+        '${p.title} ${p.category} ${p.pavilion}'
+          .toLowerCase().contains(q)).toList();
+    }
+    final route = '/api/v1/search/text?q=${Uri.encodeQueryComponent(needle)}&limit=100';
+    final response = await _get(route);
+    return (response['items'] as List)
+      .map((v) => DemoProduct.fromJson(v as Map<String, dynamic>, baseUrl))
+      .toList();
+  }
+
   Future<List<String>> categories() async {
     if (localDemo) return DemoCatalog.categories;
     final response = await _get('/api/v1/categories');
