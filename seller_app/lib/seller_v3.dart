@@ -2917,18 +2917,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     Expanded(
                       child: tap(
                         Container(
-                          height: 20,
+                          height: 28,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: hidden == isHidden
-                                ? const Color(0xFFD9D9D9)
+                                ? const Color(0xFFDCD3CC)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: label(
                             isHidden ? 'скрытые' : 'опубликованные',
-                            10,
-                            color: const Color(0xFF7D7D7D),
+                            12,
+                            color: brown,
                           ),
                         ),
                         () => setState(() {
@@ -2957,7 +2957,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           ] else
             LayoutBuilder(
               builder: (ctx, b) {
-                final width = (b.maxWidth - 30) / 2;
+                final width = (b.maxWidth - 16) / 2;
                 final list = <Widget>[
                   if (shop && !hidden && !selecting && !searching)
                     tap(
@@ -2986,8 +2986,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   for (final p in items) productCard(p, width),
                 ];
                 return Wrap(
-                  spacing: 30,
-                  runSpacing: 28,
+                  spacing: 16,
+                  runSpacing: 20,
                   children: [
                     for (final w in list) SizedBox(width: width, child: w),
                   ],
@@ -3160,34 +3160,29 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 8),
-          // Text flows tightly; surrounding card height keeps the grid aligned.
+          const SizedBox(height: 10),
           SizedBox(
             width: width,
+            height: 58,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${p['title'] ?? ''}'.trim().isEmpty
-                            ? 'Без названия'
-                            : '${p['title']}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: type(10, color: const Color(0xFF7D7D7D)),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (ls.isNotEmpty && ls.first['price'] != null)
-                      Text(
-                        '≈ ${ls.first['price']} ₽',
-                        maxLines: 1,
-                        style: type(10, color: muted),
-                      ),
-                  ],
+                Text(
+                  '${p['title'] ?? ''}'.trim().isEmpty
+                      ? 'Без названия'
+                      : '${p['title']}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: type(13, color: brown),
                 ),
+                const SizedBox(height: 5),
+                if (ls.isNotEmpty && ls.first['price'] != null)
+                  Text(
+                    '≈ ${ls.first['price']} ₽',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: type(14, bold: true, color: brown),
+                  ),
               ],
             ),
           ),
