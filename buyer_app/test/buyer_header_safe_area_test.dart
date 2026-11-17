@@ -74,6 +74,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact header updates on Android, notch and island layouts',
+      (tester) async {
+    for (final top in <double>[0, 24, 44, 62]) {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(
+        body: MediaQuery(
+          data: MediaQueryData(
+            padding: EdgeInsets.only(top: top),
+            viewPadding: EdgeInsets.only(top: top),
+          ),
+          child: Column(children: [
+            BuyerTopBar(onBack: () {}),
+          ]),
+        ),
+      )));
+      await tester.pumpAndSettle();
+      final layout = BuyerHeaderLayout.forInset(top);
+      final bounds = tester.getRect(find.byType(BuyerTopBar));
+      final input = tester.getRect(find.byType(SearchCapsule));
+      expect(bounds.height, closeTo(layout.height, 0.01));
+      expect(input.top - layout.obstructionBottom,
+          closeTo(bounds.bottom - input.bottom, 0.01));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('home Figma logo starts at y=58 with 16px gap to intro',
       (tester) async {
     tester.view.physicalSize = const Size(402, 874);
