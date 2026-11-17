@@ -139,7 +139,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     if (!mounted) return;
     final type = item['event_type']?.toString();
     final target = item['target_id']?.toString() ?? '';
-    if (type == 'product' && target.isNotEmpty) {
+    if ((type == 'product' || type == 'product_safety') && target.isNotEmpty) {
       widget.onOpenProduct(target);
     } else if (type == 'application' ||
         type == 'pavilion' ||
@@ -166,7 +166,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     final title = (item['title'] ?? '').toString();
     final description = (item['message'] ?? '').toString();
     final moderationStatus = item['status']?.toString() ?? '';
-    final statusIcon = moderationStatus == 'rejected'
+    final statusIcon = moderationStatus == 'rejected' || moderationStatus == 'removed'
         ? Icons.error_outline
         : moderationStatus == 'approved'
             ? Icons.check_circle_outline
