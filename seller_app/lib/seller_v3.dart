@@ -236,7 +236,7 @@ class V3Field extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle) ...[
-          IgnorePointer(child: label(title, 12, color: muted)),
+          IgnorePointer(child: label(title, 12, color: SellerColors.fieldLabel)),
           const SizedBox(height: 4),
         ],
         TextField(
