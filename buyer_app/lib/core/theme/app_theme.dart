@@ -75,7 +75,7 @@ class AppTheme {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(SadohodControl.buyerFieldRadius),
           borderSide: const BorderSide(color: Palette.line),
         ),
         enabledBorder: OutlineInputBorder(
