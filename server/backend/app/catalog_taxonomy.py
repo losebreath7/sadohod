@@ -104,6 +104,17 @@ LEGACY = {
     'Одежда': 'clothing',
     'Обувь': 'shoes',
     'Сумки': 'bags-handbags',
+    'Игрушки': 'toys',
+    'Красота и уход': 'beauty',
+    'Товары для дома': 'home',
+    'Электроника': 'electronics',
+    'Украшения': 'jewelry',
+    'Детские товары': 'kids',
+    'Спорт и отдых': 'sport',
+    'Зоотовары': 'pets',
+    'Канцтовары': 'office',
+    'Инструменты и ремонт': 'tools',
+    'Сезонные товары': 'seasonal',
 }
 
 # Every pattern matches a named physical product, not a property or a decoration.
