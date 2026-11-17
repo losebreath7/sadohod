@@ -5,6 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../data/account.dart';
 import '../../data/catalog.dart';
 
+// The 62px iPhone 16 Pro safe inset is already part of the full-screen
+// buyer layout. Compact controls need their own row *below* that inset,
+// rather than adding another MediaQuery/SafeArea around the whole screen.
+const double buyerCompactHeaderHeight = 100;
+const double buyerCompactContentTop = 66;
+
 /// Original vector artwork exported from approved Figma home frames.
 class SvgLogo extends StatelessWidget {
   const SvgLogo(this.asset, {super.key});
@@ -58,8 +64,8 @@ class FavoriteButton extends StatelessWidget {
           }
         },
         icon: SizedBox(
-          width: small ? 11 : 23,
-          height: small ? 10 : 21,
+          width: small ? 16 : 23,
+          height: small ? 15 : 21,
           child: DesignIcon(saved ? 'b2fbd' : 'heart_outline_clean'),
         ),
       );
@@ -226,11 +232,11 @@ class DesignHeader extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 62,
+    height: buyerCompactHeaderHeight,
     child: Stack(
       children: [
         Positioned(
-          top: -52,
+          top: -14,
           left: -5,
           right: -5,
           child: IgnorePointer(
@@ -244,7 +250,7 @@ class DesignHeader extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 5, 22, 13),
+          padding: const EdgeInsets.fromLTRB(22, 52, 22, 0),
           child: child,
         ),
       ],
@@ -262,11 +268,11 @@ class BuyerTopBar extends StatelessWidget {
   final bool showSearch;
   @override
   Widget build(BuildContext context) => Container(
-    height: 75,
+    height: buyerCompactHeaderHeight,
     decoration: const BoxDecoration(color: Colors.white,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(30, 39, 30, 10),
+      padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
       child: Row(children: [
         GestureDetector(onTap: onBack,
           child: const SizedBox(width: 25, height: 25,

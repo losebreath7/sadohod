@@ -76,8 +76,8 @@ class _ProductScreenState extends State<ProductScreen> {
         color: const Color(0xfff1f1f1),
         child: Column(children: [
           Container(
-            height: 75,
-            padding: const EdgeInsets.fromLTRB(30, 41, 30, 9),
+            height: buyerCompactHeaderHeight,
+            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [

@@ -19,10 +19,10 @@ class _BuyerPageTop extends StatelessWidget {
   final String title;
   @override
   Widget build(BuildContext context) => Container(
-    height: 75,
+    height: buyerCompactHeaderHeight,
     decoration: const BoxDecoration(color: Colors.white,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-    padding: const EdgeInsets.fromLTRB(30, 37, 30, 5),
+    padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
     child: Row(children: [
       const RoundBack(),
       Expanded(child: Text(title, textAlign: TextAlign.center,

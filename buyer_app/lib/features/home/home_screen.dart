@@ -145,7 +145,7 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
   final ValueChanged<String> onChanged, onSubmitted, onTag;
   final VoidCallback onPhotoTap, onLogoTap;
   static const double _max = 402;
-  static const double _min = 75;
+  static const double _min = buyerCompactHeaderHeight;
 
   @override
   double get minExtent => _min;
@@ -157,14 +157,14 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
     final offset = shrinkOffset.clamp(0.0, _max - _min).toDouble();
     // Search moves with the scroll until it docks at the top; then its width
     // changes continuously to make room for the compact Figma logo.
-    final dock = ((offset - 182) / 54).clamp(0.0, 1.0).toDouble();
+    final dock = ((offset - 150) / 60).clamp(0.0, 1.0).toDouble();
     final curve = Curves.easeInOutCubic.transform(dock);
-    final shape = ((offset - 200) / 105).clamp(0.0, 1.0).toDouble();
+    final shape = ((offset - 170) / 105).clamp(0.0, 1.0).toDouble();
     // The pin mask is drawn ABOVE the scrolling intro, not behind it.
     // Otherwise the photo tile and tag chips bleed into the docked search
     // when the sliver collapses (particularly visible on iOS Safari).
     final pinnedCover = ((offset - 55) / 55).clamp(0.0, 1.0).toDouble();
-    final searchTop = (275 - offset).clamp(39.0, 275.0).toDouble();
+    final searchTop = (275 - offset).clamp(buyerCompactContentTop, 275.0).toDouble();
     final left = 30 + 63 * curve;
     final searchHeight = 32 - 7 * curve;
     final width = MediaQuery.sizeOf(context).width;
@@ -266,23 +266,24 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
         // Keeping it below the search/logo in stack order leaves those
         // controls crisp, while never showing ghost tags over the search.
         if (pinnedCover > 0)
-          Positioned(left: -4, right: -4, top: -39, height: 114,
+          Positioned(left: -4, right: -4, top: -14, height: 114,
             child: IgnorePointer(child: Opacity(opacity: pinnedCover,
               child: SvgPicture.asset('assets/figma/388b2.svg', fit: BoxFit.fill)))),
-        // Original Figma wordmark (98 x 13, x centered, y = 58 at rest).
+        // Original 98 x 13 Figma wordmark, lowered below iPhone's 62 px safe inset.
+        // Intro elements stay fixed to preserve the approved photo/search/grid geometry.
         // Foreground painting prevents the white pinned-header mask from
         // hiding the logo while the opening header is still visible.
         if (offset < 71)
           Positioned(
-            top: 58 - offset, left: 30, right: 30, height: 13,
+            top: 70 - offset, left: 30, right: 30, height: 13,
             child: IgnorePointer(
               child: Center(
                 child: const SadohodWordmark(),
               ),
             ),
           ),
-        // Exact source emblem from Figma's collapsed header (25x25).
-        Positioned(top: 39, left: 30, width: 25, height: 25,
+        // Compact emblem sits below the island; tapping scrolls the current home to top.
+        Positioned(top: buyerCompactContentTop, left: 30, width: 25, height: 25,
           child: IgnorePointer(
             ignoring: dock < .90,
             child: Opacity(opacity: curve,

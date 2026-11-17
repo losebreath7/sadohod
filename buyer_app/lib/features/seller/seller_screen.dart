@@ -135,8 +135,8 @@ class _SellerScreenState extends State<SellerScreen> {
         final addresses = page.pavilions.isEmpty ? [seller.pavilion] : page.pavilions.toSet().toList();
         return Column(children: [
           Container(
-            height: 75,
-            padding: const EdgeInsets.fromLTRB(30, 35, 30, 5),
+            height: buyerCompactHeaderHeight,
+            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [
