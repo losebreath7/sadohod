@@ -294,6 +294,120 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   final photoReplacements = <XFile, String>{};
   RowData originalProduct = {};
   String initialPrice = '';
+  String? initialFormSnapshot;
+  bool allowUnsavedExit = false;
+
+  String get formSnapshot => jsonEncode({
+    'title': c('title').text,
+    'price': c('price').text,
+    'destinations': destinations.toList()..sort(),
+    'saleModes': saleModes.toList()..sort(),
+    'listingModes': {
+      for (final id in (listingModes.keys.toList()..sort()))
+        id: {
+          'price': c('price:$id').text,
+          'modes': listingModes[id]!.toList()..sort(),
+        },
+    },
+    'images': product['images'] ?? [],
+    'deletedPhotos': deletedPhotos.toList()..sort(),
+    'newPhotos': photos.map((photo) => photo.path).toList(),
+    'replacementIds': photoReplacements.values.toList()..sort(),
+  });
+
+  bool get hasUnsavedProductChanges =>
+      isProductForm &&
+      initialFormSnapshot != null &&
+      formSnapshot != initialFormSnapshot;
+
+  Future<bool> confirmLeaveProductForm() async {
+    if (!hasUnsavedProductChanges) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Несохранённые изменения', style: type(16, bold: true)),
+        content: Text(
+          'Вы изменили товар, но не сохранили правки.',
+          style: type(14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('продолжить редактирование', style: type(12)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('выйти без сохранения', style: type(12, color: red)),
+          ),
+        ],
+      ),
+    );
+    if (discard != true || !mounted) return false;
+    await forgetDraft();
+    return mounted;
+  }
+
+  void requestBack() {
+    if (!isProductForm || allowUnsavedExit || !hasUnsavedProductChanges) {
+      back();
+      return;
+    }
+    confirmLeaveProductForm().then((leave) {
+      if (!leave || !mounted) return;
+      allowUnsavedExit = true;
+      back();
+      allowUnsavedExit = false;
+    });
+  }
+
+  bool get currentProductVisible => rows(product['listings']).any(
+    (listing) => listing['published'] == true ||
+        listing['status'] == 'approved',
+  );
+
+  Future<void> toggleProductVisibility() async {
+    if (busy || product['id'] == null) return;
+    final wasVisible = currentProductVisible;
+    if (!wasVisible &&
+        rows(product['listings']).any((l) => l['status'] == 'pending')) {
+      failure(Exception('Товар на проверке. Дождитесь решения модератора.'));
+      return;
+    }
+    await run(() async {
+      if (!testPreview) {
+        await productActions.batch(wasVisible ? 'pause' : 'resume', {
+          'product_ids': ['${product['id']}'],
+        });
+        await reload(navigate: false);
+        final updated = products.where((p) => p['id'] == product['id']);
+        if (updated.isNotEmpty) {
+          product['status'] = updated.first['status'];
+          product['listings'] = updated.first['listings'];
+          originalProduct['status'] = updated.first['status'];
+          originalProduct['listings'] = updated.first['listings'];
+        }
+      } else {
+        for (final listing in rows(product['listings'])) {
+          listing['status'] = wasVisible ? 'paused' : 'approved';
+          listing['published'] = !wasVisible;
+        }
+        product['listings'] = rows(product['listings']).map((l) => {
+          ...l,
+          'status': wasVisible ? 'paused' : 'approved',
+          'published': !wasVisible,
+        }).toList();
+      }
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(wasVisible
+          ? 'Товар скрыт'
+          : 'Товар отправлен на проверку перед публикацией'),
+      ));
+    });
+  }
   final saleModes = <String>{'retail'};
   final listingModes = <String, Set<String>>{};
   final photoPages = <String, int>{};
@@ -911,7 +1025,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   void back() {
-    if (isProductForm) persistDraft().catchError(draftFailure);
+    if (isProductForm && !allowUnsavedExit) {
+      if (hasUnsavedProductChanges) {
+        requestBack();
+        return;
+      }
+      persistDraft().catchError(draftFailure);
+    }
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       if (actions) {
@@ -952,6 +1072,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   Future<void> tab(int index) async {
     if (busy) return;
+    if (isProductForm && hasUnsavedProductChanges) {
+      if (!await confirmLeaveProductForm()) return;
+    }
     try {
       await persistDraft();
     } catch (error) {
@@ -1090,6 +1213,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     destinations
       ..clear()
       ..addAll(ls.map((l) => '${l['pavilion_id']}'));
+    initialFormSnapshot = formSnapshot;
   }
 
   void initializeListingFields() {
@@ -1227,6 +1351,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         listingModes.clear();
         destinations.clear();
         go('newProduct');
+        initialFormSnapshot = formSnapshot;
       } else
         setState(() {});
     }
@@ -1422,8 +1547,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         ? ls.where((l) => l['pavilion_id'] == pavilion['id']).toList()
         : ls;
     if (screen == 'shop' && local.isEmpty) return false;
-    if (hidden && !local.any((l) => l['status'] == 'paused'))
-      return testPreview;
+    if (hidden) {
+      if (!local.any((l) => l['status'] == 'paused')) return testPreview;
+    } else if (screen != 'shop' && local.isNotEmpty &&
+        local.every((l) => l['status'] == 'paused')) {
+      return false;
+    }
     if (screen == 'shop' &&
         !hidden &&
         !(p['status'] == 'approved' &&
@@ -1466,7 +1595,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !busy) back();
+        if (!didPop && !busy) requestBack();
       },
       child: Scaffold(
         backgroundColor: beige,
@@ -1597,7 +1726,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     children: [
       V3Header(
         title: title,
-        back: onBack ?? back,
+        back: onBack ?? requestBack,
         trailing: trailing,
         large: large,
       ),
@@ -2736,7 +2865,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   ),
               ],
             ),
-            if (shop) ...[
+            if (!searching) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -2945,7 +3074,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                if (hidden)
+                if (hidden && ls.any((l) => l['status'] == 'paused'))
                   Positioned.fill(
                     child: ColoredBox(
                       color: Colors.white.withValues(alpha: .38),
@@ -2987,40 +3116,27 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (screen != 'shop')
-                  SizedBox(
-                    height: 15,
-                    child: Text(
-                      ls.isNotEmpty
-                          ? address(Map<String, dynamic>.from(
-                              ls.first['pavilion'] ?? {}))
-                          : '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: type(11, color: muted),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${p['title'] ?? ''}'.trim().isEmpty
+                            ? 'Без названия'
+                            : '${p['title']}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: type(10, color: const Color(0xFF7D7D7D)),
+                      ),
                     ),
-                  ),
-                Text(
-                  '${p['title'] ?? ''}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: type(10, color: const Color(0xFF7D7D7D)),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  ls.isEmpty || ls.first['price'] == null
-                      ? 'цена не указана'
-                      : '≈ ${ls.first['price']} ₽',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type(10, color: muted),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  productStatus(p, ls),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type(10, color: muted),
+                    const SizedBox(width: 6),
+                    if (ls.isNotEmpty && ls.first['price'] != null)
+                      Text(
+                        '≈ ${ls.first['price']} ₽',
+                        maxLines: 1,
+                        style: type(10, color: muted),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -3934,11 +4050,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           ],
         ),
       ),
-      trailing: tap(
-        const Icon(Icons.more_horiz, size: 24, color: brown),
-        productMenu,
-        name: 'Действия с товаром',
-      ),
+      trailing: edit
+          ? tap(
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: asset(
+                    currentProductVisible
+                        ? 'seller_eye_open_black.svg'
+                        : 'seller_eye_closed_black.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                ),
+              ),
+              toggleProductVisibility,
+              name: currentProductVisible ? 'Скрыть товар' : 'Показать товар',
+            )
+          : null,
     );
   }
 }
