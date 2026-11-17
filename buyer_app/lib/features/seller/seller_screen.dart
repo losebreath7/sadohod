@@ -133,10 +133,12 @@ class _SellerScreenState extends State<SellerScreen> {
         if (page == null) return const Center(child: Text('Продавец не найден'));
         final seller = page.seller;
         final addresses = page.pavilions.isEmpty ? [seller.pavilion] : page.pavilions.toSet().toList();
+        final header = BuyerHeaderLayout.of(context);
         return Column(children: [
           Container(
-            height: buyerCompactHeaderHeight,
-            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+            height: header.height,
+            padding: EdgeInsets.fromLTRB(
+              30, header.contentTop, 30, BuyerHeaderLayout.gap),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [
@@ -146,6 +148,8 @@ class _SellerScreenState extends State<SellerScreen> {
                 builder: (context, _) => IconButton(
                   tooltip: 'Сохранить продавца',
                   onPressed: _toggleFavorite,
+                  constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                  padding: EdgeInsets.zero,
                   icon: Icon(AccountStore.instance.sellers.contains(widget.id)
                     ? Icons.favorite : Icons.favorite_border, size: 26),
                 ),

@@ -74,28 +74,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     listenable: AccountStore.instance,
     builder: (context, _) {
       final a = AccountStore.instance;
+      final header = BuyerHeaderLayout.of(context);
       return ColoredBox(
         color: const Color(0xfff1f1f1),
         child: Column(children: [
           if (widget.sellers) Container(
-            height: buyerCompactHeaderHeight,
+            height: header.height,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.only(top: 35),
+            padding: EdgeInsets.fromLTRB(
+              0, header.contentTop, 0, BuyerHeaderLayout.gap),
             alignment: Alignment.center,
             child: const Text('любимые продавцы', style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold)),
           ) else Container(
-            height: buyerCompactHeaderHeight,
+            height: header.height,
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
-            padding: const EdgeInsets.fromLTRB(30, buyerCompactContentTop, 30, 8),
+            padding: EdgeInsets.fromLTRB(
+              30, header.contentTop, 30, BuyerHeaderLayout.gap),
             child: Row(children: [
               GestureDetector(onTap: _toTop,
                 child: const SizedBox(width: 40, height: 28, child: Center(
                   child: SizedBox(width: 28, height: 28, child: DesignIcon('f4579'))))),
               const SizedBox(width: 23),
-              Expanded(child: SearchCapsule(controller: _search, onChanged: (_) => setState(() {}))),
+              Expanded(child: SearchCapsule(
+                height: 25, controller: _search,
+                onChanged: (_) => setState(() {}))),
             ]),
           ),
           if (widget.sellers) Padding(

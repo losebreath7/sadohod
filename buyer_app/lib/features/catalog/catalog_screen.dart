@@ -37,15 +37,18 @@ class _CatalogScreenState extends State<CatalogScreen> {
               IconButton(
                 tooltip: 'Главная',
                 onPressed: () => context.go('/home'),
+                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                padding: EdgeInsets.zero,
                 icon: const SizedBox(
-                  width: 32,
-                  height: 32,
+                  width: 25,
+                  height: 25,
                   child: DesignIcon('f4579'),
                 ),
               ),
               const SizedBox(width: 15),
               Expanded(
                 child: SearchCapsule(
+                  height: 25,
                   controller: query,
                   onChanged: (_) => setState(() {}),
                 ),
