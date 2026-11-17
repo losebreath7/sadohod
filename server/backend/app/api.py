@@ -15,6 +15,7 @@ from .crop import crop_image
 from .ml_clip import MODEL_ID as CLIP_MODEL_ID
 from .merchant_models import ProductCategoryAssignment
 from .catalog_taxonomy import NODES_V1, BY_ID, category_path, descendant_ids
+from .text_search import text_filter, visual_product_ids
 
 router = APIRouter(prefix="/api/v1")
 
@@ -114,9 +115,48 @@ def products(category: str | None = None, q: str = "", limit: int = Query(defaul
     if category and category != "Все":
         statement = statement.where(product_category_filter(category))
     if q.strip():
-        statement = statement.where(Product.title.ilike(f"%{q.strip()[:80]}%"))
+        statement = statement.where(text_filter(q))
     items = session.scalars(statement.offset(offset).limit(limit)).all()
     return {"items": [serialize_product(p) for p in items], "limit": limit, "offset": offset, "demo": True}
+
+
+@router.get("/search/text")
+def search_text(q: str = Query(min_length=1, max_length=80),
+                limit: int = Query(default=60, ge=1, le=100),
+                session: Session = Depends(get_db)):
+    """Merge exact title/taxonomy matches with model-backed photo similarities.
+
+    No arbitrary category is fabricated from a picture. Semantic results are
+    only returned if a real pretrained ML index is enabled and populated.
+    """
+    query = q.strip()
+    if not query:
+        return {'items': [], 'ml_enabled': SEARCH_BACKEND == 'clip'}
+    matched = session.scalars(product_query().where(
+        text_filter(query)).order_by(Product.id).limit(limit)).unique().all()
+    ordered = list(matched)
+    seen = {p.id for p in ordered}
+    if SEARCH_BACKEND == 'clip' and len(ordered) < limit:
+        # A neural model failure must not erase exact matches.
+        import logging
+        try:
+            semantic_ids = visual_product_ids(session, query, limit=limit)
+            if semantic_ids:
+                extra = session.scalars(product_query().where(
+                    Product.id.in_(semantic_ids)).where(
+                    Product.id.not_in(seen))).unique().all()
+                by_id = {p.id: p for p in extra}
+                for pid in semantic_ids:
+                    if pid in by_id and pid not in seen:
+                        ordered.append(by_id[pid])
+                        seen.add(pid)
+                        if len(ordered) == limit:
+                            break
+        except Exception:
+            logging.getLogger(__name__).exception(
+                'Semantic text search unavailable for query')
+    return {'items': [serialize_product(p) for p in ordered],
+            'ml_enabled': SEARCH_BACKEND == 'clip'}
 
 
 @router.get("/products/{id}")
