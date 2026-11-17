@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -239,7 +240,7 @@ class SearchCapsule extends StatelessWidget {
     this.onTap,
     this.controller,
     this.onPhotoTap,
-    this.height = 32,
+    this.height = SadohodControl.compactSearchHeight,
   });
   final ValueChanged<String>? onChanged, onSubmitted;
   final VoidCallback? onTap;
