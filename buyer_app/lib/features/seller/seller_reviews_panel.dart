@@ -236,7 +236,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10))),
+                        borderRadius: BorderRadius.circular(999))),
                     onPressed: submitting ? null : () async {
                       if (rating == 0) {
                         update(() => error = 'Выберите оценку');
@@ -264,7 +264,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                       }
                     },
                     child: Text(submitting
-                      ? 'Отправляем…' : 'Отправить на модерацию',
+                      ? 'Отправляем…' : 'Отправить на проверку',
                       style: const TextStyle(fontSize: 13,
                         fontWeight: FontWeight.w600)),
                   ),
