@@ -8,10 +8,11 @@ import logging
 import math
 
 from .config import SEARCH_BACKEND
-from .merchant_models import ProductCategoryState
+from .merchant_models import ProductCategoryState, ProductCategoryAssignment
 from .models import ImageMLEmbedding
 from .ml_clip import MODEL_ID, DIM, _model_bundle, MODEL_ARCH
 from .product_categories import resolve_category, is_unassigned, UNASSIGNED
+from .catalog_taxonomy import LEGACY, BY_ID, path_ids, resolve_leaf
 
 log = logging.getLogger(__name__)
 PROMPTS = {
@@ -53,6 +54,44 @@ def photo_vote(vector):
     return category, score, confident
 
 
+
+def sync_taxonomy(db, product, state):
+    """Refresh the precise category without changing offer publication or review state."""
+    leaf = resolve_leaf(product.title)
+    legacy = LEGACY.get(product.category)
+    # Keep explicit seller categories authoritative when a known legacy mapping exists.
+    if state.source == 'manual':
+        leaf = legacy
+    elif state.status == 'conflict':
+        leaf = None
+    elif legacy and (leaf is None or legacy not in path_ids(leaf)):
+        leaf = legacy
+
+    assignment = db.get(ProductCategoryAssignment, product.id)
+    if not leaf:
+        if assignment:
+            db.delete(assignment)
+        return
+    if assignment is None:
+        assignment = ProductCategoryAssignment(product_id=product.id,
+                                               category_id=leaf,
+                                               source=state.source)
+        db.add(assignment)
+    else:
+        assignment.category_id = leaf
+        assignment.source = state.source
+    # Preserve existing legacy categories for old clients. New groups get a
+    # meaningful root label instead of showing "Без категории" forever.
+    if is_unassigned(product.category):
+        root = path_ids(leaf)[0]
+        product.category = BY_ID[root][2]
+        state.assigned = product.category
+        if state.status in ('needs_review', 'photo_model_disabled', 'photo_index_missing'):
+            state.source = 'title'
+            state.status = 'assigned'
+        assignment.source = state.source
+
+
 def mark_manual(db, product):
     state = db.get(ProductCategoryState, product.id)
     if state is None:
@@ -63,6 +102,7 @@ def mark_manual(db, product):
     state.assigned = product.category
     state.suggestion = ''
     state.score = 0.0
+    sync_taxonomy(db, product, state)
     return state
 
 
@@ -74,6 +114,7 @@ def assign_category(db, product, supplied=None):
     ):
         return mark_manual(db, product)
     if state is not None and state.source == 'manual' and not is_unassigned(product.category):
+        sync_taxonomy(db, product, state)
         return state
     if state is None:
         state = ProductCategoryState(product_id=product.id)
@@ -112,6 +153,7 @@ def assign_category(db, product, supplied=None):
         state.status = 'photo_model_disabled'
     product.category = category
     state.assigned = category
+    sync_taxonomy(db, product, state)
     return state
 
 
