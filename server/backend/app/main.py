@@ -43,8 +43,12 @@ async def lifespan(app: FastAPI):
         from .ml_index import index_catalog
         with SessionLocal() as session:
             index_catalog(session)
-        from .category_inference import text_vectors
-        text_vectors()  # Health becomes available only after the classifier is ready.
+        from .category_inference import text_vectors, toy_text_vectors, reclassify_indexed_products
+        text_vectors()
+        toy_text_vectors()
+        with SessionLocal() as session:
+            reclassify_indexed_products(session)
+        # Health becomes available only after indexing and classification.
     bridge_task = asyncio.create_task(run_bridge()) if telegram_configured() else None
     try:
         yield
