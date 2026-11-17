@@ -26,7 +26,8 @@ from .merchant import (
     DecisionInput, ProductDecisionInput,
 )
 from .moderation_models import ModeratorUser, ModeratorSession, ModerationAction
-from .models import Seller
+from .models import Seller, Product
+from .product_safety import ProductReport, ProductSafetyHold, take_down
 
 router = APIRouter(prefix='/api/v1/moderation', tags=['Moderation'])
 admin_router = APIRouter(prefix='/api/v1/admin/moderators',
@@ -71,6 +72,15 @@ class DecisionRequest(BaseModel):
 
 
 class ReportResolution(BaseModel):
+    decision: Literal['hide', 'dismiss']
+    note: str = Field(default='', max_length=500)
+
+
+class ProductTakedownInput(BaseModel):
+    reason: str = Field(min_length=5, max_length=500)
+
+
+class ProductReportDecision(BaseModel):
     decision: Literal['hide', 'dismiss']
     note: str = Field(default='', max_length=500)
 
@@ -212,7 +222,52 @@ def queue(staff: ModeratorUser = Depends(require_moderator),
     # Staff loads photos only when opening a specific review/report.
     data['reviews'] = [review_summary(db, r) for r in pending]
     data['reports'] = [report_json(db, r) for r in reports]
+    flagged = db.scalars(select(ProductReport).where(
+        ProductReport.resolved_at == 0).order_by(
+        ProductReport.created_at.desc()).limit(150)).all()
+    data['product_reports'] = [product_report_json(db, r) for r in flagged]
     return data
+
+
+def product_report_json(db: Session, item: ProductReport):
+    product = db.get(Product, item.product_id)
+    return {'id': item.id, 'product_id': item.product_id,
+            'title': product.title if product else '',
+            'reason': item.reason, 'created_at': item.created_at}
+
+
+@router.post('/products/{product_id}/takedown')
+def takedown_product(product_id: str, body: ProductTakedownInput,
+                     staff: ModeratorUser = Depends(require_moderator),
+                     db: Session = Depends(get_db)):
+    reason = body.reason.strip()
+    if len(reason) < 5:
+        raise HTTPException(422, 'Укажите причину снятия товара')
+    take_down(db, product_id, staff.id, reason)
+    record_action(db, staff, 'products', product_id, 'takedown', reason)
+    db.commit()
+    return {'id': product_id, 'status': 'removed'}
+
+
+@router.post('/product-reports/{report_id}/resolve')
+def resolve_product_report(report_id: str, body: ProductReportDecision,
+                           staff: ModeratorUser = Depends(require_moderator),
+                           db: Session = Depends(get_db)):
+    report = db.get(ProductReport, report_id, with_for_update=True)
+    if report is None:
+        raise HTTPException(404, 'Жалоба не найдена')
+    if report.resolved_at:
+        raise HTTPException(409, 'Жалоба уже обработана')
+    note = body.note.strip()
+    if body.decision == 'hide':
+        if len(note) < 5:
+            raise HTTPException(422, 'Для снятия товара укажите причину')
+        take_down(db, report.product_id, staff.id, note)
+    report.resolution = body.decision
+    report.resolved_at = time.time()
+    record_action(db, staff, 'product_reports', report_id, body.decision, note)
+    db.commit()
+    return {'id': report_id, 'status': body.decision}
 
 
 @router.get('/reviews/{review_id}')
