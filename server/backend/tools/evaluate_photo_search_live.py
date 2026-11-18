@@ -72,6 +72,7 @@ def main():
     parser.add_argument("--api", required=True)
     parser.add_argument("--min-hit5", type=float, default=.8)
     parser.add_argument("--max-p95", type=float, default=3.0)
+    parser.add_argument("--min-negative-rejection", type=float, default=.8)
     parser.add_argument("--timeout", type=float, default=40)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -80,11 +81,15 @@ def main():
     if parsed.scheme != "https" and not (
         parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1")):
         parser.error("Use HTTPS for remote photo uploads; HTTP is local-only.")
-    if not (0 <= args.min_hit5 <= 1 and args.max_p95 > 0):
+    if not (0 <= args.min_hit5 <= 1 and 0 <= args.min_negative_rejection <= 1 and args.max_p95 > 0):
         parser.error("Invalid acceptance targets.")
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     if not isinstance(manifest, list) or not manifest:
         parser.error("Manifest must be a non-empty JSON array.")
+    if not any(entry.get("expect_empty") is True for entry in manifest):
+        parser.error("Manifest requires independent negative queries with expect_empty=true.")
+    if not any(entry.get("expect_empty") is not True for entry in manifest):
+        parser.error("Manifest requires positive queries with expected_ids.")
     rows = []
     for i, entry in enumerate(manifest):
         expect_empty = entry.get("expect_empty") is True
@@ -110,8 +115,8 @@ def main():
     stats["passed"] = (stats["positive_queries"] > 0 and
                        stats["hit_at_5"] >= args.min_hit5 and
                        stats["latency_p95_seconds"] <= args.max_p95 and
-                       (stats["negative_rejection_rate"] is None or
-                        stats["negative_rejection_rate"] >= .8))
+                       stats["negative_queries"] > 0 and
+                       stats["negative_rejection_rate"] >= args.min_negative_rejection)
     report = {"summary": stats, "results": rows}
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     if args.output:
