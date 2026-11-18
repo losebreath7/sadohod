@@ -6,6 +6,7 @@ services:
       dockerfile: backend/Dockerfile.ml
     environment:
       SEARCH_BACKEND: clip
+      PHOTO_SEARCH_MIN_SCORE: ${PHOTO_SEARCH_MIN_SCORE:-0.20}
       HF_HOME: /root/.cache/huggingface
       TORCH_HOME: /root/.cache/torch
     volumes:
