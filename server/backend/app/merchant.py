@@ -382,6 +382,11 @@ def edit_product(pid: str, data: DraftProductInput, buyer: Buyer = Depends(curre
         owner.status = 'draft'
     owner.note = ''
     assign_category(db, p)
+    if owner.status == 'approved':
+        from .product_screening import assess, hold_for_review
+        reason = assess(db, p)
+        if reason:
+            hold_for_review(db, owner, p, reason)
     safe_commit(db)
     return as_product(db, owner)
 
@@ -441,7 +446,13 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
     shop_for(buyer, db)
     owner = merchant_product(pid, seller, db)
     if owner.status in ('draft', 'rejected', 'approved'):
-        assign_category(db, db.get(Product, pid))
+        product = db.get(Product, pid)
+        assign_category(db, product)
+        if owner.status == 'approved':
+            from .product_screening import assess, hold_for_review
+            reason = assess(db, product)
+            if reason:
+                hold_for_review(db, owner, product, reason)
         safe_commit(db)
     return as_product(db, merchant_product(pid, seller, db))
 
@@ -542,12 +553,17 @@ def submit_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session 
         raise HTTPException(409, 'Выберите хотя бы один подтверждённый павильон.')
     if not any(r.status in ('draft', 'pending', 'approved', 'rejected') for r in rows):
         raise HTTPException(409, 'Нет доступных предложений для публикации.')
-    for r in rows:
-        if r.status in ('draft', 'rejected'):
-            publish_listing(db, r)
-    owner.status = 'approved'
-    owner.note = ''
-    p.details.active = any(r.offer_id is not None for r in rows)
+    from .product_screening import assess, hold_for_review
+    reason = assess(db, p)
+    if reason:
+        hold_for_review(db, owner, p, reason)
+    else:
+        for r in rows:
+            if r.status in ('draft', 'rejected'):
+                publish_listing(db, r)
+        owner.status = 'approved'
+        owner.note = ''
+        p.details.active = any(r.offer_id is not None for r in rows)
     safe_commit(db)
     return as_product(db, owner)
 

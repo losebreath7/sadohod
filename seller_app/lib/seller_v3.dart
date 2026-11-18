@@ -16,6 +16,7 @@ import 'draft_store.dart';
 import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
+import 'seller_live_camera.dart';
 import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
@@ -290,6 +291,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   final selected = <String>{}, destinations = <String>{};
   final controllers = <String, TextEditingController>{};
   final photos = <XFile>[];
+  final cameraPreviewKey = GlobalKey<SellerLiveCameraState>();
   String? draftId;
   late final ProductActions productActions = ProductActions(widget.api);
   ProductSaveSession saveSession = ProductSaveSession();
@@ -1351,18 +1353,18 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         screen = 'pending';
       });
   });
-  Future<void> pick({bool camera = false}) async => run(() async {
+  Future<void> pick({bool camera = false, List<XFile>? selected}) async => run(() async {
     if (screen != 'capture' && saveSession.photoKeys.isNotEmpty) {
       throw Exception(
         'Сначала повторите сохранение начатой загрузки. Фотографии можно изменить после её завершения.',
       );
     }
     final picker = ImagePicker();
-    final chosen = camera
+    final chosen = selected ?? (camera
         ? [await picker.pickImage(source: ImageSource.camera)]
               .whereType<XFile>()
               .toList()
-        : await picker.pickMultiImage();
+        : await picker.pickMultiImage());
     if (chosen.isEmpty) return;
     if (screen == 'capture') photos.clear();
     photos.addAll(chosen);
@@ -3604,11 +3606,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               right: 10 * scaleX,
               top: 18 * scaleY,
               bottom: 130 * scaleY,
-              child: tap(
-                const SizedBox.expand(),
-                () => pick(),
-                name: 'Выбрать фотографии',
-              ),
+              child: testPreview
+                  ? tap(
+                      const SizedBox.expand(),
+                      () => pick(),
+                      name: 'Выбрать фотографии',
+                    )
+                  : SellerLiveCamera(
+                      key: cameraPreviewKey,
+                      onCaptured: (image) => pick(selected: [image]),
+                    ),
             ),
             Positioned(
               left: 160 * scaleX,
@@ -3617,7 +3624,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               height: 70 * scaleY,
               child: tap(
                 const SizedBox.expand(),
-                () => pick(camera: true),
+                () => testPreview
+                    ? pick(camera: true)
+                    : cameraPreviewKey.currentState?.capture(),
                 name: 'Снять фото',
               ),
             ),
