@@ -138,11 +138,14 @@ def _text_reason(title, description):
     combined = title + ' ' + description
     # A shirt with a printed pistol isn't a gun. But an explicit "real gun"
     # claim must override "shirt" or "print" anywhere else in the description.
-    print_context = bool(PRINT.search(combined) and WEARABLE.search(combined))
-    decorative_context = bool(REPLICA.search(combined))
+    print_context = bool(PRINT.search(title) and WEARABLE.search(title))
+    decorative_context = bool(REPLICA.search(title))
     real_claim = bool(REAL_CLAIM.search(combined))
     for label, pattern in RISK_TEXT:
         if pattern.search(title) or pattern.search(description):
+            # Only explicit product TITLE context can exempt a graphic/toy.
+            # A seller cannot add "shirt with print" in the description
+            # of an item titled "pistol" to bypass review.
             if label == 'оружие' and (print_context or decorative_context) and not real_claim:
                 continue
             return f'Автопроверка: возможная категория «{label}» (текст)'
