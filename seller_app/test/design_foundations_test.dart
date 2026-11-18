@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
@@ -44,6 +45,32 @@ void main() {
     ]) {
       expect(style.fontFamily, SadohodFont.family);
       expect(style.fontFamilyFallback, SadohodFont.fallback);
+    }
+  });
+
+
+  test('every explicit Dart font family comes from the shared Manrope token', () {
+    final sourceDirs = <Directory>[
+      Directory('lib'),
+      Directory('../buyer_app/lib'),
+      Directory('../seller_app/lib'),
+      Directory('../shared/flutter_core/lib'),
+    ];
+    final declaration = RegExp(r'fontFamily\\s*:\\s*');
+    for (final dir in sourceDirs) {
+      if (!dir.existsSync()) continue;
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final source = entity.readAsStringSync();
+        for (final match in declaration.allMatches(source)) {
+          final value = source.substring(match.end).trimLeft();
+          expect(
+            value.startsWith("'") || value.startsWith('"'),
+            isFalse,
+            reason: '${entity.path}: declare the shared SadohodFont.family instead of a literal font',
+          );
+        }
+      }
     }
   });
 
