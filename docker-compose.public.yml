@@ -1,8 +1,11 @@
 # Public staging/production overlay. Use with docker-compose.yml + docker-compose.ml.yml.
 # Same service image and persistent pgvector/media/admin volumes; no local data is moved.
 # Only Caddy exposes public ports. Leave SADOHOD_BIND unset in the env file.
+# Never reuse the local Windows Compose project/volumes.
+name: sadohod_public
 services:
   db:
+    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD in the environment file}
   api:
