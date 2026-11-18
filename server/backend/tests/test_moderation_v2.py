@@ -54,6 +54,7 @@ def test_safe_apparel_is_published_in_classic_mode(env):
 def test_context_exceptions_do_not_hide_explicit_real_weapon():
     assert s._text_reason('Настоящий пистолет',
                           'В комплекте футболка с принтом') is not None
+    assert s._text_reason('Пистолет', 'В описании указана футболка с принтом') is not None
     assert s._text_reason('Футболка с принтом пистолета', '') is None
     assert s._text_reason('Купальник телесного цвета', '') is None
     assert s._text_reason('Порошок для стирки', '') is None
