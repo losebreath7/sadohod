@@ -63,8 +63,8 @@ class ProductActions {
         .length;
     if (retained + photos.length == 0)
       throw Exception('Добавьте хотя бы одну фотографию.');
-    if (retained + photos.length > 12)
-      throw Exception('На товар можно добавить не больше 12 фотографий.');
+    if (retained + photos.length > 6)
+      throw Exception('На товар можно добавить не больше 6 фотографий.');
     for (final photo in photos) {
       if (await photo.length() > 8 * 1024 * 1024)
         throw Exception('Фотография ${photo.name} больше 8 МБ.');
