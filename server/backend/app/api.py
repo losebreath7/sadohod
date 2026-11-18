@@ -220,7 +220,10 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
     content, crop = photo
     try:
         selected = crop_image(content, crop)
-        candidate_count = max(48, 4 * limit)
+        # Products can have up to 12 images. Fetch enough candidates before
+        # deduplicating by product; otherwise multiple angles of one listing
+        # crowd other relevant products out of the top-12 results.
+        candidate_count = max(128, min(600, 12 * limit))
         filter_category = category if category != 'Все' else None
         category_ids = category_ids_for_filter(filter_category)
         if SEARCH_BACKEND == 'clip':
