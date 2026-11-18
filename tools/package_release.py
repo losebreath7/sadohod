@@ -28,7 +28,7 @@ def build(output):
                 blocked = {'state', 'backups', 'uploads', '.git', '.pytest_cache', '__pycache__', 'mobile_demo', '.dart_tool'}
                 if (not name or path.is_absolute() or '..' in path.parts or '\\' in name
                         or blocked.intersection(path.parts) or path.suffix in {'.pyc', '.dump'}
-                        or (path.name.startswith('.env') and name != '.env.example')
+                        or (path.name.startswith('.env') and name not in {'.env.example', '.env.public.example'})
                         or path.name == 'admin-token.txt'):
                     raise ValueError(f'Invalid release member: {name}')
                 local = (ROOT / path).resolve()
