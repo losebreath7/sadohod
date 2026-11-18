@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 
 import 'api.dart';
 import 'seller_features.dart';
@@ -192,7 +193,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                   Row(
                     children: [
                       Expanded(child: Text(title,
-                          style: TextStyle(fontFamily: 'Helvetica',
+                          style: TextStyle(fontFamily: SadohodFont.family,
                             fontSize: 14, fontWeight: unread
                                 ? FontWeight.w700 : FontWeight.w500,
                             color: const Color(0xFF2C1B15)))),
@@ -205,25 +206,25 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(description,
-                      style: const TextStyle(fontFamily: 'Helvetica',
+                      style: const TextStyle(fontFamily: SadohodFont.family,
                         fontSize: 12, height: 1.42,
                         color: Color(0xFF48352D))),
                   if (note.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text('Причина: $note', style: const TextStyle(
-                      fontFamily: 'Helvetica', fontSize: 12, height: 1.42,
+                      fontFamily: SadohodFont.family, fontSize: 12, height: 1.42,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF5F0F10))),
                   ],
                   const SizedBox(height: 9),
                   Text(date(item['created_at']),
-                    style: const TextStyle(fontFamily: 'Helvetica',
+                    style: const TextStyle(fontFamily: SadohodFont.family,
                       fontSize: 10, color: Color(0xFF92908B))),
                   if (moderationStatus == 'rejected')
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text('посмотреть и исправить ›',
-                        style: TextStyle(fontFamily: 'Helvetica', fontSize: 12,
+                        style: TextStyle(fontFamily: SadohodFont.family, fontSize: 12,
                           fontWeight: FontWeight.w600, color: Color(0xFF48352D)))),
                 ],
               )),
@@ -240,7 +241,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
       Padding(
         padding: const EdgeInsets.only(top: 22, bottom: 2),
         child: Text(caption, style: const TextStyle(
-          fontFamily: 'Helvetica', fontSize: 11,
+          fontFamily: SadohodFont.family, fontSize: 11,
           color: Color(0xFF827E78), fontWeight: FontWeight.w700))),
       for (var i = 0; i < rows.length; i++) ...[
         notification(rows[i]),
@@ -265,7 +266,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
               children: [
                 if (error != null) ...[
                   const SizedBox(height: 18),
-                  Text(error!, style: const TextStyle(fontFamily: 'Helvetica',
+                  Text(error!, style: const TextStyle(fontFamily: SadohodFont.family,
                     fontSize: 13, color: Color(0xFF5F0F10))),
                   TextButton(onPressed: load, child: const Text('повторить')),
                 ],
@@ -275,12 +276,12 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
                     size: 38, color: Color(0xFF9B9790))),
                   const SizedBox(height: 18),
                   const Center(child: Text('пока нет уведомлений',
-                    style: TextStyle(fontFamily: 'Helvetica', fontSize: 15,
+                    style: TextStyle(fontFamily: SadohodFont.family, fontSize: 15,
                       fontWeight: FontWeight.w600))),
                   const SizedBox(height: 10),
                   const Center(child: Text('Решения по вашим павильонам\nи товарам появятся здесь.',
                     textAlign: TextAlign.center, style: TextStyle(
-                      fontFamily: 'Helvetica', color: Color(0xFF918F89),
+                      fontFamily: SadohodFont.family, color: Color(0xFF918F89),
                       fontSize: 12, height: 1.5))),
                 ],
                 group('НОВЫЕ', fresh),
