@@ -416,6 +416,12 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
         db.add(MerchantOperation(seller_id=seller.id, request_id=request_id, digest=fingerprint, result={'id': pid}))
     if owner.status not in ('draft', 'rejected', 'approved'):
         raise HTTPException(409, 'Товар сейчас недоступен для изменения фотографий.')
+    # Seller catalogue: at most six images after a new upload or replacement.
+    # Keep the idempotent retry lookup above this check so a successful
+    # repeated request does not fail once the product has six images.
+    current_count = len(db.get(Product, owner.product_id).images)
+    if current_count + len(files) - (1 if replace_id else 0) > 6:
+        raise HTTPException(422, 'На товар можно добавить не больше 6 фотографий.')
     replaced_filename = None
     if replace_id:
         from sqlalchemy import delete, text

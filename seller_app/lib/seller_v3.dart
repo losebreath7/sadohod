@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
@@ -17,6 +18,7 @@ import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'seller_live_camera.dart';
+import 'seller_capture_gallery.dart';
 import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
@@ -291,6 +293,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   final selected = <String>{}, destinations = <String>{};
   final controllers = <String, TextEditingController>{};
   final photos = <XFile>[];
+  final capturePhotos = <XFile>[];
+  static const maxProductPhotos = 6;
   final cameraPreviewKey = GlobalKey<SellerLiveCameraState>();
   String? draftId;
   late final ProductActions productActions = ProductActions(widget.api);
@@ -1009,6 +1013,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (next == 'capture' && !pavilions.any(isApprovedPavilion)) {
       next = requests.isNotEmpty ? 'stores' : 'address';
     }
+    if (next == 'capture' && screen != 'capture') capturePhotos.clear();
     if (next == 'address') {
       for (final key in [
         'zone',
@@ -1353,6 +1358,31 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         screen = 'pending';
       });
   });
+  void finishCapture() {
+    if (capturePhotos.isEmpty) return;
+    if (!testPreview) activeDraftKey = formKey('new');
+    product = {};
+    originalProduct = {};
+    saveSession = ProductSaveSession();
+    draftCompleted = false;
+    deletedPhotos.clear();
+    photoReplacements.clear();
+    initialPrice = '';
+    draftId = null;
+    c('title').clear();
+    c('price').clear();
+    saleModes
+      ..clear()
+      ..add('retail');
+    listingModes.clear();
+    destinations.clear();
+    photos
+      ..clear()
+      ..addAll(capturePhotos);
+    go('newProduct');
+    initialFormSnapshot = formSnapshot;
+  }
+
   Future<void> pick({bool camera = false, List<XFile>? selected}) async => run(() async {
     if (screen != 'capture' && saveSession.photoKeys.isNotEmpty) {
       throw Exception(
@@ -1365,33 +1395,31 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               .whereType<XFile>()
               .toList()
         : await picker.pickMultiImage());
-    if (chosen.isEmpty) return;
-    if (screen == 'capture') photos.clear();
-    photos.addAll(chosen);
-    if (mounted) {
-      if (screen == 'capture') {
-        if (!testPreview) activeDraftKey = formKey('new');
-        product = {};
-        originalProduct = {};
-        saveSession = ProductSaveSession();
-        draftCompleted = false;
-        deletedPhotos.clear();
-        photoReplacements.clear();
-        initialPrice = '';
-        draftId = null;
-        c('title').clear();
-        c('price').clear();
-        saleModes
-          ..clear()
-          ..add('retail');
-        listingModes.clear();
-        destinations.clear();
-        go('newProduct');
-        initialFormSnapshot = formSnapshot;
-      } else
-        setState(() {});
+    if (chosen.isEmpty || !mounted) return;
+    if (screen == 'capture') {
+      final remaining = maxProductPhotos - capturePhotos.length;
+      if (remaining <= 0) {
+        failure(Exception('На товар можно добавить не больше 6 фотографий.'));
+        return;
+      }
+      setState(() => capturePhotos.addAll(chosen.take(remaining)));
+      if (chosen.length > remaining) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Добавлено только до 6 фотографий.')),
+        );
+      }
+      return;
     }
+    final retained = rows(product['image_items'])
+        .where((item) => !deletedPhotos.contains('${item['id']}'))
+        .length;
+    if (retained + photos.length + chosen.length > maxProductPhotos) {
+      failure(Exception('На товар можно добавить не больше 6 фотографий.'));
+      return;
+    }
+    setState(() => photos.addAll(chosen));
   });
+
   void removePhoto(int index, int existingCount) {
     if (busy) return;
     if (saveSession.photoKeys.isNotEmpty) {
@@ -3625,13 +3653,94 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               height: 70 * scaleY,
               child: tap(
                 const SizedBox.expand(),
-                () => testPreview
-                    ? pick(camera: true)
-                    : cameraPreviewKey.currentState?.capture(),
+                () {
+                  if (capturePhotos.length >= maxProductPhotos) return;
+                  if (testPreview) {
+                    pick(camera: true);
+                  } else {
+                    cameraPreviewKey.currentState?.capture();
+                  }
+                },
                 name: 'Снять фото',
               ),
             ),
-            Positioned(
+            if (capturePhotos.length >= maxProductPhotos)
+              Positioned(
+                left: 171 * scaleX,
+                top: 491 * scaleY,
+                width: 48 * scaleX,
+                height: 48 * scaleY,
+                child: const IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x88000000),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            if (capturePhotos.isNotEmpty) ...[
+              Positioned(
+                left: 35 * scaleX,
+                top: 488 * scaleY,
+                width: 57 * scaleX,
+                height: 57 * scaleY,
+                child: tap(
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FutureBuilder<Uint8List>(
+                          future: capturePhotos.last.readAsBytes(),
+                          builder: (context, snapshot) => snapshot.hasData
+                              ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                              : const ColoredBox(color: Color(0xFF888888)),
+                        ),
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: label('${capturePhotos.length}/6', 10,
+                                bold: true, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  () => showSellerCaptureGallery(
+                    context: context,
+                    photos: capturePhotos,
+                    onRemove: (photo) => setState(() => capturePhotos.remove(photo)),
+                  ),
+                  name: 'Просмотр фотографий',
+                ),
+              ),
+              Positioned(
+                right: 18 * scaleX,
+                top: 494 * scaleY,
+                width: 75 * scaleX,
+                height: 45 * scaleY,
+                child: tap(
+                  Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: label('далее', 13, bold: true, color: Colors.white),
+                  ),
+                  finishCapture,
+                  name: 'Перейти к карточке товара',
+                ),
+              ),
+            ],
+                        Positioned(
               left: 122 * scaleX,
               top: 552 * scaleY,
               width: 146 * scaleX,
@@ -3848,6 +3957,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
+                    if (urls.length + photos.length < maxProductPhotos)
                     SizedBox(
                       width: width,
                       height: width,
