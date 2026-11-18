@@ -1133,16 +1133,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           : home;
     });
     if (index == 2) refreshUnreadNotifications();
-    if (index == 1 && pavilions.isNotEmpty && !testPreview) {
-      setState(() => busy = true);
-      try {
-        await restoreDraft('new');
-      } catch (error) {
-        draftFailure(error);
-      } finally {
-        if (mounted) setState(() => busy = false);
-      }
-    }
+    // The camera tab always opens the live viewfinder. A saved draft must not
+    // replace the camera screen without an explicit user action.
   }
 
   void failure(Object error) {
