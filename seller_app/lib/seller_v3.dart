@@ -3615,6 +3615,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   : SellerLiveCamera(
                       key: cameraPreviewKey,
                       onCaptured: (image) => pick(selected: [image]),
+                      onFallback: () => pick(camera: true),
                     ),
             ),
             Positioned(
