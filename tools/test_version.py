@@ -37,11 +37,11 @@ class ReleaseEnvSecurityChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / 'tools').mkdir()
-            (root / 'tools/release_files.txt').write_text('\\n'.join(names) + '\\n', encoding='utf-8')
+            (root / 'tools/release_files.txt').write_text('\n'.join(names) + '\n', encoding='utf-8')
             for name in names:
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text('TEMPLATE_ONLY=1\\n', encoding='utf-8')
+                target.write_text('TEMPLATE_ONLY=1\n', encoding='utf-8')
             output = root / 'release.zip'
             with patch.object(package_release, 'ROOT', root):
                 package_release.build(output)
