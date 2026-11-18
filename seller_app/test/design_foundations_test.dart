@@ -4,8 +4,8 @@ import 'package:sadohod_shared_core/design_tokens.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('Helvetica is shared and app colour identities stay distinct', () {
-    expect(SadohodFont.family, 'packages/sadohod_shared_core/Helvetica');
+  test('Manrope is shared and app colour identities stay distinct', () {
+    expect(SadohodFont.family, 'packages/sadohod_shared_core/Manrope');
     expect(SadohodThemePalette.buyer.background, BuyerColors.paper);
     expect(SadohodThemePalette.seller.background, SellerColors.background);
     expect(SadohodThemePalette.buyer.background,
@@ -14,12 +14,15 @@ void main() {
     expect(SadohodThemePalette.seller.accent, SellerColors.burgundy);
   });
 
-  test('all four Helvetica font resources load from shared package', () async {
+  test('all seven Manrope font resources load from shared package', () async {
     const fonts = <String, int>{
-      'Helvetica.ttf': 300000,
-      'Helvetica-Bold.ttf': 300000,
-      'Helvetica-Oblique.ttf': 500000,
-      'Helvetica-BoldOblique.ttf': 250000,
+      'Manrope-ExtraLight.ttf': 90000,
+      'Manrope-Light.ttf': 90000,
+      'Manrope-Regular.ttf': 90000,
+      'Manrope-Medium.ttf': 90000,
+      'Manrope-SemiBold.ttf': 90000,
+      'Manrope-Bold.ttf': 90000,
+      'Manrope-ExtraBold.ttf': 90000,
     };
     for (final file in fonts.entries) {
       final bytes = await rootBundle.load(
@@ -29,7 +32,7 @@ void main() {
     }
   });
 
-  test('bundled Helvetica family is consistent across all product text roles', () {
+  test('bundled Manrope family is consistent across all product text roles', () {
     for (final style in [
       BuyerProductType.catalogAddress,
       BuyerProductType.catalogTitle,
@@ -54,7 +57,7 @@ void main() {
     expect(SadohodMotion.standard, lessThan(SadohodMotion.deliberate));
   });
 
-  test('R19 Helvetica product roles are consistent across both applications', () {
+  test('R19 Manrope product roles are consistent across both applications', () {
     for (final style in [
       BuyerProductType.catalogAddress,
       BuyerProductType.catalogPrice,
