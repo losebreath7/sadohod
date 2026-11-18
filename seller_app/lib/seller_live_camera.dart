@@ -1,12 +1,22 @@
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Live viewfinder for the seller's existing Figma capture screen.
-/// The shutter and gallery controls remain in seller_v3.dart.
+/// Seller viewfinder. Camera lifecycle operations are serialized across
+/// widget instances, so reopening the tab cannot race a previous dispose.
 class SellerLiveCamera extends StatefulWidget {
-  const SellerLiveCamera({super.key, required this.onCaptured});
+  const SellerLiveCamera({
+    super.key,
+    required this.onCaptured,
+    required this.onFallback,
+  });
 
   final ValueChanged<XFile> onCaptured;
+  final VoidCallback onFallback;
+
+  // A camera may still be releasing when the seller returns to this screen.
+  // Serialize release/initialization even if the previous widget is gone.
+  static Future<void> _cameraQueue = Future<void>.value();
 
   @override
   SellerLiveCameraState createState() => SellerLiveCameraState();
@@ -16,6 +26,7 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
     with WidgetsBindingObserver {
   CameraController? _controller;
   bool _takingPhoto = false;
+  bool _starting = false;
   String? _error;
   int _generation = 0;
 
@@ -26,66 +37,91 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
     _start();
   }
 
+  void _release() {
+    ++_generation;
+    final old = _controller;
+    _controller = null;
+    if (old == null) return;
+    SellerLiveCamera._cameraQueue = SellerLiveCamera._cameraQueue
+        .catchError((Object _) {})
+        .then((_) => old.dispose());
+  }
+
   Future<void> _start() async {
+    if (!mounted || _starting || _controller != null) return;
     final generation = ++_generation;
+    _starting = true;
+    if (kIsWeb && Uri.base.scheme != 'https' &&
+        Uri.base.host != 'localhost' && Uri.base.host != '127.0.0.1') {
+      setState(() => _error = 'Для камеры в браузере нужен HTTPS');
+      _starting = false;
+      return;
+    }
     try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        throw CameraException('no_camera', 'Камера на устройстве не найдена');
-      }
-      final rear = cameras.where(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-      final selected = rear.isNotEmpty ? rear.first : cameras.first;
-      final controller = CameraController(
-        selected,
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
-      );
-      await controller.initialize();
-      if (!mounted || generation != _generation) {
-        await controller.dispose();
-        return;
-      }
-      final old = _controller;
-      setState(() {
-        _controller = controller;
-        _error = null;
+      final task = SellerLiveCamera._cameraQueue
+          .catchError((Object _) {})
+          .then((_) async {
+        if (!mounted || generation != _generation) return;
+        final cameras = await availableCameras();
+        if (cameras.isEmpty) {
+          throw CameraException('no_camera', 'No camera available');
+        }
+        final rear = cameras.where(
+          (camera) => camera.lensDirection == CameraLensDirection.back,
+        );
+        final selected = rear.isNotEmpty ? rear.first : cameras.first;
+        // Match the buyer camera configuration, which works on this device.
+        final next = CameraController(
+          selected,
+          ResolutionPreset.medium,
+          enableAudio: false,
+        );
+        try {
+          await next.initialize();
+        } catch (_) {
+          await next.dispose();
+          rethrow;
+        }
+        if (!mounted || generation != _generation) {
+          await next.dispose();
+          return;
+        }
+        setState(() {
+          _controller = next;
+          _error = null;
+        });
       });
-      await old?.dispose();
+      SellerLiveCamera._cameraQueue = task;
+      await task;
     } on CameraException catch (error) {
       if (!mounted || generation != _generation) return;
-      setState(() {
-        _error = error.code == 'CameraAccessDenied' ||
-                error.code == 'CameraAccessDeniedWithoutPrompt' ||
-                error.code == 'CameraAccessRestricted'
-            ? 'Разрешите доступ к камере в настройках устройства'
-            : 'Не удалось открыть камеру';
-      });
+      setState(() => _error = error.code == 'CameraAccessDenied' ||
+              error.code == 'CameraAccessDeniedWithoutPrompt' ||
+              error.code == 'CameraAccessRestricted'
+          ? 'Разрешите доступ к камере в настройках устройства'
+          : 'Не удалось открыть камеру');
     } catch (_) {
       if (mounted && generation == _generation) {
-        setState(() => _error = 'Камера недоступна на этом устройстве');
+        setState(() => _error = 'Не удалось открыть камеру');
       }
+    } finally {
+      _starting = false;
     }
   }
 
   Future<void> capture() async {
     final controller = _controller;
-    if (_takingPhoto || controller == null || !controller.value.isInitialized ||
-        controller.value.isTakingPicture) {
+    if (controller == null || !controller.value.isInitialized) {
+      widget.onFallback();
       return;
     }
+    if (_takingPhoto || controller.value.isTakingPicture) return;
     _takingPhoto = true;
     try {
       final photo = await controller.takePicture();
       if (mounted) widget.onCaptured(photo);
-    } on CameraException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось сделать снимок. Попробуйте ещё раз.')),
-        );
-      }
+    } catch (_) {
+      if (mounted) widget.onFallback();
     } finally {
       _takingPhoto = false;
     }
@@ -95,20 +131,16 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      ++_generation;
-      final controller = _controller;
-      _controller = null;
-      controller?.dispose();
-    } else if (state == AppLifecycleState.resumed && _controller == null) {
+      _release();
+    } else if (state == AppLifecycleState.resumed) {
       _start();
     }
   }
 
   @override
   void dispose() {
-    ++_generation;
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    _release();
     super.dispose();
   }
 
@@ -120,21 +152,7 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
       child: ColoredBox(
         color: Colors.black,
         child: controller != null && controller.value.isInitialized
-            ? LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = controller.value.previewSize!;
-                  return ClipRect(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: size.height,
-                        height: size.width,
-                        child: CameraPreview(controller),
-                      ),
-                    ),
-                  );
-                },
-              )
+            ? CameraPreview(controller)
             : Center(
                 child: _error == null
                     ? const CircularProgressIndicator(color: Colors.white)
