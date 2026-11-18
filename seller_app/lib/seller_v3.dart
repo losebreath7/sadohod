@@ -3664,6 +3664,21 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 name: 'Снять фото',
               ),
             ),
+            if (capturePhotos.length >= maxProductPhotos)
+              Positioned(
+                left: 171 * scaleX,
+                top: 491 * scaleY,
+                width: 48 * scaleX,
+                height: 48 * scaleY,
+                child: const IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x88000000),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
             if (capturePhotos.isNotEmpty) ...[
               Positioned(
                 left: 35 * scaleX,
