@@ -3605,7 +3605,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               left: 10 * scaleX,
               right: 10 * scaleX,
               top: 18 * scaleY,
-              bottom: 130 * scaleY,
+              // The black camera frame extends below the shutter. The previous
+              // 130px inset stopped the live feed above it, leaving a black band.
+              bottom: 60 * scaleY,
               child: testPreview
                   ? tap(
                       const SizedBox.expand(),
