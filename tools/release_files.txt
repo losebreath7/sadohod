@@ -397,7 +397,6 @@ seller_app/ios/.gitignore
 seller_app/ios/Flutter/AppFrameworkInfo.plist
 seller_app/ios/Flutter/Debug.xcconfig
 seller_app/ios/Flutter/Release.xcconfig
-seller_app/ios/Podfile
 seller_app/ios/Runner.xcodeproj/project.pbxproj
 seller_app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 seller_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
