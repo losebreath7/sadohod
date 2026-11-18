@@ -3942,6 +3942,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
+                    if (urls.length + photos.length < maxProductPhotos)
                     SizedBox(
                       width: width,
                       height: width,
