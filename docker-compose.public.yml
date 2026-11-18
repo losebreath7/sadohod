@@ -14,7 +14,10 @@ services:
       SEARCH_BACKEND: clip
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       PHOTO_SEARCH_MIN_SCORE: ${PHOTO_SEARCH_MIN_SCORE:-0.20}
-      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      # Caddy normalizes X-Forwarded-For; API must see the real client IP
+      # or all buyers share one 20-requests/minute photo-search rate limit.
+      # Never expose api:8000 publicly while this is enabled.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - sadohod_ml_cache:/root/.cache
   https:
