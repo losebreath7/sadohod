@@ -1,4 +1,5 @@
 .env.example
+.env.public.example
 .gitignore
 buyer_app/.gitignore
 buyer_app/.metadata
@@ -154,6 +155,7 @@ buyer_app/web/manifest.json
 docker-compose.first.yml
 docker-compose.https.yml
 docker-compose.ml.yml
+docker-compose.public.yml
 docker-compose.update.yml
 docker-compose.yml
 docs/AUTO_REPLIES_R6.md
@@ -162,6 +164,7 @@ docs/DESIGN_SYSTEM_R18.md
 docs/MIGRATIONS_R4.md
 docs/MODERATION_WORKSPACE.md
 docs/PAVILION_FLOW_R7.md
+docs/PUBLIC_STAGING_R23.md
 docs/R7_CHAT_AND_PG_PATCH.md
 docs/R8_CHAT_LAYOUT_POLISH.md
 docs/R8_UNIFIED_CHATS.md
@@ -299,6 +302,7 @@ docs/SOURCES.md
 docs/VERIFICATION.md
 docs/VERSIONS_R5.md
 https/Caddyfile
+https/Caddyfile.public
 README.md
 RELEASE.json
 seller_app/analysis_options.yaml
@@ -614,6 +618,7 @@ shared/flutter_core/lib/product_photo.dart
 shared/flutter_core/pubspec.yaml
 START_ML_SEARCH.bat
 tools/check.ps1
+tools/backup_public.sh
 tools/compose.qa.yml
 tools/gate.ps1
 tools/package_release.py
