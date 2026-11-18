@@ -18,7 +18,7 @@
 
 ## Android: Windows / Android Studio
 
-Нужны установленный Flutter SDK (Dart >= 3.10), Android SDK, JDK 17,
+Нужны Flutter SDK 3.50.0 (как в CI), Android SDK, JDK 17,
 доступный Android-эмулятор или телефон с USB-отладкой. Запускайте в
 корневой папке `seller_app`:
 
@@ -60,7 +60,7 @@ flutter build appbundle --release --dart-define=API_BASE_URL=https://YOUR-API-DO
 ## iOS: macOS + Xcode
 
 Исходники Xcode-проекта находятся в `ios/Runner.xcodeproj`.
-Для сборки необходимы macOS, Xcode и Flutter SDK. Зависимости плагинов подключаются через Swift Package Manager (Flutter 3.50+), без CocoaPods.
+Для сборки необходимы macOS, Xcode и Flutter SDK 3.50.0. Зависимости плагинов подключаются через Swift Package Manager (Flutter 3.50+), без CocoaPods.
 
 ```sh
 cd seller_app
