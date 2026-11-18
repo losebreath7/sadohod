@@ -12,3 +12,9 @@ FEATURE_DIM = 96
 SEARCH_BACKEND = os.environ.get("SEARCH_BACKEND", "classic").lower()
 if SEARCH_BACKEND not in ("classic", "clip"):
     raise RuntimeError("SEARCH_BACKEND должен быть classic или clip")
+
+# Conservative starting point, not a calibrated probability. Measure on real photos
+# before production rollout. Applies only to OpenCLIP image-image retrieval.
+PHOTO_SEARCH_MIN_SCORE = float(os.environ.get("PHOTO_SEARCH_MIN_SCORE", "0.20"))
+if not -1.0 <= PHOTO_SEARCH_MIN_SCORE <= 1.0:
+    raise RuntimeError("PHOTO_SEARCH_MIN_SCORE должен быть между -1 и 1")
