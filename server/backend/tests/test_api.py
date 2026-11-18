@@ -97,3 +97,44 @@ def test_search_quota_precedes_body_parsing(client, monkeypatch):
     monkeypatch.setattr(api, 'rate_limit', exhausted)
     response = client.post('/api/v1/search/image', content=b'')
     assert response.status_code == 429 and response.headers['retry-after'] == '4'
+
+
+def test_ml_weak_neighbours_do_not_fill_results(monkeypatch, client):
+    """The photo UI must show an empty state, not arbitrary low-score products."""
+    from backend.app import api, ml_index
+    monkeypatch.setattr(api, 'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(api, 'PHOTO_SEARCH_MIN_SCORE', 0.25)
+    monkeypatch.setattr(
+        ml_index, 'nearest_ml_images',
+        lambda session, data, limit, category=None, category_ids=None:
+            [('i-p02', 0.24), ('i-p01', 0.10)])
+    response = client.post(
+        '/api/v1/search/image',
+        files={'file': ('query.jpg', (MEDIA / 'p02.jpg').read_bytes(), 'image/jpeg')})
+    assert response.status_code == 200
+    assert response.json()['items'] == []
+    assert response.json()['min_score'] == 0.25
+
+    # Explicit stricter client filter still works; a weaker filter cannot
+    # disable the server-side quality floor.
+    for value, expected in [('-1', 0.25), ('0.7', 0.7)]:
+        result = client.post(
+            '/api/v1/search/image?min_score=' + value,
+            files={'file': ('query.jpg', (MEDIA / 'p02.jpg').read_bytes(), 'image/jpeg')})
+        assert result.status_code == 200
+        assert result.json()['min_score'] == expected
+
+
+def test_ml_strong_neighbour_survives_default_quality_floor(monkeypatch, client):
+    from backend.app import api, ml_index
+    monkeypatch.setattr(api, 'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(api, 'PHOTO_SEARCH_MIN_SCORE', 0.25)
+    monkeypatch.setattr(
+        ml_index, 'nearest_ml_images',
+        lambda session, data, limit, category=None, category_ids=None:
+            [('i-p02', 0.76), ('i-p01', 0.21)])
+    result = client.post(
+        '/api/v1/search/image',
+        files={'file': ('query.jpg', (MEDIA / 'p02.jpg').read_bytes(), 'image/jpeg')})
+    assert result.status_code == 200
+    assert [item['product']['id'] for item in result.json()['items']] == ['p02']

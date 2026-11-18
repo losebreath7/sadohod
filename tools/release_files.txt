@@ -165,6 +165,7 @@ docs/DESIGN_SYSTEM_R18.md
 docs/MIGRATIONS_R4.md
 docs/MODERATION_WORKSPACE.md
 docs/PAVILION_FLOW_R7.md
+docs/PHOTO_SEARCH_R23.md
 docs/R7_CHAT_AND_PG_PATCH.md
 docs/R8_CHAT_LAYOUT_POLISH.md
 docs/R8_UNIFIED_CHATS.md
@@ -547,6 +548,7 @@ server/backend/tests/test_merchant_v080.py
 server/backend/tests/test_migration_graph.py
 server/backend/tests/test_migrations.py
 server/backend/tests/test_ml_index.py
+server/backend/tests/test_photo_search_benchmark.py
 server/backend/tests/test_moderation_workspace.py
 server/backend/tests/test_pavilion_resubmission.py
 server/backend/tests/test_postgres_migrations.py
@@ -565,6 +567,7 @@ server/backend/tests/test_v04.py
 server/backend/tools/__init__.py
 server/backend/tools/admin_access.py
 server/backend/tools/evaluate_photos.py
+server/backend/tools/evaluate_photo_search_live.py
 server/backend/tools/evaluate_search.py
 server/demo_data/CLOTHING_DATASET_LICENSE.txt
 server/demo_data/photo_catalog.json

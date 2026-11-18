@@ -2,7 +2,7 @@ from sqlalchemy import select, text, or_, bindparam
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
-from .models import ProductImage, ProductDetails, Product, ImageMLEmbedding
+from .models import ProductImage, ProductDetails, Product, ImageMLEmbedding, Offer
 from .merchant_models import ProductCategoryAssignment
 from .image_features import descriptor_from_bytes, similarity
 
@@ -42,6 +42,7 @@ def ranked_images(session, query, limit, category=None, model_id=None, category_
                 JOIN products p ON p.id = i.product_id
                 WHERE NOT EXISTS (SELECT 1 FROM product_details d
                                   WHERE d.product_id = p.id AND d.active = false)
+                  AND EXISTS (SELECT 1 FROM offers o WHERE o.product_id = p.id)
                       {model_filter} {category_filter}
                 ORDER BY {distance}
                 LIMIT :limit
@@ -60,7 +61,8 @@ def ranked_images(session, query, limit, category=None, model_id=None, category_
     stmt = select(ProductImage.id, vector).select_from(ProductImage).join(
         Product, Product.id == ProductImage.product_id).where(
             ~select(ProductDetails.product_id).where(
-                ProductDetails.product_id == Product.id, ProductDetails.active.is_(False)).exists())
+                ProductDetails.product_id == Product.id, ProductDetails.active.is_(False)).exists(),
+            select(Offer.id).where(Offer.product_id == Product.id).exists())
     if model_id:
         stmt = stmt.join(ImageMLEmbedding, ImageMLEmbedding.image_id == ProductImage.id).where(
             ImageMLEmbedding.model_id == model_id)
