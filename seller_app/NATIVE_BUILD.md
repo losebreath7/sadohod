@@ -60,12 +60,11 @@ flutter build appbundle --release --dart-define=API_BASE_URL=https://YOUR-API-DO
 ## iOS: macOS + Xcode
 
 Исходники Xcode-проекта находятся в `ios/Runner.xcodeproj`.
-Для сборки необходимы macOS, Xcode, CocoaPods и Flutter SDK.
+Для сборки необходимы macOS, Xcode и Flutter SDK. Зависимости плагинов подключаются через Swift Package Manager (Flutter 3.50+), без CocoaPods.
 
 ```sh
 cd seller_app
 flutter pub get
-cd ios && pod install && cd ..
 flutter build ios --simulator --no-codesign --dart-define=API_BASE_URL=https://YOUR-API-DOMAIN
 ```
 
