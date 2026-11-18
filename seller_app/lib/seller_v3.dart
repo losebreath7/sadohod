@@ -2120,7 +2120,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                             decoration: const BoxDecoration(color: Color(0xFF5F0F10),
                               borderRadius: BorderRadius.all(Radius.circular(10))),
                             child: Text(unreadNotifications > 99 ? '99+' : '$unreadNotifications',
-                              style: const TextStyle(fontFamily: 'Helvetica',
+                              style: const TextStyle(fontFamily: SadohodFont.family,
                                 fontSize: 8, fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                           ),

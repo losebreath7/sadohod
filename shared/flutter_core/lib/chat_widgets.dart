@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'design_tokens.dart';
 
 /// Shared presentation for all four Sadohod chats. The account API, message
 /// polling and Telegram routing remain independent in the two applications.
@@ -49,7 +50,7 @@ class SadohodChatHeader extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                fontFamily: 'Helvetica', fontSize: 16,
+                fontFamily: SadohodFont.family, fontSize: 16,
                 fontWeight: FontWeight.w700, color: Colors.black,
               ),
             ),
@@ -145,17 +146,17 @@ class SadohodChatComposer extends StatelessWidget {
                   maxLines: 5,
                   textAlignVertical: TextAlignVertical.center,
                   strutStyle: const StrutStyle(
-                    fontFamily: 'Helvetica', fontSize: 14,
+                    fontFamily: SadohodFont.family, fontSize: 14,
                     height: 20 / 14, forceStrutHeight: true,
                   ),
                   style: const TextStyle(
-                    fontFamily: 'Helvetica', fontSize: 14,
+                    fontFamily: SadohodFont.family, fontSize: 14,
                     height: 20 / 14, color: Colors.black,
                   ),
                   decoration: const InputDecoration(
                     hintText: 'сообщение',
                     hintStyle: TextStyle(
-                      fontFamily: 'Helvetica', fontSize: 14,
+                      fontFamily: SadohodFont.family, fontSize: 14,
                       color: Color(0xFFA5A5A5), height: 20 / 14,
                     ),
                     isDense: true,
@@ -319,7 +320,7 @@ class SadohodChatBubble extends StatelessWidget {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontFamily: 'Helvetica', fontSize: 14,
+        style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14,
           height: 18 / 14),
       ),
       textDirection: TextDirection.ltr,
@@ -335,7 +336,7 @@ class SadohodChatBubble extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.end,
     children: [
       Text(displayTime,
-        style: const TextStyle(fontFamily: 'Helvetica', fontSize: 10,
+        style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 10,
           height: 1.2, color: Color(0xFF929292))),
       if (mine) ...[
         const SizedBox(width: 4),
@@ -375,7 +376,7 @@ class SadohodChatBubble extends StatelessWidget {
           width: 27, height: 28);
 
         const messageStyle = TextStyle(
-          fontFamily: 'Helvetica', fontSize: 14,
+          fontFamily: SadohodFont.family, fontSize: 14,
           height: 18 / 14, color: Colors.black,
         );
 

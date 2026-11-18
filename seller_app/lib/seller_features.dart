@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'api.dart';
 
 const sellerBeige = Color(0xFFF0EFEB);
@@ -19,7 +20,7 @@ class SellerPage extends StatelessWidget {
         const SizedBox.expand(),
         Positioned(left: 30, right: 30, bottom: 15,
           child: Text(title, textAlign: TextAlign.center, style: const TextStyle(
-            fontFamily: 'Helvetica', fontSize: 16, fontWeight: FontWeight.w700))),
+            fontFamily: SadohodFont.family, fontSize: 16, fontWeight: FontWeight.w700))),
         Positioned(left: 18, bottom: 3, width: 42, height: 42,
           child: Builder(builder: (ctx) => IconButton(
             padding: EdgeInsets.zero, onPressed: () => Navigator.maybePop(ctx),
@@ -63,7 +64,7 @@ class _SellerProfileSetupState extends State<SellerProfileSetup> {
       final scale = (constraints.maxWidth / 390).clamp(.1, 1.3).toDouble();
       Widget at(double x, double y, double w, Widget child, {double? h}) =>
         Positioned(left: x, top: y, width: w, height: h, child: child);
-      const textStyle = TextStyle(fontFamily: 'Helvetica', fontSize: 13, color: Color(0xFFA5A5A5));
+      const textStyle = TextStyle(fontFamily: SadohodFont.family, fontSize: 13, color: Color(0xFFA5A5A5));
       return SingleChildScrollView(child: Align(alignment: Alignment.topCenter,
         child: SizedBox(width: 390 * scale, height: 700 * scale,
           child: Transform.scale(scale: scale, alignment: Alignment.topLeft,
@@ -71,11 +72,11 @@ class _SellerProfileSetupState extends State<SellerProfileSetup> {
               at(0, 0, 390, Container(height: 100, decoration: const BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.vertical(bottom: Radius.circular(20))))),
               at(30, 67, 330, const Text('создать профиль', textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'Helvetica', fontWeight: FontWeight.w700, fontSize: 16))),
+                style: TextStyle(fontFamily: SadohodFont.family, fontWeight: FontWeight.w700, fontSize: 16))),
               at(18, 53, 42, IconButton(onPressed: () => Navigator.maybePop(context),
                 icon: const Text('‹', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700)))),
               at(30, 153, 330, const Text('как к вам обращаться?',
-                style: TextStyle(fontFamily: 'Helvetica', fontWeight: FontWeight.w700, fontSize: 20))),
+                style: TextStyle(fontFamily: SadohodFont.family, fontWeight: FontWeight.w700, fontSize: 20))),
               at(30, 190, 330, const Text('Это имя будет отображаться в вашем профиле.', style: textStyle)),
               at(30, 254, 330, sellerInput('имя', name), h: 60),
               at(30, 345, 330, sellerButton(busy ? 'сохраняем…' : 'продолжить', busy ? null : save), h: 48),

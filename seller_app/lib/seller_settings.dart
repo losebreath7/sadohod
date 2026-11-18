@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 
 import 'api.dart';
@@ -189,7 +190,7 @@ class SellerSettingsInfoPage extends StatelessWidget {
             ? 'Садоход · ${SadohodBuild.label}\n\nПриложение для продавцов рынка Садовод.'
             : 'Документ готовится к публикации перед публичным запуском приложения.',
         style: const TextStyle(
-          fontFamily: 'Helvetica',
+          fontFamily: SadohodFont.family,
           fontSize: 14,
           color: Color(0xFF2C1B15),
           height: 1.5,
@@ -248,7 +249,7 @@ class _SettingsTile extends StatelessWidget {
             child: Text(
               name,
               style: const TextStyle(
-                fontFamily: 'Helvetica',
+                fontFamily: SadohodFont.family,
                 color: Color(0xFF2C1B15),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -259,7 +260,7 @@ class _SettingsTile extends StatelessWidget {
             Text(
               value!,
               style: const TextStyle(
-                fontFamily: 'Helvetica',
+                fontFamily: SadohodFont.family,
                 fontSize: 12,
                 color: Color(0xFF7B6F68),
               ),

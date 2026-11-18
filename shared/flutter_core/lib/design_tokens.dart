@@ -7,10 +7,9 @@ import 'package:flutter/material.dart';
 /// replace every special-case Figma measurement at once.
 abstract final class SadohodFont {
   // Flutter prefixes font families exported from package pubspec manifests.
-  // This resolves to the bundled files even when Helvetica is not installed.
-  static const family = 'packages/sadohod_shared_core/Helvetica';
-  // The supplied Helvetica fonts do not contain U+20BD (the ruble sign).
-  // Keep OS fallback only for missing glyphs, not for normal body text.
+  // Both Flutter apps use the same bundled Manrope family, including U+20BD (₽).
+  static const family = 'packages/sadohod_shared_core/Manrope';
+  // Fallback is only for glyphs missing from Manrope; ₽ is in Manrope itself.
   static const fallback = <String>['Arial', 'Roboto'];
 
   static const caption = 12.0;
@@ -26,7 +25,7 @@ abstract final class SadohodFont {
   static const lineHeightBody = 1.45;
 }
 
-/// Semantic typography. Shared geometry and Helvetica, separate theme colours.
+/// Semantic typography. Shared geometry and Manrope, separate theme colours.
 /// Use these styles for product information instead of page-local font sizes.
 abstract final class BuyerProductType {
   static const catalogAddress = TextStyle(

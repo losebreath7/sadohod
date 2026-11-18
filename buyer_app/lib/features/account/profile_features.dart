@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +31,7 @@ class _BuyerAdaptiveChatHeader extends StatelessWidget {
         14, header.contentTop, 14, BuyerHeaderLayout.gap),
       child: Stack(children: [
         Center(child: Text(title, style: const TextStyle(
-          fontFamily: 'Helvetica', fontSize: 16, fontWeight: FontWeight.w700,
+          fontFamily: SadohodFont.family, fontSize: 16, fontWeight: FontWeight.w700,
           color: Colors.black,
         ))),
         Align(

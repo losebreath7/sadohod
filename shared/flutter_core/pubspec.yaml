@@ -10,18 +10,22 @@ dependencies:
   flutter_svg: ^2.2.0
   shared_preferences: ^2.5.0
 
-# Fonts are bundled once in the shared package and reused by both clients.
+# Shared font for both apps, bundled for offline usage (SIL OFL 1.1).
 flutter:
   fonts:
-    - family: Helvetica
+    - family: Manrope
       fonts:
-        - asset: assets/fonts/Helvetica.ttf
+        - asset: assets/fonts/Manrope-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Manrope-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Manrope-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Helvetica-Bold.ttf
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Helvetica-Oblique.ttf
-          weight: 400
-          style: italic
-        - asset: assets/fonts/Helvetica-BoldOblique.ttf
-          weight: 700
-          style: italic
+        - asset: assets/fonts/Manrope-ExtraBold.ttf
+          weight: 800
