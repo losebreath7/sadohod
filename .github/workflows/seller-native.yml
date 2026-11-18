@@ -1,0 +1,77 @@
+name: seller native smoke
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'seller_app/**'
+      - 'shared/flutter_core/**'
+      - '.github/workflows/seller-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android APK (debug, no release signing)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: seller_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+          cache: true
+      - name: Flutter toolchain
+        run: flutter --version
+      - name: Dependencies
+        run: flutter pub get
+      - name: Record resolved Flutter dependencies for version-controlled lockfile
+        run: |
+          echo 'SELLER_LOCK_BASE64_BEGIN'
+          base64 -w0 pubspec.lock
+          echo
+          echo 'SELLER_LOCK_BASE64_END'
+      - name: Build Android APK using committed native project
+        run: flutter build apk --debug --dart-define=API_BASE_URL=https://example.invalid
+      - name: Save debug APK (network endpoint is a placeholder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-android-debug-apk
+          path: seller_app/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 5
+
+  ios:
+    name: iOS simulator (unsigned)
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: seller_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+          cache: true
+      - name: Toolchains
+        run: |
+          flutter --version
+          xcodebuild -version
+          pod --version
+      - name: Dependencies
+        run: flutter pub get
+      - name: Validate iOS app metadata
+        run: plutil -lint ios/Runner/Info.plist ios/Flutter/AppFrameworkInfo.plist
+      - name: Build iOS simulator without signing
+        run: flutter build ios --simulator --no-codesign --dart-define=API_BASE_URL=https://example.invalid

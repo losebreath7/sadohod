@@ -107,15 +107,13 @@ class _SellerTelegramChatState extends State<SellerTelegramChat> {
   Future<void> _pickAttachment() async {
     if (_busy) return;
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt'],
-        withData: true,
       );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.single;
-      final bytes = file.bytes;
-      if (bytes == null || bytes.isEmpty || bytes.length > 3000000) {
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty || bytes.length > 3000000) {
         throw const FormatException('Файл должен быть меньше 3 МБ');
       }
       setState(() { _busy = true; _error = null; });
