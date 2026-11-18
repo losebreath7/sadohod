@@ -106,6 +106,13 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
       }
     } finally {
       _starting = false;
+      // Permission dialogs may send inactive -> resumed while initialization
+      // is pending. Retry after stale initialization completes.
+      if (mounted && generation != _generation &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+          _controller == null) {
+        _start();
+      }
     }
   }
 
