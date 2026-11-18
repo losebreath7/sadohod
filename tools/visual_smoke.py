@@ -4,6 +4,7 @@ This tests a STATIC preview served from the CI artifact, not the user's live
 PostgreSQL/API and not a substitute for manual interaction testing.
 """
 import argparse
+import json
 import asyncio
 from pathlib import Path
 import subprocess
@@ -13,6 +14,38 @@ import urllib.request
 
 from playwright.async_api import async_playwright
 from PIL import Image, ImageChops
+
+
+def verify_manrope_bundle(build):
+    """Check the actual compiled web output, not just pubspec declarations.
+
+    This guards against a missing package font, absent font weight or a stale
+    release build which quietly falls back to a system typeface in Chrome.
+    """
+    manifest_path = build / 'assets' / 'FontManifest.json'
+    if not manifest_path.is_file():
+        raise RuntimeError(f'Flutter font manifest missing: {manifest_path}')
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    families = [item for item in manifest
+                if item.get('family') == 'packages/sadohod_shared_core/Manrope']
+    if len(families) != 1:
+        raise RuntimeError('Web build has no unique shared Manrope font family')
+    expected = {
+        200: 'Manrope-ExtraLight.ttf', 300: 'Manrope-Light.ttf',
+        400: 'Manrope-Regular.ttf', 500: 'Manrope-Medium.ttf',
+        600: 'Manrope-SemiBold.ttf', 700: 'Manrope-Bold.ttf',
+        800: 'Manrope-ExtraBold.ttf',
+    }
+    fonts = families[0].get('fonts', [])
+    actual = {int(row.get('weight', 400)): row.get('asset') for row in fonts}
+    for weight, name in expected.items():
+        asset = f'packages/sadohod_shared_core/assets/fonts/{name}'
+        if actual.get(weight) != asset:
+            raise RuntimeError(f'Manrope {weight} missing or mapped incorrectly: {actual}')
+        file = build / 'assets' / asset
+        if not file.is_file() or file.stat().st_size < 90000:
+            raise RuntimeError(f'Manrope font not bundled: {file}')
+    print('Manrope font manifest: 7 weights, all TTF assets present')
 
 
 def cases(app):
@@ -68,6 +101,13 @@ async def capture(app, port, output):
                 page = await context.new_page()
                 errors = []
                 page.on('pageerror', lambda exc: errors.append(str(exc)[:250]))
+                # Observe real TTF HTTP responses while Flutter draws the page.
+                # Having a FontManifest alone does not prove the browser loaded it.
+                font_responses = []
+                def record_font(response):
+                    if 'Manrope-' in response.url and '.ttf' in response.url:
+                        font_responses.append((response.status, response.url.rsplit('/', 1)[-1]))
+                page.on('response', record_font)
                 try:
                     # For saved products exercise the actual Flutter UI, not
                     # a seeded localStorage snapshot. The preview runs in
@@ -90,6 +130,14 @@ async def capture(app, port, output):
                             raise AssertionError(
                                 f'Buyer favorites tab did not open: {page.url}')
                         print('Opened favorites after saving the first demo product via UI.')
+                    if name == 'buyer-shell-product':
+                        successful = {font for status, font in font_responses if status == 200}
+                        required = {'Manrope-Regular.ttf', 'Manrope-SemiBold.ttf'}
+                        if not required.issubset(successful):
+                            raise AssertionError(
+                                f'Browser did not load product detail Manrope fonts: '
+                                f'expected {required}, observed {font_responses}')
+                        print(f'Buyer product actually loaded Manrope TTF over HTTP: {sorted(successful)}')
                     image = output / f'{name}.png'
                     await page.screenshot(path=str(image), full_page=True)
                     if image.stat().st_size < 2500:
@@ -145,6 +193,7 @@ def main():
     index = args.build / 'index.html'
     if not index.is_file():
         raise SystemExit(f'Preview index.html missing: {index}')
+    verify_manrope_bundle(args.build)
     port = 8765
     server = subprocess.Popen(
         [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1',

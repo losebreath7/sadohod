@@ -74,6 +74,17 @@ void main() {
     }
   });
 
+  test('product detail applies Manrope to each locally styled text', () {
+    final source = File('lib/features/product/product_screen.dart').readAsStringSync();
+    final styles = RegExp(r'TextStyle\s*\(').allMatches(source).length;
+    final manrope = RegExp(
+      r'TextStyle\s*\(\s*fontFamily:\s*SadohodFont\.family',
+    ).allMatches(source).length;
+    expect(styles, greaterThan(0));
+    expect(manrope, styles,
+        reason: 'Product detail must not silently inherit a fallback font');
+  });
+
   test('design spacing and durations are increasing', () {
     expect(SadohodSpace.x1, lessThan(SadohodSpace.x2));
     expect(SadohodSpace.x2, lessThan(SadohodSpace.x3));
