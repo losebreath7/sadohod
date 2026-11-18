@@ -159,7 +159,27 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
       child: ColoredBox(
         color: Colors.black,
         child: controller != null && controller.value.isInitialized
-            ? CameraPreview(controller)
+            ? LayoutBuilder(
+                builder: (context, bounds) {
+                  // CameraPreview keeps its native aspect ratio. Cover the
+                  // entire portrait viewfinder instead of letterboxing it.
+                  final ratio = controller.value.aspectRatio;
+                  final width = bounds.maxWidth;
+                  final height = width * ratio;
+                  return ClipRect(
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: width,
+                          height: height,
+                          child: CameraPreview(controller),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              )
             : Center(
                 child: _error == null
                     ? const CircularProgressIndicator(color: Colors.white)
