@@ -494,6 +494,7 @@ server/backend/tests/test_pavilion_resubmission.py
 server/backend/tests/test_postgres_migrations.py
 server/backend/tests/test_postgres_onboarding.py
 server/backend/tests/test_postgres_search_change.py
+server/backend/tests/test_public_config.py
 server/backend/tests/test_product_categories.py
 server/backend/tests/test_product_lifecycle.py
 server/backend/tests/test_sale_modes_v071.py
