@@ -101,6 +101,13 @@ async def capture(app, port, output):
                 page = await context.new_page()
                 errors = []
                 page.on('pageerror', lambda exc: errors.append(str(exc)[:250]))
+                # Observe real TTF HTTP responses while Flutter draws the page.
+                # Having a FontManifest alone does not prove the browser loaded it.
+                font_responses = []
+                def record_font(response):
+                    if 'Manrope-' in response.url and '.ttf' in response.url:
+                        font_responses.append((response.status, response.url.rsplit('/', 1)[-1]))
+                page.on('response', record_font)
                 try:
                     # For saved products exercise the actual Flutter UI, not
                     # a seeded localStorage snapshot. The preview runs in
@@ -123,6 +130,14 @@ async def capture(app, port, output):
                             raise AssertionError(
                                 f'Buyer favorites tab did not open: {page.url}')
                         print('Opened favorites after saving the first demo product via UI.')
+                    if name == 'buyer-shell-product':
+                        successful = {font for status, font in font_responses if status == 200}
+                        required = {'Manrope-Regular.ttf', 'Manrope-SemiBold.ttf'}
+                        if not required.issubset(successful):
+                            raise AssertionError(
+                                f'Browser did not load product detail Manrope fonts: '
+                                f'expected {required}, observed {font_responses}')
+                        print(f'Buyer product actually loaded Manrope TTF over HTTP: {sorted(successful)}')
                     image = output / f'{name}.png'
                     await page.screenshot(path=str(image), full_page=True)
                     if image.stat().st_size < 2500:
