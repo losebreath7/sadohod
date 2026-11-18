@@ -14,7 +14,7 @@ from backend.app.config import MEDIA
 from backend.app.database import Base
 from backend.app.image_features import descriptor_from_bytes
 from backend.app.ml_index import index_catalog, nearest_ml_images
-from backend.app.models import ImageMLEmbedding
+from backend.app.models import ImageMLEmbedding, Product, ProductImage
 from backend.app.seed import seed_demo
 
 
@@ -38,6 +38,20 @@ def test_ml_index_is_versioned_idempotent_and_retrievable():
         assert nearest[0][0] == 'i-p02'
         assert abs(nearest[0][1] - 1) < 0.0001
         assert len(nearest_ml_images(sess, (MEDIA / 'p02.jpg').read_bytes(), embed=stub_image_embedding, model_id='unindexed')) == 0
+        # A draft/paused listing may retain indexed photos; those must never
+        # reach a buyer through similarity search without an active offer.
+        sess.add(Product(id='unpublished', title='Unpublished', category='Сумки',
+                         description='', colors=[], is_demo=False))
+        sess.add(ProductImage(id='i-unpublished', product_id='unpublished',
+                              filename='p02.jpg', descriptor=descriptor_from_bytes(
+                                  (MEDIA / 'p02.jpg').read_bytes())))
+        sess.commit()
+        assert index_catalog(sess, embed=stub_image_embedding, model_id='test-v1') == 1
+        results = nearest_ml_images(
+            sess, (MEDIA / 'p02.jpg').read_bytes(),
+            embed=stub_image_embedding, model_id='test-v1', limit=50)
+        assert 'i-unpublished' not in [image_id for image_id, _ in results]
+
     finally:
         sess.close()
         engine.dispose()
