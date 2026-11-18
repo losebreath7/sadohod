@@ -1,0 +1,12 @@
+# Public endpoint. API_DOMAIN must resolve to the VPS public IP.
+# Caddy obtains a public TLS certificate automatically.
+{$API_DOMAIN} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000"
+        -Server
+    }
+    reverse_proxy api:8000
+}
