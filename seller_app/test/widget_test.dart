@@ -8,25 +8,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_v3.dart';
 import 'package:sadohod_shared_core/chat_widgets.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 
 void main() {
   setUpAll(() async {
-    // Test fallback metrics only, not proof of Helvetica visual fidelity.
-    final sdk =
-        Platform.environment['FLUTTER_ROOT'] ??
-        File(
-          Platform.resolvedExecutable,
-        ).parent.parent.parent.parent.parent.path;
-    final loader = FontLoader('Helvetica');
-    loader.addFont(
-      Future.value(
-        ByteData.sublistView(
-          await File(
-            '$sdk/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf',
-          ).readAsBytes(),
-        ),
-      ),
+    // Load the actual shared Manrope instead of masking font issues with Roboto.
+    final font = await rootBundle.load(
+      'packages/sadohod_shared_core/assets/fonts/Manrope-Regular.ttf',
     );
+    final loader = FontLoader(SadohodFont.family)..addFont(Future.value(font));
     await loader.load();
   });
   testWidgets('Tab bar consumes bottom inset exactly once', (tester) async {

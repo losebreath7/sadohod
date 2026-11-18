@@ -4,6 +4,7 @@ This tests a STATIC preview served from the CI artifact, not the user's live
 PostgreSQL/API and not a substitute for manual interaction testing.
 """
 import argparse
+import json
 import asyncio
 from pathlib import Path
 import subprocess
@@ -13,6 +14,38 @@ import urllib.request
 
 from playwright.async_api import async_playwright
 from PIL import Image, ImageChops
+
+
+def verify_manrope_bundle(build):
+    """Check the actual compiled web output, not just pubspec declarations.
+
+    This guards against a missing package font, absent font weight or a stale
+    release build which quietly falls back to a system typeface in Chrome.
+    """
+    manifest_path = build / 'assets' / 'FontManifest.json'
+    if not manifest_path.is_file():
+        raise RuntimeError(f'Flutter font manifest missing: {manifest_path}')
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    families = [item for item in manifest
+                if item.get('family') == 'packages/sadohod_shared_core/Manrope']
+    if len(families) != 1:
+        raise RuntimeError('Web build has no unique shared Manrope font family')
+    expected = {
+        200: 'Manrope-ExtraLight.ttf', 300: 'Manrope-Light.ttf',
+        400: 'Manrope-Regular.ttf', 500: 'Manrope-Medium.ttf',
+        600: 'Manrope-SemiBold.ttf', 700: 'Manrope-Bold.ttf',
+        800: 'Manrope-ExtraBold.ttf',
+    }
+    fonts = families[0].get('fonts', [])
+    actual = {int(row.get('weight', 400)): row.get('asset') for row in fonts}
+    for weight, name in expected.items():
+        asset = f'packages/sadohod_shared_core/assets/fonts/{name}'
+        if actual.get(weight) != asset:
+            raise RuntimeError(f'Manrope {weight} missing or mapped incorrectly: {actual}')
+        file = build / 'assets' / asset
+        if not file.is_file() or file.stat().st_size < 90000:
+            raise RuntimeError(f'Manrope font not bundled: {file}')
+    print('Manrope font manifest: 7 weights, all TTF assets present')
 
 
 def cases(app):
@@ -145,6 +178,7 @@ def main():
     index = args.build / 'index.html'
     if not index.is_file():
         raise SystemExit(f'Preview index.html missing: {index}')
+    verify_manrope_bundle(args.build)
     port = 8765
     server = subprocess.Popen(
         [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1',

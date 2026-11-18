@@ -32,11 +32,11 @@ class _ProductScreenState extends State<ProductScreen> {
           padding: const EdgeInsets.fromLTRB(30, 26, 30, 28),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Expanded(child: Text('Где найти товар', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+              const Expanded(child: Text('Где найти товар', style: TextStyle(fontFamily: SadohodFont.family, fontSize: 22, fontWeight: FontWeight.bold))),
               IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
             Text('${offers.length} ${offers.length == 1 ? 'павильон' : 'павильона'} · демонстрационные данные',
-              style: const TextStyle(color: Color(0xffa5a5a5), fontSize: 12)),
+              style: const TextStyle(fontFamily: SadohodFont.family, color: Color(0xffa5a5a5), fontSize: 12)),
             const SizedBox(height: 20),
             for (int i = 0; i < offers.length; i++)
               InkWell(
@@ -46,9 +46,9 @@ class _ProductScreenState extends State<ProductScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xffeaeaea)))),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(offers[i].pavilion, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(offers[i].pavilion, style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 16, fontWeight: FontWeight.bold)),
                     if (offers[i].seller.zone.isNotEmpty)
-                      Text(offers[i].seller.zone, style: const TextStyle(fontSize: 12, color: Color(0xff6c6c6c))),
+                      Text(offers[i].seller.zone, style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12, color: Color(0xff6c6c6c))),
                   ]),
                 ),
               ),
@@ -117,7 +117,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   Expanded(child: InkWell(
                     onTap: () => context.push('/seller/${seller.id}'),
                     child: Text(seller.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, height: 1.3)),
+                      style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14, height: 1.3)),
                   )),
                   if ((selected?.saleModes ?? p.saleModes).contains('wholesale')) const _ModePill('опт'),
                   if ((selected?.saleModes ?? p.saleModes).contains('retail')) ...[
@@ -180,7 +180,7 @@ class _ModePill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: const BoxDecoration(color: Colors.black, borderRadius: BorderRadius.all(Radius.circular(20))),
-    child: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white)),
+    child: Text(label, style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 11, color: Colors.white)),
   );
 }
 
@@ -217,7 +217,7 @@ class _FullGalleryState extends State<_FullGallery> {
       Positioned(top: 10, right: 18, child: IconButton(
         icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))),
       Positioned(bottom: 40, left: 0, right: 0, child: Column(children: [
-        Text('${current + 1} / ${widget.photos.length}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+        Text('${current + 1} / ${widget.photos.length}', style: const TextStyle(fontFamily: SadohodFont.family, color: Colors.white, fontSize: 12)),
         const SizedBox(height: 14),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           for (int i = 0; i < widget.photos.length; i++)
@@ -247,7 +247,7 @@ class ContactText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (value.trim().isEmpty) return const Text('Контакты пока не указаны',
-      style: TextStyle(color: Color(0xff6c6c6c), fontSize: 12));
+      style: TextStyle(fontFamily: SadohodFont.family, color: Color(0xff6c6c6c), fontSize: 12));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       for (final line in value.split('\n').where((l) => l.trim().isNotEmpty))
         InkWell(
@@ -264,7 +264,7 @@ class ContactText extends StatelessWidget {
             }
           },
           child: Padding(padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(line, style: const TextStyle(fontSize: 12, color: Color(0xff6c6c6c)))),
+            child: Text(line, style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12, color: Color(0xff6c6c6c)))),
         ),
     ]);
   }
@@ -281,7 +281,7 @@ class MapScreen extends StatelessWidget {
       const Icon(Icons.map_outlined, size: 60),
       const SizedBox(height: 24),
       Text(seller?.pavilion ?? 'Павильон не указан', textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 22)),
+        style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 22)),
       Text(seller?.zone ?? '', textAlign: TextAlign.center),
       const SizedBox(height: 24),
       const Text('Карта рынка пока не подключена. Сохраните адрес павильона или уточните его у продавца.'),
