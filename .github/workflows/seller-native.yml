@@ -34,6 +34,12 @@ jobs:
         run: flutter --version
       - name: Dependencies
         run: flutter pub get
+      - name: Record resolved Flutter dependencies for version-controlled lockfile
+        run: |
+          echo 'SELLER_LOCK_BASE64_BEGIN'
+          base64 -w0 pubspec.lock
+          echo
+          echo 'SELLER_LOCK_BASE64_END'
       - name: Build Android APK using committed native project
         run: flutter build apk --debug --dart-define=API_BASE_URL=https://example.invalid
       - name: Save debug APK (network endpoint is a placeholder)
