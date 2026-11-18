@@ -3652,7 +3652,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             child: Text(
               'удалить товар?',
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: SadohodFont.family,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1A1A1A),
@@ -3666,7 +3666,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             child: Text(
               'Товар исчезнет из всех павильонов.\nВосстановить карточку будет нельзя.',
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: SadohodFont.family,
                 fontSize: 13,
                 color: Color(0xFF7A7A7A),
               ),
@@ -3700,7 +3700,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   child: Text(
                     item.$1,
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: SadohodFont.family,
                       fontSize: 14,
                       color: item.$3,
                     ),
