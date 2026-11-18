@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session, selectinload
 
-from .config import MODEL_ID, SEARCH_BACKEND
+from .config import MODEL_ID, SEARCH_BACKEND, PHOTO_SEARCH_MIN_SCORE
 from .database import get_db
 from .image_features import InvalidImage
 from .models import Offer, OfferSaleModes, Product, ProductImage, Seller, ProductDetails, Pavilion
@@ -234,6 +234,11 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
         raise HTTPException(503, str(exc), headers={'Retry-After': '3'}) from exc
     except InvalidImage as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    # Do not fill the results grid with unrelated nearest neighbours just
+    # because the catalogue contains images. This cosine value is a tuning
+    # floor, never a probability or a promise of a matching item.
+    effective_min_score = (max(PHOTO_SEARCH_MIN_SCORE, min_score)
+                           if min_score is not None else PHOTO_SEARCH_MIN_SCORE) if SEARCH_BACKEND == 'clip' else min_score
     active_model = MODEL_ID if SEARCH_BACKEND == 'classic' else CLIP_MODEL_ID
     active_method = 'visual_descriptor' if SEARCH_BACKEND == 'classic' else 'openclip_image_embedding'
     ids = [image_id for image_id, _ in nearest]
@@ -242,7 +247,7 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
     best_by_product = {}
     for image_id, score in nearest:
         product_id = image_product_ids.get(image_id)
-        if product_id and (min_score is None or score >= min_score):
+        if product_id and (effective_min_score is None or score >= effective_min_score):
             best_by_product.setdefault(product_id, score)
         if len(best_by_product) == limit:
             break
@@ -252,7 +257,7 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
         "items": [{"product": serialize_product(product_map[pid]), "score": round(score, 6)}
                   for pid, score in list(best_by_product.items())[:limit] if pid in product_map],
         "demo": True, "model": active_model, "method": active_method,
-        "crop_applied": bool(crop.strip()), "min_score": min_score, "category": category,
+        "crop_applied": bool(crop.strip()), "min_score": effective_min_score, "category": category,
         "notice": ("Нет товаров по выбранным условиям. Измените область, категорию или порог. " if not best_by_product else "") + ("Сходство рассчитано нейросетью OpenCLIP. Результат не является вероятностью и не подтверждает идентичность товара."
                    if SEARCH_BACKEND == 'clip' else
                    "Сходство рассчитано по цветам, композиции и контурам. Это не распознавание модели товара и не подтверждение идентичности."),
