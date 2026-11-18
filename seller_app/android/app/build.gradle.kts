@@ -1,11 +1,20 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseProps = Properties()
+val releasePropsFile = rootProject.file("key.properties")
+if (releasePropsFile.exists()) {
+    FileInputStream(releasePropsFile).use(releaseProps::load)
+}
+
 android {
-    namespace = "ru.sadohod.sadohod"
+    namespace = "ru.sadohod.seller"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +24,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "ru.sadohod.sadohod"
+        // Distinct from the buyer application. Confirm ID before first store release.
+        applicationId = "ru.sadohod.seller"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -29,11 +38,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releasePropsFile.exists()) {
+            create("sellerRelease") {
+                keyAlias = releaseProps.getProperty("keyAlias")
+                keyPassword = releaseProps.getProperty("keyPassword")
+                storeFile = file(releaseProps.getProperty("storeFile"))
+                storePassword = releaseProps.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Never sign a Play Store build with the debug key. Without
+            // android/key.properties this output is unsigned until configured.
+            signingConfig = if (releasePropsFile.exists())
+                signingConfigs.getByName("sellerRelease") else null
         }
     }
 }
