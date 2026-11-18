@@ -56,7 +56,7 @@ void main() {
       Directory('../seller_app/lib'),
       Directory('../shared/flutter_core/lib'),
     ];
-    final declaration = RegExp(r'fontFamily\\s*:\\s*');
+    final declaration = RegExp(r'fontFamily\s*:\s*');
     for (final dir in sourceDirs) {
       if (!dir.existsSync()) continue;
       for (final entity in dir.listSync(recursive: true)) {
