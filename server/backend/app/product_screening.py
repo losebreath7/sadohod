@@ -65,7 +65,8 @@ REPLICA = words(r'игрушечн\w*|водян\w*\s+пистолет\w*|'
                 r'брелок\w*|макет\w*|toy|keychain')
 REAL_CLAIM = words(r'настоящ\w*|боев\w*|огнестрельн\w*|заряженн\w*|'
                    r'для\s+стрельб\w*|рабоч\w*\s+оруж\w*|real\s+gun')
-NUDITY = words(r'обнаж[её]нн\w*|полностью\s+гол\w*|эротическ\w*\s+фото\w*|'
+NUDITY = words(r'обнаж[её]нн\w*|обнаж[её]нк\w*|нюдс\w*|nudes?|' +
+               r'полностью\s+гол\w*|эротическ\w*\s+фото\w*|'
                r'nude\s+photo\w*|explicit\s+nudit\w*')
 ART_CONTEXT = words(r'картин\w*|скульптур\w*|рисунк\w*|'
                     r'анатомическ\w*|искусств\w*|painting|artwork')
