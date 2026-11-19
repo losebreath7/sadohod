@@ -18,7 +18,7 @@ from .merchant_chat import router as merchant_chat_router
 from .moderation import router as moderation_router, admin_router as moderator_staff_router
 from .seller_notifications import router as seller_notifications_router
 from .product_safety import router as product_safety_router
-from .config import DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND
+from .config import ALLOWED_ORIGINS, DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND
 from .database import SessionLocal, init_db
 from .build_info import BUILD_INFO
 from .seed import seed_demo, ensure_legacy_demo_sale_modes, ensure_demo_category_links
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Садоход API", version=BUILD_INFO['full_version'], lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost", "http://127.0.0.1"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
@@ -88,7 +88,7 @@ app.include_router(product_safety_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", **BUILD_INFO, "server_patch": BUILD_INFO['build_number'], "photo_categories": SEARCH_BACKEND == "clip", "demo": True, "search_backend": SEARCH_BACKEND,
+    return {"status": "ok", **BUILD_INFO, "server_patch": BUILD_INFO['build_number'], "photo_categories": SEARCH_BACKEND == "clip", "demo": DEMO_SEED, "search_backend": SEARCH_BACKEND,
             "search_model": MODEL_ID if SEARCH_BACKEND == 'classic' else CLIP_MODEL_ID}
 
 
