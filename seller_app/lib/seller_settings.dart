@@ -194,7 +194,7 @@ class _SellerSettingsInfoPageState extends State<SellerSettingsInfoPage> {
   @override
   void initState() {
     super.initState();
-    document = _load();
+    document = widget.kind == 'about' ? Future.value('') : _load();
   }
 
   Future<String> _load() async {
@@ -211,7 +211,7 @@ class _SellerSettingsInfoPageState extends State<SellerSettingsInfoPage> {
       throw const FormatException('Неверный формат юридического документа');
     }
     final body = (json['body'] as String)
-        .replaceAll(RegExp(r'(?m)^#{1,5}\s*'), '')
+        .replaceAll(RegExp(r'^#{1,5}\s*', multiLine: true), '')
         .replaceAll('**', '');
     return '$body\n\nРедакция ${json['version']} · действует с ${json['effective_date']}';
   }
