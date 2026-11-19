@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from .account import Buyer, current_buyer, digest, hash_code, rate_limit, send_code, smtp_config, EmailInput
+from .account import Buyer, ReviewAccess, current_buyer, digest, hash_code, rate_limit, send_code, smtp_config, EmailInput
 from .database import Base, get_db
 
 router = APIRouter(prefix='/api/v1')
@@ -156,6 +156,8 @@ class EmailChangeVerify(EmailInput):
 @router.post('/account/email/request')
 def request_change(body: EmailInput, request: Request,
                    buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    if db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id)):
+        raise HTTPException(403, 'Почта проверяющего изменяется только оператором.')
     smtp_config()
     if buyer.email == body.email:
         raise HTTPException(400, 'Это ваша текущая почта')
@@ -190,6 +192,8 @@ def request_change(body: EmailInput, request: Request,
 @router.post('/account/email/confirm')
 def confirm_change(body: EmailChangeVerify, request: Request,
                    buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    if db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id)):
+        raise HTTPException(403, 'Почта проверяющего изменяется только оператором.')
     ip = request.client.host if request.client else 'unknown'
     rate_limit(db, 'change-verify-ip:' + digest(ip), 60)
     invalid = 'Код неверный или истёк'
