@@ -41,7 +41,7 @@ def provision(db, email, platform, role, code, expires):
         buyer = Buyer(id=secrets.token_hex(16), email=email, name='Store review')
         db.add(buyer)
         db.flush()
-        db.add(ReviewAccess(email=email, code_digest=hash_code(code),
+        db.add(ReviewAccess(email=email, buyer_id=buyer.id, code_digest=hash_code(code),
                             platform=platform, role=role, expires=expires,
                             enabled=True, failed_total=0))
     else:
@@ -52,8 +52,8 @@ def provision(db, email, platform, role, code, expires):
         existing.enabled = True
         existing.failed_total = 0
         buyer = db.scalar(select(Buyer).where(Buyer.email == email))
-        if buyer is None:
-            raise ValueError('Reviewer account missing; manual investigation required')
+        if buyer is None or buyer.id != existing.buyer_id:
+            raise ValueError('Reviewer identity mismatch; manual investigation required')
     # Rotate all previously issued sessions, including those from older codes.
     db.execute(delete(BuyerSession).where(BuyerSession.buyer == buyer.id))
     db.execute(delete(LoginCode).where(LoginCode.email == email))
