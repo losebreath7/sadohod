@@ -67,6 +67,22 @@ jobs:
         if: always()
         run: docker compose -p sadohod_isolated_qa -f tools/compose.qa.yml down
 
+  backup_restore:
+    name: PostgreSQL + photos + admin restore drill (isolated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test archive validator and shell syntax
+        run: |
+          python tools/test_backup_archive.py
+          bash -n tools/backup_production.sh tools/restore_drill.sh tools/test_backup_restore_integration.sh
+      - name: Real Docker synthetic backup and full restoration
+        run: bash tools/test_backup_restore_integration.sh
+
   flutter:
     name: flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -212,13 +228,14 @@ jobs:
   gate:
     name: ворота
     if: always()
-    needs: [versions, server, flutter, visual, buyer_phone_shell, buyer_device_matrix, buyer_native, seller_native]
+    needs: [versions, server, backup_restore, flutter, visual, buyer_phone_shell, buyer_device_matrix, buyer_native, seller_native]
     runs-on: ubuntu-latest
     steps:
       - name: Проверить результат всех заданий
         env:
           VERSIONS: ${{ needs.versions.result }}
           SERVER: ${{ needs.server.result }}
+          BACKUP_RESTORE: ${{ needs.backup_restore.result }}
           FLUTTER: ${{ needs.flutter.result }}
           VISUAL: ${{ needs.visual.result }}
           PHONE_SHELL: ${{ needs.buyer_phone_shell.result }}
@@ -228,6 +245,7 @@ jobs:
         run: |
           echo "versions: $VERSIONS"
           echo "server:   $SERVER"
+          echo "backup/restore: $BACKUP_RESTORE"
           echo "flutter:  $FLUTTER"
           echo "visual:   $VISUAL"
           echo "phone:    $PHONE_SHELL"
@@ -236,6 +254,7 @@ jobs:
           echo "seller-native: $SELLER_NATIVE"
           test "$VERSIONS" = success
           test "$SERVER" = success
+          test "$BACKUP_RESTORE" = success
           test "$FLUTTER" = success
           test "$VISUAL" = success
           test "$PHONE_SHELL" = success
