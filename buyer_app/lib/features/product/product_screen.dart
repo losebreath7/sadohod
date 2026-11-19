@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
@@ -131,14 +132,20 @@ class _ProductScreenState extends State<ProductScreen> {
   Future<DemoProduct?> _loadProduct() async {
     final product = await CatalogApi.instance.product(widget.id);
     if (product != null && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
-      try {
-        await AccountStore.instance.request('/account/interests/view',
-          body: {'product_id': product.id});
-      } catch (_) {
-        // Recommendations must never interfere with opening the product.
-      }
+      // Fire-and-forget: the card must open immediately even when tracking fails.
+      unawaited(_recordInterest(product.id));
     }
     return product;
+  }
+
+  Future<void> _recordInterest(String id) async {
+    try {
+      final result = await AccountStore.instance.request('/account/interests/view',
+          body: {'product_id': id});
+      if (result['tracked'] == true) AccountStore.instance.interestViewed();
+    } catch (_) {
+      // Recommendation errors must not affect shopping.
+    }
   }
   int _selectedOffer = 0;
   bool _reportSending = false;
