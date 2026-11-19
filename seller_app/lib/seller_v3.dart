@@ -721,6 +721,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   bool showSecondPhone = false;
   bool pavilionValidationError = false;
+  bool manualAddressEntry = false;
   TextEditingController c(String key) => controllers.putIfAbsent(key, () {
     final controller = TextEditingController();
     if (key.startsWith('price:')) controller.addListener(scheduleDraft);
@@ -1017,6 +1018,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
     if (next == 'capture' && screen != 'capture') capturePhotos.clear();
     if (next == 'address') {
+      manualAddressEntry = false;
       for (final key in [
         'zone',
         'fullAddress',
@@ -1303,42 +1305,45 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final fixing = screen == 'fixAddress';
     var zone = c('zone').text.trim();
     var code = '';
-    if (screen == 'manualAddress') {
-      code = normalizeMarketAddress(c('manual').text);
-      if (zone.isEmpty) {
-        final parsed = parseMarketAddress(code);
-        zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
+    if (manualAddressEntry) {
+      final supplied = c('fullAddress').text.trim();
+      if (supplied.isEmpty) {
+        throw Exception('Введите адрес торгового места.');
       }
-    } else if (c('fullAddress').text.trim().isNotEmpty) {
-      final parsed = parseMarketAddress(c('fullAddress').text, territoryHint: zone);
-      if (!parsed.recognized) {
-        throw Exception('Адрес не распознан. Выберите зону и заполните поля вручную.');
-      }
-      zone = parsed.territory;
-      code = parsed.code;
+      final parsed = parseMarketAddress(supplied);
+      // Unknown formats are permitted for moderation, without inventing a zone.
+      zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
+      code = parsed.recognized ? parsed.code : normalizeMarketAddress(supplied);
     } else {
+      if (!marketTerritories.contains(zone)) {
+        throw Exception('Выберите торговую зону.');
+      }
       final floor = c('floor').text.trim();
       final line = c('line').text.trim().toUpperCase();
       final number = c('number').text.trim().toUpperCase();
       final building = c('building').text.trim().toUpperCase();
-      if (zone == 'корпус А' || zone == 'корпус Б' ||
-          (building.isNotEmpty && floor.isNotEmpty)) {
+      if (zone == 'корпус А' || zone == 'корпус Б') {
         if (floor.isEmpty || line.isEmpty || number.isEmpty) {
           throw Exception('Укажите этаж, линию и номер павильона.');
         }
-        code = '${zone == 'корпус Б' || building == 'Б' ? 'Б-' : ''}$floor$line-$number';
+        // A numeric line uses floor-line-number; a letter line uses floorLetter-number.
+        code = RegExp(r'^\\d+$').hasMatch(line)
+            ? '${zone == 'корпус Б' ? 'Б-' : ''}$floor-$line-$number'
+            : '${zone == 'корпус Б' ? 'Б-' : ''}$floor$line-$number';
+      } else if (zone == 'вещевые ряды') {
+        if (line.isEmpty || number.isEmpty) {
+          throw Exception('Укажите линию и номер павильона.');
+        }
+        code = '$line-$number';
+      } else if (zone == 'ангар') {
+        if (line.isEmpty || number.isEmpty) throw Exception('Укажите ряд и место.');
+        code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
+      } else if (zone == 'меха и кожа') {
+        if (number.isEmpty) throw Exception('Укажите номер павильона.');
+        code = '${line.startsWith('М') ? line : 'М$line'}-$number';
       } else {
-        if (number.isEmpty ||
-            (line.isEmpty && zone != 'меха и кожа')) {
-          throw Exception('Укажите линию/ряд и номер павильона.');
-        }
-        if (zone == 'ангар') {
-          code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
-        } else if (zone == 'меха и кожа') {
-          code = '${line.startsWith('М') ? line : 'М$line'}-$number';
-        } else {
-          code = '$line-$number';
-        }
+        if (number.isEmpty) throw Exception('Укажите номер торгового места.');
+        code = line.isEmpty ? number : '$line-$number';
       }
       code = normalizeMarketAddress(code);
     }
@@ -2566,6 +2571,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 14, bold: true),
+                          const SizedBox(height: 6),
+                        ],
                         label(address(pavilion), 22, bold: true),
                         const SizedBox(height: 12),
                         label(
@@ -2622,6 +2631,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         return;
                       }
                       if (reject) {
+                        manualAddressEntry = false;
                         c('fullAddress').clear();
                         for (final key in [
                           'building',
@@ -2913,7 +2923,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               children: [
                 Expanded(
                   child: tap(
-                    label(address(pavilion), 16, bold: true, color: brown),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 12, color: brown),
+                          const SizedBox(height: 4),
+                        ],
+                        label(address(pavilion), 16, bold: true, color: brown),
+                      ],
+                    ),
                     () => go('approved'),
                   ),
                 ),
