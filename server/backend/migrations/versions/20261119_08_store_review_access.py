@@ -23,4 +23,4 @@ def upgrade():
 
 
 def downgrade():
-    raise RuntimeError('Do not silently discard reviewer access and audit state')
+    raise RuntimeError('Review access downgrade is disabled to protect issued credentials and sessions')
