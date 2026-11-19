@@ -1328,7 +1328,2835 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           throw Exception('Укажите этаж, линию и номер павильона.');
         }
         // A numeric line uses floor-line-number; a letter line uses floorLetter-number.
-        code = RegExp(r'^\\d+$').hasMatch(line)
+        code = RegExp(r'^\d+.hasMatch(line)
+            ? '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor-$line-$number'
+            : '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor$line-$number';
+      } else if (zone == 'вещевые ряды') {
+        if (line.isEmpty || number.isEmpty) {
+          throw Exception('Укажите линию и номер павильона.');
+        }
+        code = '$line-$number';
+      } else if (zone == 'ангар') {
+        if (line.isEmpty || number.isEmpty) throw Exception('Укажите ряд и место.');
+        code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
+      } else if (zone == 'меха и кожа') {
+        if (number.isEmpty) throw Exception('Укажите номер павильона.');
+        code = '${line.startsWith('М') ? line : 'М$line'}-$number';
+      } else {
+        if (number.isEmpty) throw Exception('Укажите номер торгового места.');
+        code = line.isEmpty ? number : '$line-$number';
+      }
+      code = normalizeMarketAddress(code);
+    }
+    if (zone.isEmpty || code.isEmpty) {
+      throw Exception('Укажите торговую зону и адрес.');
+    }
+    if (code.length > 32) {
+      throw Exception('Адрес слишком длинный. Уточните номер торгового места.');
+    }
+    final application = fixing
+        ? pavilion['_requestType'] != 'pavilion'
+        : merchant['shop'] == null;
+    if (fixing && pavilion['id'] == null && !testPreview)
+      throw Exception('Заявка не найдена. Откройте её из списка магазинов.');
+    final payload = {'zone': zone, 'code': code};
+    RowData result = {};
+    if (!testPreview) {
+      result = await widget.api.call(
+        fixing
+            ? (application
+                  ? '/merchant/applications/${pavilion['id']}'
+                  : '/merchant/pavilions/requests/${pavilion['id']}')
+            : (application ? '/merchant/applications' : '/merchant/pavilions'),
+        method: fixing ? 'PUT' : 'POST',
+        body: application
+            ? {
+                ...payload,
+                'shop_name': name,
+                'contact': '${account['email'] ?? ''}',
+              }
+            : payload,
+      );
+    }
+    pavilion = {
+      ...payload,
+      ...result,
+      'status': 'pending',
+      '_requestType': application ? 'application' : 'pavilion',
+    };
+    if (!testPreview) await reload(navigate: false);
+    if (mounted)
+      setState(() {
+        history.clear();
+        screen = 'pending';
+      });
+  });
+  void finishCapture() {
+    if (capturePhotos.isEmpty) return;
+    if (!testPreview) activeDraftKey = formKey('new');
+    product = {};
+    originalProduct = {};
+    saveSession = ProductSaveSession();
+    draftCompleted = false;
+    deletedPhotos.clear();
+    photoReplacements.clear();
+    initialPrice = '';
+    draftId = null;
+    c('title').clear();
+    c('price').clear();
+    saleModes
+      ..clear()
+      ..add('retail');
+    listingModes.clear();
+    destinations.clear();
+    photos
+      ..clear()
+      ..addAll(capturePhotos);
+    // The editor owns these images now. A later tap on the camera tab starts
+    // a new session rather than returning to a full, disabled 6/6 shutter.
+    capturePhotos.clear();
+    go('newProduct');
+    initialFormSnapshot = formSnapshot;
+  }
+
+  Future<void> pick({bool camera = false, List<XFile>? selected}) async => run(() async {
+    if (screen != 'capture' && saveSession.photoKeys.isNotEmpty) {
+      throw Exception(
+        'Сначала повторите сохранение начатой загрузки. Фотографии можно изменить после её завершения.',
+      );
+    }
+    final picker = ImagePicker();
+    final chosen = selected ?? (camera
+        ? [await picker.pickImage(source: ImageSource.camera)]
+              .whereType<XFile>()
+              .toList()
+        : await picker.pickMultiImage());
+    if (chosen.isEmpty || !mounted) return;
+    if (screen == 'capture') {
+      final remaining = maxProductPhotos - capturePhotos.length;
+      if (remaining <= 0) {
+        failure(Exception('На товар можно добавить не больше 6 фотографий.'));
+        return;
+      }
+      setState(() => capturePhotos.addAll(chosen.take(remaining)));
+      if (chosen.length > remaining) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Добавлено только до 6 фотографий.')),
+        );
+      }
+      return;
+    }
+    final retained = rows(product['image_items'])
+        .where((item) => !deletedPhotos.contains('${item['id']}'))
+        .length;
+    if (retained + photos.length + chosen.length > maxProductPhotos) {
+      failure(Exception('На товар можно добавить не больше 6 фотографий.'));
+      return;
+    }
+    setState(() => photos.addAll(chosen));
+  });
+
+  void removePhoto(int index, int existingCount) {
+    if (busy) return;
+    if (saveSession.photoKeys.isNotEmpty) {
+      failure(Exception('Сначала повторите сохранение начатой загрузки.'));
+      return;
+    }
+    if (index >= existingCount) {
+      setState(() => photos.removeAt(index - existingCount));
+      return;
+    }
+    final items = rows(product['image_items']);
+    if (items.length != existingCount) {
+      failure(
+        Exception('Обновите сервер до пакета 18 и откройте товар заново.'),
+      );
+      return;
+    }
+    deletedPhotos.add('${items[index]['id']}');
+    final urls = List<String>.from(product['images'] ?? []);
+    urls.removeAt(index);
+    items.removeAt(index);
+    setState(() {
+      product['images'] = urls;
+      product['image_items'] = items;
+    });
+  }
+
+  Future<void> replaceProductPhoto(int index, int existingCount) async {
+    if (busy) return;
+    if (saveSession.photoKeys.isNotEmpty) {
+      failure(Exception('Сначала повторите сохранение начатой загрузки.'));
+      return;
+    }
+    final replacement = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (replacement == null || !mounted) return;
+    if (index < existingCount) {
+      final items = rows(product['image_items']);
+      if (items.length != existingCount) {
+        failure(Exception('Обновите сервер и откройте товар заново.'));
+        return;
+      }
+      photoReplacements[replacement] = '${items[index]['id']}';
+      removePhoto(index, existingCount);
+      setState(() => photos.add(replacement));
+    } else {
+      final old = photos[index - existingCount];
+      final originalId = photoReplacements.remove(old);
+      if (originalId != null) photoReplacements[replacement] = originalId;
+      setState(() => photos[index - existingCount] = replacement);
+    }
+  }
+
+  Future<void> finishAction(String message) async {
+    // Complete the operation before refreshing; a refresh error must not repeat it.
+    if (!mounted) return;
+    setState(() {
+      selected.clear();
+      destinations.clear();
+      actions = false;
+      selecting = false;
+      history.clear();
+      screen = 'catalog';
+    });
+    await reload(navigate: false);
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(duration: const Duration(seconds: 2), content: Text(message)),
+      );
+  }
+
+  Future<void> deleteProducts({bool single = false}) async => run(() async {
+    final ids = single ? ['${product['id']}'] : selected.toList()
+      ..sort();
+    if (ids.isEmpty || ids.contains('null'))
+      throw Exception('Выберите товары.');
+    if (testPreview) {
+      products.removeWhere((p) => ids.contains('${p['id']}'));
+    } else {
+      await productActions.batch('delete', {'product_ids': ids});
+    }
+    await finishAction('Товары удалены');
+  });
+
+  String get sourcePavilionId {
+    if (selectionPavilionId != null) return selectionPavilionId!;
+    Set<String>? common;
+    for (final p in products.where((p) => selected.contains('${p['id']}'))) {
+      final locations = rows(p['listings'])
+          .map((l) => '${l['pavilion_id']}')
+          .toSet();
+      common = common == null ? locations : common.intersection(locations);
+    }
+    return common != null && common.length == 1 ? common.single : '';
+  }
+
+  Future<void> distributeProducts() async => run(() async {
+    final duplicate = screen == 'duplicate';
+    final ids = selected.toList()..sort();
+    final targets = destinations.toList()..sort();
+    if (ids.isEmpty || targets.isEmpty)
+      throw Exception('Выберите товары и магазин назначения.');
+    final source = sourcePavilionId;
+    if (source.isEmpty)
+      throw Exception('Откройте исходный магазин и выберите товары в нём.');
+    if (duplicate && targets.length > 10)
+      throw Exception('Можно выбрать не больше 10 павильонов.');
+    if (!duplicate && targets.single == source)
+      throw Exception('Выберите другой магазин.');
+    if (!testPreview) {
+      await productActions.batch(duplicate ? 'copy' : 'move', {
+        'product_ids': ids,
+        'source_pavilion_id': source,
+        if (duplicate)
+          'destination_pavilion_ids': targets
+        else
+          'destination_pavilion_id': targets.single,
+      });
+    }
+    await finishAction(
+      duplicate
+          ? 'Копии опубликованы'
+          : 'Товары перенесены и опубликованы',
+    );
+  });
+
+  Future<void> saveProduct() async => run(() async {
+    if (destinations.isEmpty) {
+      setState(() => pavilionValidationError = true);
+      return;
+    }
+    final price = parsePrice(c('price').text);
+    final sharedPriceChanged = c('price').text != initialPrice;
+    final sharedModesChanged = saleModes.length != initialSaleModes.length ||
+        !saleModes.containsAll(initialSaleModes);
+    // The editor has one common price/mode control for every selected pavilion.
+    // Preserve each pavilion's own values unless the seller changes that control.
+    final edits = <String, RowData>{
+      if (sharedModesChanged)
+        for (final id in destinations)
+          id: {
+            'price': sharedPriceChanged
+                ? price
+                : originalPavilionPrice(id, price),
+            'sale_modes': saleModes.toList(),
+          },
+    };
+    if (testPreview) {
+      final id =
+          product['id'] ?? 'preview-${DateTime.now().microsecondsSinceEpoch}';
+      products.removeWhere((p) => p['id'] == id);
+      products.insert(0, {
+        'id': id,
+        'title': c('title').text,
+        'images': [],
+        'status': 'approved',
+        'listings': [
+          for (final destination in destinations)
+            {'pavilion_id': destination, 'price': price, 'status': 'approved',
+             'published': true, 'sale_modes': saleModes.toList()},
+        ],
+      });
+    } else {
+      final saved = await productActions.save(
+        session: saveSession,
+        original: originalProduct,
+        title: c('title').text,
+        price: price,
+        saleModes: saleModes.toList(),
+        listingEdits: edits,
+        priceChanged: sharedPriceChanged,
+        destinations: Set.of(destinations),
+        photos: List.of(photos),
+        deletedPhotos: Set.of(deletedPhotos),
+        replacements: Map.of(photoReplacements),
+        checkpoint: checkpointDraft,
+      );
+      product = saved;
+    }
+    draftCompleted = true;
+    await checkpointDraft();
+    try {
+      await forgetDraft();
+    } catch (error) {
+      draftFailure(error);
+    }
+    photos.clear();
+    deletedPhotos.clear();
+    photoReplacements.clear();
+    draftId = null;
+    saveSession = ProductSaveSession();
+    await finishAction('Товар опубликован');
+  });
+  List<RowData> get shown => products.where((p) {
+    final ls = rows(p['listings']);
+    final local = screen == 'shop'
+        ? ls.where((l) => l['pavilion_id'] == pavilion['id']).toList()
+        : ls;
+    if (screen == 'shop' && local.isEmpty) return false;
+    if (hidden) {
+      if (!local.any((l) => l['status'] == 'paused')) return false;
+    } else if (screen != 'shop' &&
+        (p['status'] != 'approved' ||
+         !local.any((l) =>
+             l['published'] == true || l['status'] == 'approved'))) {
+      return false;
+    }
+    if (screen == 'shop' &&
+        !hidden &&
+        !(p['status'] == 'approved' &&
+            local.any(
+              (l) => l['published'] == true || l['status'] == 'approved',
+            )))
+      return false;
+    if (saleFilter != null &&
+        !local.any(
+          (l) => (l['sale_modes'] as List? ?? []).contains(saleFilter),
+        ))
+      return false;
+    if (screen == 'shop' &&
+        !hidden &&
+        local.isNotEmpty &&
+        local.every((l) => l['status'] == 'paused'))
+      return false;
+    return !searching ||
+        '${p['title']}'.toLowerCase().contains(c('search').text.toLowerCase());
+  }).toList();
+  @override
+  Widget build(BuildContext context) {
+    if (screen == 'missing')
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && !busy) back();
+        },
+        child: const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(child: Text('дизайн в разработке')),
+        ),
+      );
+    final authScreen = ['welcome', 'email', 'code', 'name'].contains(screen);
+    final index = ['profile', 'editProfile', 'sellerChat', 'notifications', 'settings', 'settingsAbout', 'settingsTerms', 'settingsPrivacy'].contains(screen)
+        ? 2
+        : ['capture', 'newProduct', 'editProduct'].contains(screen)
+        ? 1
+        : 0;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !busy) requestBack();
+      },
+      child: Scaffold(
+        backgroundColor: beige,
+        resizeToAvoidBottomInset: true,
+        bottomNavigationBar: authScreen
+            ? null
+            : SellerTabBar(
+                index: index,
+                onSelect: (index) {
+                  if (!busy) tab(index);
+                },
+              ),
+        body: loading
+            ? const Center(child: CircularProgressIndicator())
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  AbsorbPointer(absorbing: busy, child: body()),
+                  if (actions) actionPanel(),
+                  if (busy)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget body() {
+    switch (screen) {
+      case 'welcome':
+      case 'email':
+      case 'code':
+      case 'name':
+        return authBody();
+      case 'profile':
+        return profileBody();
+      case 'editProfile':
+        return profileEdit();
+      case 'settings':
+        return page('настройки', SellerSettingsPage(
+          api: widget.api,
+          onSignedOut: () => setState(() {
+            history.clear();
+            screen = 'welcome';
+            account = {};
+            merchant = {};
+            pavilions = [];
+            products = [];
+            requests = [];
+            unreadNotifications = 0;
+          }),
+          onOpenSupport: () => missing('поддержка'),
+          onOpenInfo: (kind) => go(kind == 'about'
+              ? 'settingsAbout'
+              : kind == 'terms' ? 'settingsTerms' : 'settingsPrivacy'),
+        ));
+      case 'settingsAbout':
+      case 'settingsTerms':
+      case 'settingsPrivacy':
+        return page(screen == 'settingsAbout' ? 'о приложении'
+          : screen == 'settingsTerms' ? 'пользовательское соглашение'
+          : 'конфиденциальность',
+          SellerSettingsInfoPage(kind: screen == 'settingsAbout' ? 'about'
+          : screen == 'settingsTerms' ? 'terms' : 'privacy'));
+
+      case 'notifications':
+        return page('уведомления', SellerNotificationsPage(
+          key: const ValueKey('seller-notifications'),
+          api: widget.api,
+          onOpenPavilions: returnToStores,
+          onOpenProduct: (id) { openNotificationProduct(id); },
+        ));
+      case 'emptyStores':
+        return emptyStores();
+      case 'emptyProducts':
+        return emptyProducts();
+      case 'stores':
+        return storeList();
+      case 'address':
+      case 'fixAddress':
+      case 'manualAddress':
+        return addressBody();
+      case 'pending':
+      case 'approved':
+      case 'rejected':
+        return statusBody();
+      case 'capture':
+        return captureBody();
+      case 'newProduct':
+      case 'editProduct':
+        return productEditor();
+      case 'move':
+      case 'duplicate':
+        return bulkBody();
+      case 'sellerChat':
+        return Column(
+          children: [
+            SadohodChatHeader(title: activeChatSection, onBack: back),
+            Expanded(
+              child: SellerTelegramChat(
+                key: ValueKey(activeChatSection),
+                api: widget.api,
+                kind: activeChatSection == 'поддержка'
+                    ? 'support'
+                    : 'cooperation',
+              ),
+            ),
+          ],
+        );
+      case 'delete':
+        return Center(child: deleteDialog());
+      default:
+        return catalog();
+    }
+  }
+
+  Widget page(
+    String title,
+    Widget content, {
+    Widget? trailing,
+    bool large = false,
+    VoidCallback? onBack,
+  }) => Column(
+    children: [
+      V3Header(
+        title: title,
+        back: onBack ?? requestBack,
+        trailing: trailing,
+        large: large,
+      ),
+      Expanded(child: content),
+    ],
+  );
+  Widget scroll(
+    Widget child, {
+    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 30),
+  }) => SingleChildScrollView(padding: padding, child: child);
+  Widget authBody() {
+    if (screen == 'welcome')
+      return LayoutBuilder(
+        builder: (ctx, b) => SingleChildScrollView(
+          child: SizedBox(
+            height: math.max(700, b.maxHeight),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 212,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: asset('72a36.svg', width: 90, height: 90),
+                  ),
+                ),
+                Positioned(
+                  top: 336,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: asset('cfac0.svg', width: 255, height: 34),
+                  ),
+                ),
+                Positioned(
+                  top: 387,
+                  left: 30,
+                  right: 30,
+                  child: label(
+                    'для продавцов',
+                    15,
+                    color: muted,
+                    align: TextAlign.center,
+                  ),
+                ),
+                Positioned(
+                  left: 30,
+                  right: 30,
+                  bottom: 81,
+                  child: pill('продолжить', auth),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    final isEmail = screen == 'email', isCode = screen == 'code';
+    return page(
+      isEmail
+          ? 'вход'
+          : isCode
+          ? 'подтвердить почту'
+          : 'создать профиль',
+      scroll(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: isEmail ? 50 : 53),
+            label(
+              isEmail
+                  ? 'войти или зарегистрироваться'
+                  : isCode
+                  ? 'введите код из письма'
+                  : 'как к вам обращаться?',
+              20,
+              bold: true,
+            ),
+            const SizedBox(height: 15),
+            label(
+              isEmail
+                  ? 'Укажите почту — отправим код для входа.'
+                  : isCode
+                  ? 'Мы отправили 6-значный код на вашу почту.'
+                  : 'Это имя будет отображаться в вашем профиле.',
+              13,
+              color: muted,
+            ),
+            const SizedBox(height: 48),
+            if (isCode)
+              codeInput()
+            else
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: c(isEmail ? 'email' : 'name'),
+                builder: (context, value, child) => V3Field(
+                  isEmail ? 'email' : 'имя',
+                  c(isEmail ? 'email' : 'name'),
+                  showTitle: value.text.isEmpty,
+                  keyboard: isEmail
+                      ? TextInputType.emailAddress
+                      : TextInputType.name,
+                ),
+              ),
+            SizedBox(height: isCode ? 40 : 31),
+            pill(
+              isEmail
+                  ? 'получить код'
+                  : isCode
+                  ? 'подтвердить'
+                  : 'продолжить',
+              auth,
+            ),
+            if (isCode) ...[
+              const SizedBox(height: 25),
+              Center(
+                child: tap(
+                  label('отправить код ещё раз', 13, color: brown),
+                  () => run(() async {
+                    if (!testPreview)
+                      await widget.api.requestCode(c('email').text);
+                    if (mounted)
+                      await showDialog<void>(
+                        context: context,
+                        barrierColor: Colors.transparent,
+                        builder: (ctx) => Center(
+                          child: SizedBox(
+                            width: 280,
+                            child: pill(
+                              'код отправлен повторно',
+                              () => Navigator.pop(ctx),
+                            ),
+                          ),
+                        ),
+                      );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Center(
+                child: tap(label('изменить почту', 13, color: muted), () {
+                  c('code').clear();
+                  back();
+                }),
+              ),
+            ],
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget codeInput() => SizedBox(
+    height: 56,
+    child: Stack(
+      children: [
+        Row(
+          children: [
+            for (var i = 0; i < 6; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: label(
+                    c('code').text.length > i ? '•' : '',
+                    23,
+                    bold: true,
+                    color: brown,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        TextField(
+          controller: c('code'),
+          keyboardType: TextInputType.number,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(6),
+          ],
+          onChanged: (_) => setState(() {}),
+          style: const TextStyle(color: Colors.transparent),
+          cursorColor: Colors.transparent,
+          decoration: const InputDecoration(
+            counterText: '',
+            border: InputBorder.none,
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget emptyStores() => LayoutBuilder(
+    builder: (ctx, b) => SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: b.maxHeight),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            30,
+            math.max(220, MediaQuery.paddingOf(ctx).top + 140),
+            30,
+            40,
+          ),
+          child: Column(
+            children: [
+              label(
+                'у вас пока нет магазинов',
+                18,
+                bold: true,
+                align: TextAlign.center,
+              ),
+              const SizedBox(height: 13),
+              label(
+                'Добавьте магазин, чтобы размещать товары.',
+                13,
+                color: muted,
+                align: TextAlign.center,
+              ),
+              const SizedBox(height: 61),
+              pill('добавить магазин', () => go('address')),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  Widget emptyProducts() => scroll(
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 63),
+        tap(
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: brown.withValues(alpha: .16)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                label('мои магазины', 16, color: brown),
+                const Icon(Icons.chevron_right, color: brown, size: 26),
+              ],
+            ),
+          ),
+          () => go('stores'),
+          name: 'Мои магазины',
+        ),
+        const SizedBox(height: 18),
+        pill('добавить первый товар', () => go('capture'), icon: 'd5d93.svg'),
+        const SizedBox(height: 35),
+        label('все товары', 16, bold: true),
+        const SizedBox(height: 105),
+        Center(child: label('товаров пока нет', 18, bold: true)),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          child: label(
+            'Добавьте первый товар, чтобы его увидели покупатели.',
+            13,
+            color: muted,
+            align: TextAlign.center,
+          ),
+        ),
+      ],
+    ),
+  );
+  // Keep the profile geometry synchronized with buyer ProfileScreen.
+  // Both bodies start below the status bar / Dynamic Island.
+  Widget profileBody() => scroll(
+    Column(
+      children: [
+        SizedBox(height: math.max(94.0, MediaQuery.paddingOf(context).top + 24)),
+        SizedBox(
+          height: 181,
+          child: Stack(
+            children: [
+              Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  color: brown,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Positioned(
+                top: 88,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SizedBox(
+                    width: 93,
+                    height: 93,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        asset('5c616.svg', width: 93, height: 93),
+                        asset('bc604.svg', width: 60, height: 60),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15),
+        label(name, 12, bold: true),
+        const SizedBox(height: 50),
+        for (final item in <List<String>>[
+          ['профиль', '1b285.svg'],
+          ['поддержка', '2f6e7.svg'],
+          ['уведомления', '40c2b.svg'],
+          ['настройки', 'f7cee.svg'],
+          ['навигация', 'cdb5f.svg'],
+          ['сотрудничество', '1aa37.svg'],
+        ])
+          tap(
+            SizedBox(
+              height: 44,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      Center(child: asset(
+                        item[1],
+                        width: item[0] == 'профиль' ? 30 : 24,
+                        height: item[0] == 'профиль' ? 30 : 24,
+                      )),
+                      if (item[0] == 'уведомления' && unreadNotifications > 0)
+                        Positioned(
+                          left: 14, top: -5,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: const BoxDecoration(color: Color(0xFF5F0F10),
+                              borderRadius: BorderRadius.all(Radius.circular(10))),
+                            child: Text(unreadNotifications > 99 ? '99+' : '$unreadNotifications',
+                              style: const TextStyle(fontFamily: SadohodFont.family,
+                                fontSize: 8, fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                          ),
+                        ),
+                    ]),
+                  ),
+                  const SizedBox(width: 14),
+                  label(item[0], 14, color: const Color(0xFF2C1B15)),
+                ],
+              ),
+            ),
+            () {
+              if (item[0] == 'профиль') {
+                fillProfile();
+                go('editProfile');
+              } else if (item[0] == 'уведомления') {
+                go('notifications');
+              } else if (item[0] == 'настройки') {
+                go('settings');
+              } else {
+                missing(item[0]);
+              }
+            },
+          ),
+        const SizedBox(height: 24),
+        label(SadohodBuild.label, 10, color: muted),
+        const SizedBox(height: 12),
+      ],
+    ),
+  );
+  Widget profileEdit() => page(
+    'профиль',
+    scroll(
+      Column(
+        children: [
+          const SizedBox(height: 17),
+          SizedBox(
+            height: 181,
+            child: Stack(
+              children: [
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: brown,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                Positioned(
+                  top: 88,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: tap(
+                      SizedBox(
+                        width: 93,
+                        height: 93,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            asset('5c616.svg', width: 93, height: 93),
+                            asset('9b01f.svg', width: 60, height: 60),
+                            if (testPreview)
+                              ClipOval(
+                                child: SizedBox(
+                                  width: 93,
+                                  height: 93,
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        left: -2,
+                                        top: -8,
+                                        width: 98,
+                                        height: 147,
+                                        child: Image.asset(
+                                          'assets/figma/d24f3.png',
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      missing,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 15),
+          label(name, 12, bold: true),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: showSecondPhone ? 595 : 525,
+            child: Stack(
+              children: [
+                for (final field in <(String, String, double)>[
+                  ('имя', 'profileName', 0),
+                  ('номер телефона', 'phone', 70),
+                  ('телеграм', 'telegram', showSecondPhone ? 210 : 140),
+                  ('вконтакте', 'vk', showSecondPhone ? 280 : 210),
+                  ('whatsapp', 'whatsapp', showSecondPhone ? 350 : 280),
+                  ('авито', 'avito', showSecondPhone ? 395 : 325),
+                  ('сайт', 'website', showSecondPhone ? 465 : 395),
+                  ('email', 'profileEmail', showSecondPhone ? 535 : 465),
+                ])
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: field.$3,
+                    child: Stack(
+                      children: [
+                        V3Field(
+                          field.$1,
+                          c(field.$2),
+                          readOnly: field.$2 == 'profileEmail',
+                          keyboard: field.$2 == 'phone'
+                              ? TextInputType.phone
+                              : null,
+                        ),
+                        if (field.$2 == 'phone' && !showSecondPhone)
+                          Positioned(
+                            top: 16,
+                            right: 7,
+                            width: 28,
+                            height: 28,
+                            child: tap(
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  asset('2858a.svg', width: 28, height: 28),
+                                  label('+', 24, color: Colors.white),
+                                ],
+                              ),
+                              () => setState(() => showSecondPhone = true),
+                              name: 'Добавить номер телефона',
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (showSecondPhone)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 140,
+                    child: Stack(
+                      children: [
+                        V3Field(
+                          'дополнительный номер телефона',
+                          c('phone2'),
+                          keyboard: TextInputType.phone,
+                        ),
+                        Positioned(
+                          top: 16,
+                          right: 7,
+                          width: 28,
+                          height: 28,
+                          child: tap(
+                            const Icon(Icons.close, size: 19, color: muted),
+                            () => setState(() {
+                              c('phone2').clear();
+                              showSecondPhone = false;
+                            }),
+                            name: 'Удалить дополнительный номер',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 31),
+          pill('сохранить', () async {
+            if (busy) return;
+            final newName = c('profileName').text.trim();
+            if (newName.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Укажите имя продавца')),
+              );
+              return;
+            }
+            if (c('phone2').text.trim().isNotEmpty && !testPreview) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Сервер пока не поддерживает второй номер. Изменения не сохранены.',
+                  ),
+                ),
+              );
+              return;
+            }
+            if ([
+                  'telegram',
+                  'vk',
+                  'whatsapp',
+                  'avito',
+                  'website',
+                ].any((k) => c(k).text.trim().isNotEmpty) &&
+                !testPreview) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Сервер пока не поддерживает сохранение ссылок. Изменения не сохранены.',
+                  ),
+                ),
+              );
+              return;
+            }
+            setState(() => busy = true);
+            try {
+              if (!testPreview) {
+                await widget.api.call(
+                  '/account/profile',
+                  method: 'POST',
+                  body: {'name': newName},
+                );
+                if (merchant['shop'] != null) {
+                  await widget.api.call(
+                    '/merchant/shop',
+                    method: 'PUT',
+                    body: {'name': newName, 'contact': c('phone').text.trim()},
+                  );
+                }
+                await reload(navigate: false);
+              }
+              if (!mounted) return;
+              FocusManager.instance.primaryFocus?.unfocus();
+              setState(() {
+                account['name'] = newName;
+                history.clear();
+                screen = 'profile';
+              });
+            } catch (error) {
+              debugPrint('Ошибка сохранения профиля: $error');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Не удалось сохранить профиль. Проверьте соединение и повторите попытку.',
+                    ),
+                  ),
+                );
+              }
+            } finally {
+              if (mounted) setState(() => busy = false);
+            }
+          }),
+          const SizedBox(height: 30),
+        ],
+      ),
+    ),
+    large: true,
+  );
+  Widget storeList() => page(
+    'мои магазины',
+    scroll(
+      Column(
+        children: [
+          const SizedBox(height: 36),
+          for (final p in [...pavilions, ...requests]) ...[
+            tap(
+              Container(
+                height: 70,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: p['status'] == 'rejected'
+                      ? red
+                      : p['status'] == 'pending'
+                      ? const Color(0xFFD9D9D9)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          label(
+                            address(p),
+                            12,
+                            bold: true,
+                            color: p['status'] == 'rejected'
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                          const SizedBox(height: 10),
+                          label(
+                            name,
+                            12,
+                            color: p['status'] == 'rejected'
+                                ? const Color(0xFFD9D9D9)
+                                : const Color(0xFF595959),
+                          ),
+                        ],
+                      ),
+                    ),
+                    label(
+                      p['status'] == 'pending'
+                          ? 'на проверке'
+                          : p['status'] == 'rejected'
+                          ? 'отклонен'
+                          : '›',
+                      p['status'] == 'approved' ? 24 : 12,
+                      color: p['status'] == 'rejected'
+                          ? Colors.white
+                          : const Color(0xFF7D7D7D),
+                    ),
+                  ],
+                ),
+              ),
+              () {
+                pavilion = p;
+                go(
+                  p['status'] == 'pending'
+                      ? 'pending'
+                      : p['status'] == 'rejected'
+                      ? 'rejected'
+                      : 'shop',
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          tap(
+            Container(
+              height: 70,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: label(
+                      'добавить магазин',
+                      12,
+                      color: const Color(0xFF595959),
+                    ),
+                  ),
+                  label('+', 28),
+                ],
+              ),
+            ),
+            () => go('address'),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    ),
+    trailing: tap(asset('8974e.svg', width: 3, height: 13), missing),
+  );
+  Widget statusBody() {
+    final pending = screen == 'pending', reject = screen == 'rejected';
+    return page(
+      pending
+          ? 'магазин на проверке'
+          : reject
+          ? 'магазин не подтверждён'
+          : 'магазин подтверждён',
+      LayoutBuilder(
+        builder: (ctx, b) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: b.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(30, 93, 30, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 14, bold: true),
+                          const SizedBox(height: 6),
+                        ],
+                        label(address(pavilion), 22, bold: true),
+                        const SizedBox(height: 12),
+                        label(
+                          pending
+                              ? 'На проверке'
+                              : reject
+                              ? 'Проверка не пройдена'
+                              : 'Подтверждён',
+                          14,
+                          bold: !reject,
+                          color: reject
+                              ? const Color(0xFFAB0216)
+                              : const Color(0xFF595959),
+                        ),
+                        const SizedBox(height: 10),
+                        label(
+                          'Магазин: $name',
+                          12,
+                          color: const Color(0xFF595959),
+                        ),
+                        const SizedBox(height: 10),
+                        label(
+                          pending
+                              ? 'Адрес отправлен на проверку. После подтверждения торговая точка станет доступна для товаров.'
+                              : reject
+                              ? 'Причина: ${pavilion['note'] ?? ''}'
+                              : 'Адрес подтверждён. Теперь можно выбрать этот павильон при добавлении товара.',
+                          12,
+                          color: const Color(0xFF808080),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (reject) ...[
+                    const SizedBox(height: 32),
+                    label(
+                      'Исправь адрес или приложи другое фото.\nПосле этого заявку можно отправить снова.',
+                      12,
+                      color: const Color(0xFF808080),
+                    ),
+                  ],
+                  SizedBox(
+                    height: math.max(30, b.maxHeight - (reject ? 390 : 310)),
+                  ),
+                  pill(
+                    pending
+                        ? 'мои магазины'
+                        : reject
+                        ? 'исправить адрес'
+                        : 'добавить товар',
+                    () {
+                      if (pending) {
+                        returnToStores();
+                        return;
+                      }
+                      if (reject) {
+                        manualAddressEntry = false;
+                        c('fullAddress').clear();
+                        for (final key in [
+                          'building',
+                          'floor',
+                          'line',
+                          'number',
+                        ])
+                          c(key).clear();
+                        c('zone').text = '${pavilion['zone'] ?? ''}';
+                        final parts = address(pavilion).split('-');
+                        final floorLine = parts.length == 3
+                            ? RegExp(r'^(\d+)(.*)$').firstMatch(parts[1])
+                            : null;
+                        if (parts.length == 3 && floorLine != null) {
+                          c('building').text = parts[0];
+                          c('floor').text = floorLine.group(1)!;
+                          c('line').text = floorLine.group(2)!;
+                          c('number').text = parts[2];
+                        } else {
+                          // Legacy codes may not be decomposable; keep the exact address.
+                          c('number').text = address(pavilion);
+                        }
+                      }
+                      go(
+                        pending
+                            ? 'stores'
+                            : reject
+                            ? 'fixAddress'
+                            : 'capture',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      onBack: pending ? returnToStores : null,
+    );
+  }
+
+  Widget addressBody() {
+    final fix = screen == 'fixAddress';
+    final manual = manualAddressEntry || screen == 'manualAddress';
+    final input = c('fullAddress').text.trim();
+    final parsed = manual && input.isNotEmpty
+        ? parseMarketAddress(input) : null;
+    final zone = c('zone').text;
+    return page(
+      fix ? 'исправить адрес' : 'добавить магазин',
+      scroll(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 11),
+            if (fix) ...[
+              label('Исправь данные и отправь заявку ещё раз.', 12,
+                  color: const Color(0xFF808080)),
+              const SizedBox(height: 18),
+            ] else ...[
+              V3Field('название', c('addressName')..text = name,
+                  readOnly: true),
+              const SizedBox(height: 11),
+            ],
+            if (!manual) ...[
+              InkWell(
+                onTap: () async {
+                  final choice = await showModalBottomSheet<String>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20))),
+                    builder: (context) => SafeArea(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+                        child: ListView(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          children: [
+                            for (final territory in marketTerritories)
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 9),
+                                minVerticalPadding: 12,
+                                title: Text(territory, style: type(14)),
+                                onTap: () => Navigator.pop(context, territory),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                  if (choice != null && mounted) {
+                    setState(() {
+                      c('zone').text = choice;
+                      c('fullAddress').clear();
+                      c('floor').clear();
+                      c('line').clear();
+                      c('number').clear();
+                      c('building').text = choice == 'корпус Б' ? 'Б' :
+                          choice == 'корпус А' ? 'А' : '';
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: V3Field('торговая зона', c('zone'), readOnly: true),
+                ),
+              ),
+              const SizedBox(height: 11),
+              if (zone == 'корпус А' || zone == 'корпус Б') ...[
+                V3Field('этаж', c('floor')),
+                const SizedBox(height: 11),
+              ],
+              if (zone.isNotEmpty) ...[
+                V3Field(zone == 'вещевые ряды'
+                    ? 'линия (1–33, СТ, ТЦ)'
+                    : zone == 'птичий рынок' ? 'сектор / ряд (если есть)'
+                    : zone == 'меха и кожа' ? 'галерея (если есть)'
+                    : 'линия / ряд', c('line')),
+                const SizedBox(height: 11),
+                V3Field(zone == 'птичий рынок'
+                    ? 'номер места' : 'номер павильона', c('number')),
+                const SizedBox(height: 11),
+              ],
+              const SizedBox(height: 10),
+              tap(
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: label('ввести адрес вручную', 12,
+                      color: const Color(0xFF7A7A7A)),
+                ),
+                () => setState(() {
+                  manualAddressEntry = true;
+                  c('zone').clear();
+                  c('fullAddress').clear();
+                }),
+              ),
+            ] else ...[
+              V3Field('адрес целиком', c('fullAddress'),
+                  onChanged: (_) => setState(() {})),
+              const SizedBox(height: 11),
+              if (parsed != null && parsed.recognized) ...[
+                label(parsed.explanation, 12,
+                    color: const Color(0xFF808080)),
+                const SizedBox(height: 12),
+                label(parsed.territory, 12,
+                    color: const Color(0xFF808080)),
+                const SizedBox(height: 11),
+              ],
+              const SizedBox(height: 10),
+              tap(
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: label('выбрать торговую зону', 12,
+                      color: const Color(0xFF7A7A7A)),
+                ),
+                () => setState(() {
+                  manualAddressEntry = false;
+                  c('fullAddress').clear();
+                  c('zone').clear();
+                  c('building').clear();
+                  c('floor').clear();
+                  c('line').clear();
+                  c('number').clear();
+                }),
+              ),
+            ],
+            if (fix) ...[
+              const SizedBox(height: 12),
+              tap(
+                Container(
+                  height: 56,
+                  color: Colors.white,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: label('добавить новое фото входа', 12,
+                      color: const Color(0xFF808080)),
+                ),
+                missing,
+              ),
+            ],
+            const SizedBox(height: 25),
+            pill(fix ? 'отправить повторно' : 'отправить на проверку',
+                sendAddress),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget searchField() => Container(
+    height: 32,
+    decoration: BoxDecoration(
+      color: const Color(0xFFD9D9D9),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      children: [
+        const SizedBox(width: 17),
+        asset('ba4c8.svg', width: 14, height: 14),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: c('search'),
+            onChanged: (_) => setState(() {
+              searching = true;
+              selected.clear();
+            }),
+            style: type(12, color: Colors.white),
+            textAlignVertical: TextAlignVertical.center,
+            maxLines: 1,
+            strutStyle: const StrutStyle(
+              fontSize: 12, height: 1, forceStrutHeight: true,
+            ),
+            decoration: InputDecoration(
+              hintText: 'поиск',
+              hintStyle: type(12, color: Colors.white),
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
+        ),
+        if (searching)
+          tap(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: label('×', 20),
+            ),
+            () {
+              setState(() {
+                searching = false;
+                c('search').clear();
+              });
+            },
+          ),
+      ],
+    ),
+  );
+  Widget catalog() {
+    final shop = screen == 'shop';
+    final items = shown;
+    final content = scroll(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (selecting) ...[
+            SizedBox(
+              height: math.max(64, MediaQuery.paddingOf(context).top + 12),
+            ),
+            Row(
+              children: [
+                Expanded(child: searchField()),
+                const SizedBox(width: 24),
+                tap(label('×', 28), () {
+                  setState(() {
+                    selecting = false;
+                    selected.clear();
+                  });
+                }),
+              ],
+            ),
+            const SizedBox(height: 16),
+            tap(
+              Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: items.isNotEmpty && selected.length == items.length
+                          ? blue : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFC8C8C8)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  label('выбрать все (${items.length})', 10, color: muted),
+                ],
+              ),
+              () => setState(() {
+                if (selected.length == items.length) {
+                  selected.clear();
+                } else {
+                  selected
+                    ..clear()
+                    ..addAll(items.take(20).map((p) => '${p['id']}'));
+                  if (items.length > 20)
+                    failure(
+                      Exception('За один раз можно выбрать до 20 товаров.'),
+                    );
+                }
+              }),
+            ),
+            const SizedBox(height: 10),
+          ] else if (shop) ...[
+            const SizedBox(height: 27),
+            Row(
+              children: [
+                Expanded(
+                  child: tap(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 12, color: brown),
+                          const SizedBox(height: 4),
+                        ],
+                        label(address(pavilion), 16, bold: true, color: brown),
+                      ],
+                    ),
+                    () => go('approved'),
+                  ),
+                ),
+                for (final mode in ['wholesale', 'retail']) ...[
+                  tap(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: saleFilter == mode ? Colors.black : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: label(
+                        mode == 'wholesale' ? 'опт' : 'розница',
+                        10,
+                        color: saleFilter == mode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    () => setState(() {
+                      saleFilter = saleFilter == mode ? null : mode;
+                      selected.clear();
+                    }),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            label(name, 14, color: brown),
+            const SizedBox(height: 18),
+            searchField(),
+            const SizedBox(height: 16),
+          ] else ...[
+            SizedBox(
+              height: math.max(68, MediaQuery.paddingOf(context).top + 6),
+            ),
+            tap(
+              Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 27),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: brown.withValues(alpha: .16)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: label('мои магазины', 16, color: brown),
+                    ),
+                    label('›', 30, bold: true, color: brown),
+                  ],
+                ),
+              ),
+              () => go('stores'),
+            ),
+            const SizedBox(height: 13),
+            pill('добавить товар', () => go('capture'), icon: 'd5d93.svg'),
+            const SizedBox(height: 23),
+            if (searching) ...[searchField(), const SizedBox(height: 18)],
+          ],
+          if (!selecting) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: label(
+                    searching ? 'результаты поиска' : 'все товары',
+                    shop ? 12 : 16,
+                    bold: true,
+                  ),
+                ),
+                if (!searching && !shop)
+                  tap(
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Center(
+                        child: asset('a665b.svg', width: 16, height: 16),
+                      ),
+                    ),
+                    () => setState(() => searching = true),
+                  ),
+                tap(
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(
+                      child: asset(shop ? 'ac2f9.svg' : 'e36ac.svg',
+                          width: 18, height: 18),
+                    ),
+                  ),
+                  () => setState(() {
+                    selecting = true;
+                    selected.clear();
+                    selectionPavilionId = screen == 'shop'
+                        ? '${pavilion['id']}'
+                        : null;
+                  }),
+                ),
+                if (shop)
+                  tap(
+                    const SizedBox(width: 24, height: 24,
+                      child: Center(child: Icon(Icons.more_horiz, size: 22))),
+                    () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Функция в разработке'),
+                        duration: Duration(seconds: 2))),
+                    name: 'Дополнительные действия',
+                  ),
+              ],
+            ),
+            if (!searching) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (final isHidden in [false, true]) ...[
+                    Expanded(
+                      child: tap(
+                        Container(
+                          height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: hidden == isHidden
+                                ? const Color(0xFFDCD3CC)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: label(
+                            isHidden ? 'скрытые' : 'опубликованные',
+                            12,
+                            color: brown,
+                          ),
+                        ),
+                        () => setState(() {
+                          hidden = isHidden;
+                          selected.clear();
+                        }),
+                      ),
+                    ),
+                    if (!isHidden) const SizedBox(width: 30),
+                  ],
+                ],
+              ),
+            ],
+            const SizedBox(height: 20),
+          ],
+          if (items.isEmpty && searching) ...[
+            const SizedBox(height: 90),
+            label('ничего не найдено', 18, bold: true, align: TextAlign.center),
+            const SizedBox(height: 16),
+            label(
+              'Попробуйте другое название.',
+              13,
+              color: muted,
+              align: TextAlign.center,
+            ),
+          ] else
+            LayoutBuilder(
+              builder: (ctx, b) {
+                final width = (b.maxWidth - 16) / 2;
+                final list = <Widget>[
+                  if (shop && !hidden && !selecting && !searching)
+                    tap(
+                      Column(
+                        children: [
+                          Container(
+                            width: width,
+                            height: width,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD9D9D9),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            alignment: Alignment.center,
+                            child: label('+', 30, color: Colors.white),
+                          ),
+                          const SizedBox(height: 8),
+                          label(
+                            'добавить товар',
+                            10,
+                            color: const Color(0xFF7D7D7D),
+                          ),
+                        ],
+                      ),
+                      () => go('capture'),
+                    ),
+                  for (final p in items) productCard(p, width),
+                ];
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 20,
+                  children: [
+                    for (final w in list) SizedBox(width: width, child: w),
+                  ],
+                );
+              },
+            ),
+          SizedBox(
+            height: selecting
+                ? 150 + MediaQuery.viewPaddingOf(context).bottom
+                : 100,
+          ),
+        ],
+      ),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        shop && !selecting
+            ? page(
+                'магазин',
+                content,
+                trailing: tap(
+                  asset('18697.svg', width: 17, height: 17),
+                  missing,
+                ),
+              )
+            : content,
+        if (selecting)
+          Positioned(
+            bottom: 24,
+            left: 30,
+            right: 30,
+            child: tap(
+              Container(
+                key: const ValueKey('selection-actions-bar'),
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                decoration: BoxDecoration(
+                  color: brown,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: label(
+                        'выбрано : ${selected.length}',
+                        14,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        label('действия', 14, color: Colors.white),
+                        const SizedBox(width: 5),
+                        const Icon(Icons.keyboard_arrow_up, size: 19,
+                          color: Colors.white),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              () => setState(() => actions = true),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String productStatus(RowData p, List<RowData> listings) {
+    if (p['status'] == 'pending') return 'на проверке';
+    if (p['status'] == 'rejected') return 'отклонён';
+    if (p['status'] == 'draft') return 'не отправлен';
+    if (listings.any(
+      (l) => l['published'] == true || l['status'] == 'approved',
+    ))
+      return 'опубликован';
+    if (listings.any((l) => l['status'] == 'pending')) return 'на проверке';
+    if (listings.any((l) => l['status'] == 'rejected')) return 'отклонён';
+    return 'скрыт';
+  }
+
+  Widget productCard(RowData p, double width) {
+    final images = (p['images'] as List? ?? []).cast<String>();
+    final scoped = rows(p['listings'])
+        .where((l) => screen != 'shop' || l['pavilion_id'] == pavilion['id'])
+        .toList();
+    final matches = scoped.where((l) => hidden
+        ? l['status'] == 'paused'
+        : l['published'] == true || l['status'] == 'approved').toList();
+    final listing = matches.firstOrNull;
+    final location = sellerListingAddress(listing, pavilions);
+    final rawPrice = listing?['price'];
+    final price = rawPrice is num ? rawPrice.toInt() : null;
+    return tap(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: width,
+            height: width,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: images.isEmpty
+                      ? Container(color: const Color(0xFFD9D9D9))
+                      : PageView(
+                          key: ValueKey('gallery:${p['id']}'),
+                          onPageChanged: (index) =>
+                              setState(() => photoPages['${p['id']}'] = index),
+                          children: [
+                            for (final url in images) productImage(url, width),
+                          ],
+                        ),
+                ),
+                if (images.length > 1)
+                  Positioned(
+                    bottom: 7,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < images.length; i++)
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: i == (photoPages['${p['id']}'] ?? 0)
+                                  ? Colors.white
+                                  : const Color(0xFFD9D9D9),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (hidden && matches.any((l) => l['status'] == 'paused'))
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Colors.white.withValues(alpha: .38),
+                      child: Center(
+                        child: asset('0b09a.svg', width: 40, height: 40),
+                      ),
+                    ),
+                  ),
+                if (selecting)
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: selected.contains('${p['id']}')
+                            ? blue
+                            : Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected.contains('${p['id']}')
+                              ? blue : const Color(0xFFC8C8C8),
+                          width: 1,
+                        ),
+                      ),
+                      child: selected.contains('${p['id']}')
+                          ? Center(child: label('✓', 16, color: Colors.white))
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            width: width,
+            child: SellerCatalogCaption(
+              address: location,
+              price: price,
+              title: '${p['title'] ?? ''}',
+            ),
+          ),
+        ],
+      ),
+      () {
+        if (selecting) {
+          setState(() {
+            final id = '${p['id']}';
+            if (selected.contains(id)) {
+              selected.remove(id);
+            } else if (selected.length < 20) {
+              selected.add(id);
+            } else {
+              failure(Exception('За один раз можно выбрать до 20 товаров.'));
+            }
+          });
+        } else {
+          openEditProduct(p);
+        }
+      },
+    );
+  }
+
+  Widget productImage(String url, double width) {
+    if (url.startsWith('asset:')) {
+      final file = url.substring(6);
+      final crops = <String, List<double>>{
+        'bfc4a.png': [-.204, -1.0551, 1.4811, 3.2198],
+        'eb9f2.png': [-.0143, -.0337, 1.015, 1.1879],
+        'f46f5.png': [0, -.5605, 1, 1.5677],
+        '62cf6.png': [-.0004, -.06, 1.0008, 1.34],
+      };
+      final crop = crops[file];
+      if (crop != null) {
+        return SizedBox(
+          width: width,
+          height: width,
+          child: ClipRect(
+            child: Stack(
+              children: [
+                Positioned(
+                  left: crop[0] * width,
+                  top: crop[1] * width,
+                  width: crop[2] * width,
+                  height: crop[3] * width,
+                  child: Image.asset('assets/figma/$file', fit: BoxFit.fill),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return Image.asset(
+        'assets/figma/$file',
+        width: width,
+        height: width,
+        fit: BoxFit.cover,
+      );
+    }
+    return SizedBox(
+      width: width,
+      height: width,
+      child: SadohodProductPhoto(
+        path: url.startsWith('http') ? url : '${widget.api.baseUrl}$url',
+        fit: BoxFit.cover,
+        placeholder: const Color(0xFFD9D9D9),
+      ),
+    );
+  }
+
+  Widget actionPanel() => Positioned.fill(
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: tap(
+            ColoredBox(color: Colors.black.withValues(alpha: .4)),
+            () => setState(() => actions = false),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            key: const ValueKey('seller-actions-sheet'),
+            padding: const EdgeInsets.fromLTRB(30, 16, 30, 36),
+            decoration: const BoxDecoration(
+              color: beige,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: tap(
+                    label('×', 26),
+                    () => setState(() => actions = false),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: actionTile('перенести', '46c91.svg', brown, () {
+                        destinations.clear();
+                        go('move');
+                      }),
+                    ),
+                    const SizedBox(width: 30),
+                    Expanded(
+                      child: actionTile('дублировать', '282b6.svg', blue, () {
+                        destinations.clear();
+                        go('duplicate');
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+                Row(
+                  children: [
+                    Expanded(
+                      child: actionTile(
+                        hidden ? 'показать' : 'скрыть',
+                        hidden ? 'a4ab0.svg' : '7c4d2.svg',
+                        muted,
+                        () => run(() async {
+                          if (selected.isEmpty) return;
+                          if (!testPreview) {
+                            await productActions.batch(
+                              hidden ? 'resume' : 'pause',
+                              {
+                                'product_ids': selected.toList()..sort(),
+                                if (selectionPavilionId != null)
+                                  'pavilion_id': selectionPavilionId,
+                              },
+                            );
+                            await reload(navigate: false);
+                          }
+                          if (hidden && mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Товары опубликованы',
+                                ),
+                              ),
+                            );
+                          setState(() {
+                            actions = false;
+                            selecting = false;
+                            selected.clear();
+                          });
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 30),
+                    Expanded(
+                      child: actionTile('удалить', 'd6928.svg', red, () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => Center(child: deleteDialog()),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget actionTile(
+    String title,
+    String icon,
+    Color color,
+    VoidCallback action,
+  ) => tap(
+    Container(
+      height: 75,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          asset(icon, width: 24, height: 24),
+          const SizedBox(height: 8),
+          label(title, 16, color: Colors.white),
+        ],
+      ),
+    ),
+    action,
+  );
+  Widget deleteDialog() {
+    final count = selected.isEmpty ? 1 : selected.length;
+    final suffix = count % 10 == 1 && count % 100 != 11
+        ? 'товар'
+        : count % 10 >= 2 &&
+              count % 10 <= 4 &&
+              (count % 100 < 12 || count % 100 > 14)
+        ? 'товара'
+        : 'товаров';
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        width: 330,
+        height: 200,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 19,
+              right: 19,
+              top: 27,
+              child: label(
+                'вы точно хотите удалить $count $suffix?',
+                15,
+                bold: true,
+                color: const Color(0xFF1F1F1F),
+              ),
+            ),
+            Positioned(
+              left: 19,
+              right: 19,
+              top: 55,
+              child: label(
+                'Карточки будут удалены из всех магазинов.\nВосстановить их не получится.',
+                12,
+                color: const Color(0xFFA3A3A3),
+              ),
+            ),
+            Positioned(
+              left: 19,
+              right: 19,
+              top: 110,
+              height: 43,
+              child: tap(
+                Center(
+                  child: label('отмена', 14, color: const Color(0xFF1A1A1A)),
+                ),
+                () {
+                  if (screen == 'delete') {
+                    back();
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+            ),
+            Positioned(
+              left: 19,
+              right: 19,
+              top: 152,
+              height: 43,
+              child: tap(
+                Center(
+                  child: label('удалить', 14, color: const Color(0xFF5F0F10)),
+                ),
+                () {
+                  if (screen != 'delete') Navigator.pop(context);
+                  deleteProducts();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget bulkBody() {
+    final duplicate = screen == 'duplicate';
+    return page(
+      duplicate ? 'дублировать товары' : 'перенести товары',
+      LayoutBuilder(
+        builder: (ctx, b) => SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(30, 16, 30, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                label(
+                  duplicate
+                      ? 'Будут созданы отдельные копии товаров в выбранных магазинах. Оригиналы останутся без изменений.'
+                      : 'Товары будут убраны из исходного магазина и перемещены в выбранный. В остальных магазинах они останутся без изменений.',
+                  12,
+                  color: const Color(0xFF808080),
+                ),
+                const SizedBox(height: 25),
+                label('Выбрано ${selected.length} товара', 12, color: muted),
+                const SizedBox(height: 25),
+                ...[
+                  label('Из магазина', 12, color: muted),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 60,
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.white,
+                    child: label(
+                      address(
+                        pavilions
+                                .where((p) => '${p['id']}' == sourcePavilionId)
+                                .firstOrNull ??
+                            pavilion,
+                      ),
+                      14,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                ],
+                label(
+                  duplicate ? 'Разместить копии в магазинах' : 'В магазин',
+                  12,
+                  color: muted,
+                ),
+                const SizedBox(height: 12),
+                for (final p in pavilions) ...[
+                  tap(
+                    Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(child: label(address(p), 14)),
+                          Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: destinations.contains('${p['id']}')
+                                  ? blue
+                                  : Colors.white,
+                              border: Border.all(
+                                color: destinations.contains('${p['id']}')
+                                    ? blue
+                                    : muted,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                duplicate ? 3 : 10,
+                              ),
+                            ),
+                            child: destinations.contains('${p['id']}')
+                                ? Center(
+                                    child: label(
+                                      duplicate ? '✓' : '•',
+                                      14,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                    () => setState(() {
+                      final id = '${p['id']}';
+                      if (!duplicate) destinations.clear();
+                      if (!destinations.add(id)) destinations.remove(id);
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                const SizedBox(height: 38),
+                pill(
+                  duplicate ? 'дублировать товары' : 'перенести товары',
+                  distributeProducts,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget captureBody() => page(
+    'добавить товар',
+    LayoutBuilder(
+      builder: (ctx, b) {
+        final scaleX = b.maxWidth / 390;
+        final scaleY = b.maxHeight / 632;
+        // Figma image 17 is the supplied camera artwork, with the same clipping
+        // as node 366:15990. Interactive regions launch native image picking.
+        return Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              left: -24 * scaleX,
+              top: 6 * scaleY,
+              width: 439 * scaleX,
+              height: 630 * scaleY,
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: -.2418 * 630 * scaleY,
+                      width: 439 * scaleX,
+                      height: 1.5169 * 630 * scaleY,
+                      child: Image.asset(
+                        'assets/figma/045ce.png',
+                        fit: BoxFit.fill,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 10 * scaleX,
+              right: 10 * scaleX,
+              top: 18 * scaleY,
+              // Keep the preview behind the shutter all the way to the
+              // bottom of the Figma camera rectangle, not 70px above it.
+              bottom: 60 * scaleY,
+              child: KeyedSubtree(
+                key: const ValueKey('seller-camera-viewport'),
+                child: testPreview
+                  ? tap(
+                      const SizedBox.expand(),
+                      () => pick(),
+                      name: 'Выбрать фотографии',
+                    )
+                  : SellerLiveCamera(
+                      key: cameraPreviewKey,
+                      onCaptured: (image) => pick(selected: [image]),
+                      onFallback: () => pick(camera: true),
+                    ),
+              ),
+            ),
+            Positioned(
+              left: 160 * scaleX,
+              top: 480 * scaleY,
+              width: 70 * scaleX,
+              height: 70 * scaleY,
+              child: tap(
+                // The Figma image already draws a shutter in static previews.
+                // Live video covers that artwork, so a real shutter must
+                // render ABOVE the camera, not behind it.
+                Center(
+                  child: testPreview
+                      ? const SizedBox.expand()
+                      : DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: capturePhotos.length >= maxProductPhotos
+                                ? const Color(0xFFB4B4B4)
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: SizedBox(
+                            width: 52 * scaleX,
+                            height: 52 * scaleX,
+                          ),
+                        ),
+                ),
+                () {
+                  if (capturePhotos.length >= maxProductPhotos) return;
+                  if (testPreview) {
+                    pick(camera: true);
+                  } else {
+                    cameraPreviewKey.currentState?.capture();
+                  }
+                },
+                name: 'Снять фото',
+              ),
+            ),
+            if (capturePhotos.length >= maxProductPhotos)
+              Positioned(
+                left: 171 * scaleX,
+                top: 491 * scaleY,
+                width: 48 * scaleX,
+                height: 48 * scaleY,
+                child: const IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0x88000000),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            if (capturePhotos.isNotEmpty) ...[
+              Positioned(
+                left: 35 * scaleX,
+                top: 488 * scaleY,
+                width: 57 * scaleX,
+                height: 57 * scaleY,
+                child: tap(
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FutureBuilder<Uint8List>(
+                          future: capturePhotos.last.readAsBytes(),
+                          builder: (context, snapshot) => snapshot.hasData
+                              ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                              : const ColoredBox(color: Color(0xFF888888)),
+                        ),
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: label('${capturePhotos.length}/6', 10,
+                                bold: true, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  () => showSellerCaptureGallery(
+                    context: context,
+                    photos: capturePhotos,
+                    onRemove: (photo) => setState(() => capturePhotos.remove(photo)),
+                  ),
+                  name: 'Просмотр фотографий',
+                ),
+              ),
+              Positioned(
+                right: 18 * scaleX,
+                top: 494 * scaleY,
+                width: 75 * scaleX,
+                height: 45 * scaleY,
+                child: tap(
+                  Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: label('далее', 13, bold: true, color: Colors.white),
+                  ),
+                  finishCapture,
+                  name: 'Перейти к карточке товара',
+                ),
+              ),
+            ],
+                        Positioned(
+              left: 122 * scaleX,
+              top: 552 * scaleY,
+              width: 146 * scaleX,
+              height: 48 * scaleY,
+              child: tap(
+                const SizedBox.expand(),
+                () => pick(),
+                name: 'из галереи',
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  Widget singleDeleteDialog() => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: SizedBox(
+      width: 330,
+      height: 201,
+      child: Stack(
+        children: [
+          const Positioned(
+            left: 19,
+            right: 19,
+            top: 18,
+            child: Text(
+              'удалить товар?',
+              style: TextStyle(
+                fontFamily: SadohodFont.family,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 19,
+            right: 19,
+            top: 57,
+            child: Text(
+              'Товар исчезнет из всех павильонов.\nВосстановить карточку будет нельзя.',
+              style: TextStyle(
+                fontFamily: SadohodFont.family,
+                fontSize: 13,
+                color: Color(0xFF7A7A7A),
+              ),
+            ),
+          ),
+          for (final item in <(String, double, Color, VoidCallback)>[
+            (
+              'отмена',
+              110,
+              const Color(0xFF1A1A1A),
+              () => Navigator.pop(context),
+            ),
+            (
+              'удалить',
+              152,
+              const Color(0xFF5F0F10),
+              () {
+                Navigator.pop(context);
+                deleteProducts(single: true);
+              },
+            ),
+          ])
+            Positioned(
+              left: 19,
+              right: 19,
+              top: item.$2,
+              height: 43,
+              child: tap(
+                Padding(
+                  padding: const EdgeInsets.only(left: 9, top: 10),
+                  child: Text(
+                    item.$1,
+                    style: TextStyle(
+                      fontFamily: SadohodFont.family,
+                      fontSize: 14,
+                      color: item.$3,
+                    ),
+                  ),
+                ),
+                item.$4,
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+  Widget productEditor() {
+    final edit = screen == 'editProduct';
+    return page(
+      edit ? 'изменить товар' : 'добавить товар',
+      scroll(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 17),
+            V3Field('название', c('title')),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.fromLTRB(17, 14, 17, 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  label(
+                    'павильон',
+                    12,
+                    color: pavilionValidationError ? red : muted,
+                  ),
+                  if (pavilionValidationError) ...[
+                    const SizedBox(height: 6),
+                    label('Выберите павильон', 12, color: red),
+                  ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 10,
+                    children: [
+                      for (final p in pavilions)
+                        tap(
+                          Container(
+                            height: 22,
+                            padding: const EdgeInsets.symmetric(horizontal: 9),
+                            decoration: BoxDecoration(
+                              color: destinations.contains('${p['id']}')
+                                  ? blue
+                                  : muted,
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: Center(
+                              widthFactor: 1,
+                              child: label(address(p), 11, color: Colors.white),
+                            ),
+                          ),
+                          () => setState(() {
+                            final id = '${p['id']}';
+                            if (!destinations.add(id)) destinations.remove(id);
+                            if (destinations.isNotEmpty)
+                              pavilionValidationError = false;
+                          }),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            V3Field('цена', c('price'), keyboard: TextInputType.number),
+            const SizedBox(height: 8),
+            saleModeFields(saleModes),
+            SizedBox(height: edit ? 22 : 8),
+            LayoutBuilder(
+              builder: (ctx, b) {
+                final width = (b.maxWidth - 30) / 2;
+                final urls = (product['images'] as List? ?? []).cast<String>();
+                return Wrap(
+                  spacing: 30,
+                  runSpacing: 16,
+                  children: [
+                    for (var i = 0; i < urls.length + photos.length; i++)
+                      SizedBox(
+                        width: width,
+                        height: width,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: i < urls.length
+                                    ? productImage(urls[i], width)
+                                    : FutureBuilder(
+                                        future: photos[i - urls.length]
+                                            .readAsBytes(),
+                                        builder: (ctx, snapshot) =>
+                                            snapshot.hasData
+                                            ? Image.memory(
+                                                snapshot.data!,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Container(color: muted),
+                                      ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: tap(
+                                  const Icon(
+                                    Icons.sync,
+                                    color: Colors.white,
+                                    size: 23,
+                                  ),
+                                  () => replaceProductPhoto(i, urls.length),
+                                  name: 'Заменить фотографию',
+                                ),
+                              ),
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: tap(
+                                  asset('46d54.svg', width: 12, height: 12),
+                                  () {
+                                    removePhoto(i, urls.length);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (urls.length + photos.length < maxProductPhotos)
+                    SizedBox(
+                      width: width,
+                      height: width,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: Material(
+                          color: muted,
+                          child: InkWell(
+                            onTap: () => pick(),
+                            child: const Center(
+                              child: Icon(
+                                Icons.add,
+                                size: 30,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            if (edit)
+              Row(
+                children: [
+                  Expanded(
+                    child: pill('удалить товар', () {
+                      selected
+                        ..clear()
+                        ..add('${product['id']}');
+                      showDialog<void>(
+                        context: context,
+                        builder: (_) => Center(child: singleDeleteDialog()),
+                      );
+                    }, color: red),
+                  ),
+                  const SizedBox(width: 30),
+                  Expanded(child: pill('сохранить', saveProduct, color: blue)),
+                ],
+              )
+            else
+              pill('добавить', saveProduct),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+      trailing: edit
+          ? tap(
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: asset(
+                    currentProductVisible
+                        ? 'seller_eye_open_black.svg'
+                        : 'seller_eye_closed_black.svg',
+                    width: 20,
+                    height: 20,
+                  ),
+                ),
+              ),
+              toggleProductVisibility,
+              name: currentProductVisible ? 'Скрыть товар' : 'Показать товар',
+            )
+          : null,
+    );
+  }
+}
+).hasMatch(line)
             ? '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor-$line-$number'
             : '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor$line-$number';
       } else if (zone == 'вещевые ряды') {
