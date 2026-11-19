@@ -17,13 +17,13 @@ import '../../data/catalog.dart';
 BoxConstraints _reportDialogConstraints(BuildContext context) {
   final media = MediaQuery.of(context);
   return BoxConstraints(
-    maxWidth: math.min(380, math.max(200, media.size.width - 32)),
+    maxWidth: math.min(380.0, math.max(200.0, media.size.width - 32.0)),
     maxHeight: math.max(
-      180,
+      180.0,
       media.size.height -
           media.padding.vertical -
           media.viewInsets.bottom -
-          32,
+          32.0,
     ),
   );
 }
@@ -87,6 +87,36 @@ Future<String?> showBuyerProductReportDialog(BuildContext context) =>
       useRootNavigator: false,
       builder: (_) => const BuyerProductReportDialog(),
     );
+
+/// Secondary report action shared by product details and widget tests.
+class BuyerProductReportButton extends StatelessWidget {
+  const BuyerProductReportButton({
+    super.key,
+    required this.onPressed,
+    this.sending = false,
+  });
+
+  final VoidCallback? onPressed;
+  final bool sending;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.center,
+    child: TextButton(
+      onPressed: sending ? null : onPressed,
+      child: Text(
+        sending ? 'отправка...' : 'пожаловаться на товар',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: SadohodFont.family,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFFA5A5A5),
+        ),
+      ),
+    ),
+  );
+}
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({required this.id, super.key});
@@ -280,21 +310,9 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.center,
-                child: TextButton(
-                  onPressed: _reportSending ? null : _reportProduct,
-                  child: Text(
-                    _reportSending ? 'отправка...' : 'пожаловаться на товар',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: SadohodFont.family,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFFA5A5A5),
-                    ),
-                  ),
-                ),
+              BuyerProductReportButton(
+                sending: _reportSending,
+                onPressed: _reportProduct,
               ),
             ],
           )),
