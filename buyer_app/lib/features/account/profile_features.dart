@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter/services.dart';
@@ -444,20 +445,69 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   ]));
 }
 
-class BuyerInfoScreen extends StatelessWidget {
+class BuyerInfoScreen extends StatefulWidget {
   const BuyerInfoScreen(this.kind, {super.key});
   final String kind;
+
+  @override
+  State<BuyerInfoScreen> createState() => _BuyerInfoScreenState();
+}
+
+class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
+  late Future<String> document;
+  @override
+  void initState() {
+    super.initState();
+    document = _load();
+  }
+
+  Future<String> _load() async {
+    final slug = widget.kind == 'terms' ? 'buyer-terms' : 'privacy';
+    final uri = Uri.parse('${CatalogApi.instance.baseUrl}/api/v1/legal/$slug');
+    final response = await http.get(uri).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw StateError('Юридический документ пока не опубликован.');
+    }
+    final json = jsonDecode(utf8.decode(response.bodyBytes));
+    if (json is! Map || json['slug'] != slug || json['body'] is! String ||
+        json['version'] is! String || json['effective_date'] is! String) {
+      throw const FormatException('Неверный формат юридического документа');
+    }
+    final body = (json['body'] as String)
+        .replaceAll(RegExp(r'(?m)^#{1,5}\\s*'), '')
+        .replaceAll('**', '');
+    return '$body\\n\\nРедакция ${json['version']} · действует с ${json['effective_date']}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final legal = kind != 'about';
-    final title = kind == 'about' ? 'о приложении'
-      : kind == 'terms' ? 'пользовательское соглашение' : 'конфиденциальность';
+    final legal = widget.kind != 'about';
+    final title = widget.kind == 'about' ? 'о приложении'
+      : widget.kind == 'terms' ? 'пользовательское соглашение' : 'конфиденциальность';
     return ColoredBox(color: const Color(0xfff1f1f1), child: Column(children: [
       _BuyerPageTop(title),
       Expanded(child: ListView(padding: const EdgeInsets.all(30), children: [
-        Text(legal ? 'Документ готовится к публикации перед публичным запуском приложения.'
-          : 'Садоход · ${SadohodBuild.label}\n\nПоиск товаров и павильонов рынка Садовод. Каталог и адреса в тестовой версии демонстрационные.',
-          style: const TextStyle(fontSize: 14, height: 1.5)),
+        if (!legal)
+          Text('Садоход · ${SadohodBuild.label}\\n\\nПоиск товаров и павильонов рынка Садовод.',
+            style: const TextStyle(fontSize: 14, height: 1.5))
+        else FutureBuilder<String>(
+          future: document,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Юридический документ пока недоступен.',
+                  style: TextStyle(fontSize: 14)),
+                TextButton(onPressed: () => setState(() => document = _load()),
+                  child: const Text('повторить загрузку')),
+              ]);
+            }
+            return SelectableText(snapshot.data!,
+              style: const TextStyle(fontSize: 14, height: 1.5));
+          },
+        ),
       ])),
     ]));
   }
