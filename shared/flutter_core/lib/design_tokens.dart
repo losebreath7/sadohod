@@ -86,13 +86,13 @@ abstract final class BuyerProductType {
     color: BuyerColors.muted,
   );
 
-  // Product-detail navigation address: use the actual bundled Medium 500 face.
-  // Keep size, line height and color unchanged from the approved card geometry.
+  // Figma sector/line navigation block: genuine bundled SemiBold 600.
+  // Keep font size, line height and color consistent with approved geometry.
   static const detailNavigation = TextStyle(
     fontFamily: SadohodFont.family,
     fontFamilyFallback: SadohodFont.fallback,
     fontSize: 12,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     height: 1.25,
     color: BuyerColors.muted,
   );

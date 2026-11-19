@@ -290,11 +290,15 @@ class _ProductScreenState extends State<ProductScreen> {
                     padding: const EdgeInsets.fromLTRB(14, 10, 15, 10),
                     child: Row(children: [
                       const SizedBox(width: 12),
-                      Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _addressLines(address, seller?.zone ?? '').map((line) =>
-                          Text(line, style: BuyerProductType.detailNavigation)).toList(),
-                      )),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: BuyerProductNavigationAddress(
+                            address: address,
+                            zone: seller?.zone ?? '',
+                          ),
+                        ),
+                      ),
                       const CircleAvatar(backgroundColor: Colors.black, radius: 17,
                         child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 23)),
                     ]),
@@ -314,18 +318,64 @@ class _ProductScreenState extends State<ProductScreen> {
   );
 }
 
-List<String> _addressLines(String address, String zone) {
-  // For example Б-2В-81 = корпус Б · этаж 2 линия В · павильон 81.
-  // Other formats are shown literally rather than inventing missing fields.
-  final match = RegExp(r'^([^\-]+)-(\d+)([а-яА-Яa-zA-Z]+)-(\d+)$').firstMatch(address);
-  if (match != null) return [
-    '${match.group(1)}  - корпус',
-    '${match.group(2)}${match.group(3)} - ${match.group(2)}-й этаж, линия ${match.group(3)}',
-    '${match.group(4)}  - номер павильона',
-  ];
-  return [address, if (zone.isNotEmpty) zone];
-}
+/// Figma address grid: value labels center in column one; captions align left.
+class BuyerProductNavigationAddress extends StatelessWidget {
+  const BuyerProductNavigationAddress({
+    super.key,
+    required this.address,
+    this.zone = '',
+  });
 
+  final String address;
+  final String zone;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = address.trim();
+    // Supports standard sector-line addresses, e.g. А-14 or Б-125.
+    // Unknown schemas are shown as supplied rather than being fabricated.
+    final match = RegExp(r'^\s*([^\s–—-]+)\s*[-–—]\s*(\d+)\s*').firstMatch(trimmed);
+    if (match == null || match.group(0) != trimmed) {
+      return Column(
+        key: const ValueKey('buyer-address-fallback'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(address, style: BuyerProductType.detailNavigation),
+          if (zone.trim().isNotEmpty)
+            Text(zone, style: BuyerProductType.detailNavigation),
+        ],
+      );
+    }
+
+    return Row(
+      key: const ValueKey('buyer-navigation-address-grid'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Column(
+          key: const ValueKey('buyer-address-values'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(match.group(1)!, style: BuyerProductType.detailNavigation),
+            Text(match.group(2)!, style: BuyerProductType.detailNavigation),
+          ],
+        ),
+        const SizedBox(width: 10),
+        Column(
+          key: const ValueKey('buyer-address-descriptions'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('- сектор', style: BuyerProductType.detailNavigation),
+            Text('- линия', style: BuyerProductType.detailNavigation),
+          ],
+        ),
+      ],
+    );
+  }
+}
 /// One centered line for the avatar, seller name and sale-mode badges.
 /// Keep the seller name flexible, but never let it push the badges offscreen.
 class BuyerSellerIdentityRow extends StatelessWidget {
@@ -363,6 +413,7 @@ class BuyerSellerIdentityRow extends StatelessWidget {
             style: const TextStyle(
               fontFamily: SadohodFont.family,
               fontSize: 14,
+              fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
