@@ -1315,7 +1315,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
       code = parsed.recognized ? parsed.code : normalizeMarketAddress(supplied);
     } else {
-      if (!marketTerritories.contains(zone)) {
+      if (!marketTerritories.contains(zone) && !fixing) {
         throw Exception('Выберите торговую зону.');
       }
       final floor = c('floor').text.trim();
