@@ -589,7 +589,7 @@ class _BuyerChatScreenState extends State<BuyerChatScreen> {
         throw const FormatException('Файл должен быть меньше 3 МБ');
       }
       final bytes = await file.readAsBytes();
-      if (bytes == null || bytes.isEmpty || bytes.length > 3000000) {
+      if (bytes.isEmpty || bytes.length > 3000000) {
         throw const FormatException('Файл должен быть меньше 3 МБ');
       }
       setState(() { _busy = true; _error = null; });
