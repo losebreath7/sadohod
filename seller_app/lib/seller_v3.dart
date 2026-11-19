@@ -1368,6 +1368,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photos
       ..clear()
       ..addAll(capturePhotos);
+    // The editor owns these images now. A later tap on the camera tab starts
+    // a new session rather than returning to a full, disabled 6/6 shutter.
+    capturePhotos.clear();
     go('newProduct');
     initialFormSnapshot = formSnapshot;
   }
