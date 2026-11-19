@@ -38,9 +38,9 @@ def test_draft_is_never_public(documents):
 def test_published_text_has_same_version_on_web_and_mobile(documents):
     item = prepare(sample(), "privacy", "2026-12-01", "2026-12-01", "QA Reviewer")
     publish(item, documents)
-    with TestClient(app) as client:
-        api = client.get("/api/v1/legal/privacy")
-        web = client.get("/legal/privacy")
+    client = TestClient(app)
+    api = client.get("/api/v1/legal/privacy")
+    web = client.get("/legal/privacy")
     assert api.status_code == 200
     assert api.json()["version"] == "2026-12-01"
     assert api.json()["sha256"] == hashlib.sha256(sample().encode()).hexdigest()
@@ -52,8 +52,8 @@ def test_published_text_has_same_version_on_web_and_mobile(documents):
 def test_escaping_and_invalid_signature_rejected(documents):
     body = "# <script>alert(1)</script>\n\n" + sample()
     publish(prepare(body, "privacy", "2026-12-01", "2026-12-01", "QA Reviewer"), documents)
-    with TestClient(app) as client:
-        result = client.get("/legal/privacy")
+    client = TestClient(app)
+    result = client.get("/legal/privacy")
     assert result.status_code == 200
     assert "<script>" not in result.text
     assert "&lt;script&gt;" in result.text
@@ -61,8 +61,8 @@ def test_escaping_and_invalid_signature_rejected(documents):
     data = json.loads(file.read_text())
     data["body"] += "tampered"
     file.write_text(json.dumps(data))
-    with TestClient(app) as client:
-        assert client.get("/api/v1/legal/privacy").status_code == 503
+    client = TestClient(app)
+    assert client.get("/api/v1/legal/privacy").status_code == 503
 
 
 def test_version_archive_is_immutable(documents):
@@ -73,8 +73,8 @@ def test_version_archive_is_immutable(documents):
     publish(second, documents)
     archived = json.loads((documents / "archive/privacy/2026-12-01.json").read_text())
     assert archived["body"] == sample()
-    with TestClient(app) as client:
-        assert client.get("/api/v1/legal/privacy").json()["version"] == "2026-12-02"
+    client = TestClient(app)
+    assert client.get("/api/v1/legal/privacy").json()["version"] == "2026-12-02"
 
 
 def test_publish_blocks_drafts_and_fake_approval(documents):
@@ -91,9 +91,9 @@ def test_publish_blocks_drafts_and_fake_approval(documents):
 def test_broken_json_symlink_and_missing_approval_fail_closed(documents):
     file = documents / "privacy.json"
     file.write_text('{"slug":"privacy"}')
-    with TestClient(app) as client:
-        assert client.get("/api/v1/legal/privacy").status_code == 503
+    client = TestClient(app)
+    assert client.get("/api/v1/legal/privacy").status_code == 503
     file.unlink()
     file.symlink_to(documents / "elsewhere")
-    with TestClient(app) as client:
-        assert client.get("/api/v1/legal/privacy").status_code == 503
+    client = TestClient(app)
+    assert client.get("/api/v1/legal/privacy").status_code == 503
