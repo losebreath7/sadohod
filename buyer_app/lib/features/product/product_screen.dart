@@ -267,19 +267,11 @@ class _ProductScreenState extends State<ProductScreen> {
               ]),
               const SizedBox(height: 15),
               if (seller != null) ...[
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const SizedBox(width: 27, height: 27, child: DesignIcon('e7ce6')),
-                  const SizedBox(width: 7),
-                  Expanded(child: InkWell(
-                    onTap: () => context.push('/seller/${seller.id}'),
-                    child: Text(seller.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14, height: 1.3)),
-                  )),
-                  if ((selected?.saleModes ?? p.saleModes).contains('wholesale')) const _ModePill('опт'),
-                  if ((selected?.saleModes ?? p.saleModes).contains('retail')) ...[
-                    const SizedBox(width: 4), const _ModePill('розница'),
-                  ],
-                ]),
+                BuyerSellerIdentityRow(
+                  name: seller.name,
+                  saleModes: selected?.saleModes ?? p.saleModes,
+                  onSellerTap: () => context.push('/seller/${seller.id}'),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 34),
                   child: ContactText(seller.contact),
@@ -334,8 +326,60 @@ List<String> _addressLines(String address, String zone) {
   return [address, if (zone.isNotEmpty) zone];
 }
 
+/// One centered line for the avatar, seller name and sale-mode badges.
+/// Keep the seller name flexible, but never let it push the badges offscreen.
+class BuyerSellerIdentityRow extends StatelessWidget {
+  const BuyerSellerIdentityRow({
+    super.key,
+    required this.name,
+    required this.saleModes,
+    required this.onSellerTap,
+  });
+
+  final String name;
+  final List<String> saleModes;
+  final VoidCallback onSellerTap;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    key: const ValueKey('buyer-seller-identity-row'),
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const SizedBox(
+        key: ValueKey('buyer-seller-avatar'),
+        width: 27,
+        height: 27,
+        child: DesignIcon('e7ce6'),
+      ),
+      const SizedBox(width: 7),
+      Expanded(
+        child: InkWell(
+          onTap: onSellerTap,
+          child: Text(
+            name,
+            key: const ValueKey('buyer-seller-name'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: SadohodFont.family,
+              fontSize: 14,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ),
+      if (saleModes.contains('wholesale'))
+        const _ModePill('опт', key: ValueKey('buyer-mode-wholesale')),
+      if (saleModes.contains('retail')) ...[
+        const SizedBox(width: 4),
+        const _ModePill('розница', key: ValueKey('buyer-mode-retail')),
+      ],
+    ],
+  );
+}
+
 class _ModePill extends StatelessWidget {
-  const _ModePill(this.label);
+  const _ModePill(this.label, {super.key});
   final String label;
   @override
   Widget build(BuildContext context) => Container(
