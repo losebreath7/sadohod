@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/design.dart';
 import '../../data/api.dart';
+import '../../data/account.dart';
 import '../../data/catalog.dart';
 
 class ProductScreen extends StatefulWidget {
@@ -19,6 +20,80 @@ class ProductScreen extends StatefulWidget {
 class _ProductScreenState extends State<ProductScreen> {
   late Future<DemoProduct?> _product = CatalogApi.instance.product(widget.id);
   int _selectedOffer = 0;
+  bool _reportSending = false;
+
+  Future<void> _reportProduct() async {
+    if (_reportSending) return;
+    if (!AccountStore.instance.signedIn) {
+      final goToLogin = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text('Пожаловаться на товар'),
+          content: const Text('Для отправки жалобы нужно войти в аккаунт.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Отмена')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Войти')),
+          ],
+        ),
+      );
+      if (mounted && goToLogin == true) context.go('/account');
+      return;
+    }
+
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text('Пожаловаться на товар'),
+          content: TextField(
+            controller: reasonController,
+            autofocus: true,
+            maxLength: 200,
+            maxLines: 3,
+            onChanged: (_) => updateDialog(() {}),
+            decoration: const InputDecoration(
+              hintText: 'Укажите причину жалобы',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Отмена')),
+            TextButton(
+              onPressed: reasonController.text.trim().length >= 4
+                  ? () => Navigator.pop(dialogContext, reasonController.text.trim())
+                  : null,
+              child: const Text('Отправить'),
+            ),
+          ],
+        ),
+      ),
+    );
+    reasonController.dispose();
+    if (!mounted || reason == null) return;
+    setState(() => _reportSending = true);
+    try {
+      await AccountStore.instance.request(
+        '/products/${Uri.encodeComponent(widget.id)}/report',
+        body: {'reason': reason},
+      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Жалоба отправлена на проверку')),
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error is ApiException
+            ? error.message : 'Не удалось отправить жалобу. Попробуйте ещё раз.')),
+      );
+    } finally {
+      if (mounted) setState(() => _reportSending = false);
+    }
+  }
 
   Future<void> _pickPavilion(List<ProductOffer> offers) async {
     if (offers.isEmpty) return;
@@ -151,6 +226,15 @@ class _ProductScreenState extends State<ProductScreen> {
                         child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 23)),
                     ]),
                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _reportSending ? null : _reportProduct,
+                  child: Text(_reportSending
+                      ? 'Отправка...' : 'Пожаловаться на товар'),
                 ),
               ),
             ],
