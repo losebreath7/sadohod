@@ -14,7 +14,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import Float, Integer, String, UniqueConstraint, delete, select, update
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint, delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 from .database import Base, get_db
@@ -39,7 +39,7 @@ class ReviewAccess(Base):
     """Pre-provisioned reviewer: private hashed code, lifetime cap, revocable."""
     __tablename__ = 'store_review_access'
     email: Mapped[str] = mapped_column(String(254), primary_key=True)
-    buyer_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    buyer_id: Mapped[str] = mapped_column(ForeignKey('buyers.id'), unique=True, nullable=False)
     code_digest: Mapped[str] = mapped_column(String(128), nullable=False)
     platform: Mapped[str] = mapped_column(String(16), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
