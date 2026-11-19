@@ -1,0 +1,23 @@
+# Restoration drill only. No ports and no access to production volume names.
+name: sadohod_restore_drill
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: sadohod
+      POSTGRES_USER: sadohod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the recovery test password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sadohod -d sadohod"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - restore_pg:/var/lib/postgresql/data
+    networks:
+      - restore_private
+networks:
+  restore_private:
+    internal: true
+volumes:
+  restore_pg:
