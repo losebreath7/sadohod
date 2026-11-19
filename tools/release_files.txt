@@ -175,6 +175,7 @@ docs/R7_CHAT_AND_PG_PATCH.md
 docs/R8_CHAT_LAYOUT_POLISH.md
 docs/R8_UNIFIED_CHATS.md
 docs/SOURCES.md
+docs/STORE_REVIEW_ACCESS.md
 docs/VERIFICATION.md
 docs/VERSIONS_R5.md
 docs/reference_figma/366_15805.json
@@ -515,6 +516,7 @@ server/backend/app/seller_notifications.py
 server/backend/app/telegram_bridge.py
 server/backend/app/telegram_diagnostics.py
 server/backend/app/text_search.py
+server/backend/manage_review_accounts.py
 server/backend/media/products/p01.jpg
 server/backend/media/products/p02.jpg
 server/backend/media/products/p03.jpg
@@ -535,6 +537,7 @@ server/backend/migrations/versions/20261115_02_chat_auto_replies.py
 server/backend/migrations/versions/20261116_03_moderation.py
 server/backend/migrations/versions/20261116_04_optional_price.py
 server/backend/migrations/versions/20261116_05_seller_notifications.py
+server/backend/migrations/versions/20261119_08_store_review_access.py
 server/backend/requirements-dev.txt
 server/backend/requirements-ml.txt
 server/backend/requirements.txt
@@ -569,6 +572,7 @@ server/backend/tests/test_save_v18.py
 server/backend/tests/test_search_upload_bounds.py
 server/backend/tests/test_seller_lock_postgres_sql.py
 server/backend/tests/test_seller_notifications.py
+server/backend/tests/test_store_review_access.py
 server/backend/tests/test_telegram_bridge_v083.py
 server/backend/tests/test_text_photo_search.py
 server/backend/tests/test_v04.py
@@ -694,6 +698,7 @@ tools/check.ps1
 tools/check_production_env.py
 tools/compose.qa.yml
 tools/gate.ps1
+tools/manage_review_accounts.py
 tools/package_release.py
 tools/release_files.txt
 tools/restore_drill.sh
