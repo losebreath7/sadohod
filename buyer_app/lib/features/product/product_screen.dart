@@ -205,7 +205,9 @@ class _ProductScreenState extends State<ProductScreen> {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => SafeArea(
-        child: Padding(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+          child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.fromLTRB(30, 26, 30, 28),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -239,6 +241,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
           ]),
+          )),
         ),
       ),
     );
