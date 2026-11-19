@@ -12,6 +12,7 @@ def upgrade():
     op.create_table(
         'store_review_access',
         sa.Column('email', sa.String(254), primary_key=True),
+        sa.Column('buyer_id', sa.String(32), sa.ForeignKey('buyers.id'), nullable=False, unique=True),
         sa.Column('code_digest', sa.String(128), nullable=False),
         sa.Column('platform', sa.String(16), nullable=False),
         sa.Column('role', sa.String(16), nullable=False),
