@@ -1,8 +1,6 @@
 """Legal publication and public link security tests, without production data."""
 import hashlib
 import json
-from pathlib import Path
-import sys
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,8 +8,7 @@ from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app import legal_documents as legal
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
-from publish_legal import prepare, publish
+from backend.publish_legal import prepare, publish
 
 
 @pytest.fixture
