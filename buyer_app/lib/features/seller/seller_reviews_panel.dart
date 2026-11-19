@@ -45,6 +45,8 @@ class SellerReviewsPanel extends StatefulWidget {
 class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   Map<String, dynamic>? _data;
   Map<String, dynamic>? _mine;
+  // Only offer a new review after the server confirms there is no existing one.
+  bool _mineChecked = false;
   String? _activeToken;
   bool get _signedIn => widget.loggedIn ?? AccountStore.instance.signedIn;
   bool _loading = true;
@@ -62,7 +64,11 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     if (_activeToken == AccountStore.instance.token) return;
     _activeToken = AccountStore.instance.token;
     // Never retain the previous account's review identity while refreshing.
-    setState(() => _mine = null);
+    setState(() {
+      _mine = null;
+      _mineChecked = false;
+      _loading = true;
+    });
     _load();
   }
 
@@ -71,6 +77,8 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sellerId != widget.sellerId) {
       _mine = null;
+      _mineChecked = false;
+      _loading = true;
       _data = null;
       _load();
     }
@@ -83,11 +91,18 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   }
 
   Future<void> _load() async {
+    final sellerId = widget.sellerId;
+    final accountToken = AccountStore.instance.token;
+    if (mounted) setState(() {
+      _loading = true;
+      _mineChecked = false;
+    });
     try {
       final result = await (widget.publicLoader?.call() ??
         AccountStore.instance.request(
           '/sellers/${widget.sellerId}/reviews', method: 'GET'));
       Map<String, dynamic>? mine;
+      var mineChecked = !_signedIn;
       if (_signedIn) {
         try {
           final own = await (widget.myLoader?.call() ??
@@ -97,18 +112,29 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             mine = Map<String, dynamic>.from(own['item'] as Map);
             mine['hidden'] = own['hidden'] == true;
           }
+          mineChecked = true;
         } catch (_) {
-          // Public reviews remain visible when private session data fails.
+          // A failed identity check must never offer another review.
+          // The existing public reviews can still be displayed.
         }
       }
-      if (mounted) setState(() {
+      if (!mounted || widget.sellerId != sellerId ||
+          AccountStore.instance.token != accountToken) return;
+      setState(() {
         _data = result;
         _mine = mine;
+        _mineChecked = mineChecked;
         _loading = false;
-        _error = null;
+        _error = mineChecked ? null : 'Не удалось проверить ваш отзыв';
       });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = 'Не удалось загрузить отзывы'; });
+      if (!mounted || widget.sellerId != sellerId ||
+          AccountStore.instance.token != accountToken) return;
+      setState(() {
+        _loading = false;
+        _mineChecked = false;
+        _error = 'Не удалось загрузить отзывы';
+      });
     }
   }
 
@@ -117,6 +143,8 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
       context.go('/account');
       return;
     }
+    // The add action is never an alternative route to a second review.
+    if (_loading || !_mineChecked || _mine != null) return;
     final current = _mine;
     var rating = (current?['rating'] as num?)?.toInt() ?? 0;
     final comment = TextEditingController(text: current?['text']?.toString() ?? '');
@@ -300,6 +328,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     // animation finishes. The outgoing TextField may still build in that
     // animation; do not dispose its controller prematurely.
     if (saved != true || !mounted) return;
+    setState(() => _mineChecked = false);
     await _load();
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -560,6 +589,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
+            if (!_signedIn || (!_loading && _mineChecked && _mine == null))
             InkWell(
               key: const ValueKey('seller-review-add'),
               onTap: _review,
