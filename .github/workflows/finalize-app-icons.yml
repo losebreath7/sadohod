@@ -1,0 +1,32 @@
+name: Finalize approved app icons
+on:
+  push:
+    branches:
+      - feat/approved-app-icons-20261119
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'Pillow>=11,<13'
+      - name: Convert opaque iOS PNGs to RGB and validate
+        run: |
+          python tools/verify_app_icons.py --fix
+          python tools/verify_app_icons.py
+      - name: Commit finalized iOS PNG assets if needed
+        run: |
+          if ! git diff --quiet -- buyer_app/ios/Runner/Assets.xcassets/AppIcon.appiconset seller_app/ios/Runner/Assets.xcassets/AppIcon.appiconset; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add buyer_app/ios/Runner/Assets.xcassets/AppIcon.appiconset seller_app/ios/Runner/Assets.xcassets/AppIcon.appiconset
+            git commit -m 'fix(ios): strip alpha from approved app icons'
+            git push
+          fi
