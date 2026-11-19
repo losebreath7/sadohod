@@ -76,6 +76,27 @@ class CatalogApi {
       .toList();
   }
 
+  /// Personalized tags are returned only for signed-in buyers.
+  /// Empty results keep the approved default chip row unchanged.
+  Future<List<String>> recommendedTags(String token) async {
+    if (localDemo) return const [];
+    try {
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/v1/account/interests/tags'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return const [];
+      final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      return (data['items'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((item) => item['name']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .take(5).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<List<String>> categories() async {
     if (localDemo) return DemoCatalog.categories;
     final response = await _get('/api/v1/categories');
