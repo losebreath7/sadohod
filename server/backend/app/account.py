@@ -35,6 +35,18 @@ class LoginCode(Base):
     sent: Mapped[float] = mapped_column(Float)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
 
+class ReviewAccess(Base):
+    """Pre-provisioned reviewer: private hashed code, lifetime cap, revocable."""
+    __tablename__ = 'store_review_access'
+    email: Mapped[str] = mapped_column(String(254), primary_key=True)
+    code_digest: Mapped[str] = mapped_column(String(128), nullable=False)
+    platform: Mapped[str] = mapped_column(String(16), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    expires: Mapped[float] = mapped_column(Float, nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    failed_total: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
 class BuyerSession(Base):
     __tablename__ = 'buyer_sessions'
     digest: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -152,6 +164,10 @@ def request_code(body: EmailInput, request: Request, db: Session = Depends(get_d
     ip = request.client.host if request.client else 'unknown'
     rate_limit(db, 'mail-ip:' + digest(ip), 20)
     rate_limit(db, 'mail:' + digest(body.email), 5)
+    # Reviewer receives a private reusable code via the store's review fields.
+    # The public response is deliberately indistinguishable from normal OTP.
+    if db.get(ReviewAccess, body.email) is not None:
+        return {'sent': True, 'retry_after': 60, 'expires_in': 600}
     now, code = time.time(), f'{secrets.randbelow(1_000_000):06d}'
     db.execute(delete(RateBucket).where(RateBucket.expires < now-3600))
     db.execute(delete(BuyerSession).where(BuyerSession.expires < now))
@@ -182,6 +198,29 @@ def request_code(body: EmailInput, request: Request, db: Session = Depends(get_d
 def verify(body: VerifyInput, request: Request, db: Session = Depends(get_db)):
     rate_limit(db, 'verify-ip:' + digest(request.client.host if request.client else 'unknown'), 60)
     now = time.time()
+    reviewer = db.get(ReviewAccess, body.email)
+    if reviewer is not None:
+        # Account-wide bucket cannot be evaded by rotating IP addresses.
+        rate_limit(db, 'review-login:' + digest(body.email), 5)
+        reviewer = db.get(ReviewAccess, body.email)
+        if not reviewer.enabled or reviewer.expires <= now or reviewer.failed_total >= 20:
+            raise HTTPException(400, 'Код неверный или истёк. Запросите новый.')
+        salt = reviewer.code_digest.split(':')[0]
+        valid = hmac.compare_digest(reviewer.code_digest, hash_code(body.code, salt))
+        if not valid:
+            db.execute(update(ReviewAccess).where(
+                ReviewAccess.email == body.email, ReviewAccess.failed_total < 20
+            ).values(failed_total=ReviewAccess.failed_total + 1))
+            db.commit()
+            raise HTTPException(400, 'Код неверный или истёк. Запросите новый.')
+        buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
+        if buyer is None:
+            raise HTTPException(403, 'Учётная запись проверяющего не подготовлена.')
+        token = secrets.token_urlsafe(32)
+        duration = min(7 * 86400, int(reviewer.expires - now))
+        db.add(BuyerSession(digest=digest(token), buyer=buyer.id, expires=now + duration))
+        db.commit()
+        return {'token': token, 'expires_in': duration}
     # Atomic increment prevents concurrent guesses from bypassing the attempt limit.
     updated = db.execute(update(LoginCode).where(LoginCode.email == body.email, LoginCode.expires > now, LoginCode.attempts < 5).values(attempts=LoginCode.attempts+1))
     if not updated.rowcount:
@@ -210,6 +249,9 @@ def current_buyer(authorization: str = Header(default=''), db: Session = Depends
     buyer = db.get(Buyer, session.buyer) if session and session.expires > time.time() else None
     if buyer is None:
         raise HTTPException(401, 'Войдите в аккаунт заново.')
+    reviewer = db.get(ReviewAccess, buyer.email)
+    if reviewer is not None and (not reviewer.enabled or reviewer.expires <= time.time()):
+        raise HTTPException(401, 'Доступ проверяющего завершён.')
     return buyer
 
 
