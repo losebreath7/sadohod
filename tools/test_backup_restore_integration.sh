@@ -5,7 +5,6 @@ set -Eeuo pipefail
 umask 077
 cd "$(dirname "$0")/.."
 qa=(docker compose -f docker-compose.backup-qa.yml -p sadohod_backup_qa)
-drill=(docker compose --env-file "$PWD/.env.production.example" -f docker-compose.restore-drill.yml -p sadohod_restore_drill)
 for name in sadohod_backup_qa_qa_pg sadohod_backup_qa_qa_uploads \
             sadohod_backup_qa_qa_admin_state sadohod_restore_drill_restore_pg \
             sadohod_restore_drill_restore_uploads sadohod_restore_drill_restore_admin_state; do
@@ -15,22 +14,23 @@ for name in sadohod_backup_qa_qa_pg sadohod_backup_qa_qa_uploads \
   fi
 done
 tmp="$(mktemp -d)"
-trap 'rm -rf -- "$tmp"; "${qa[@]}" down || true; "${drill[@]}" down || true' EXIT
+trap 'rm -rf -- "$tmp"; "${qa[@]}" down || true; docker compose -f docker-compose.restore-drill.yml -p sadohod_restore_drill down || true' EXIT
 # All values below are synthetic. Environment is valid but is never sent to a network endpoint.
 cat > "$tmp/qa.env" <<'ENV'
 SADOHOD_ENV=production
 DEMO_SEED=0
-API_DOMAIN=api.sadohod.qa-example.org
+API_DOMAIN=api.sadohod.integration-sadohod.org
 POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ADMIN_TOKEN=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-SMTP_HOST=smtp.sadohod.qa-example.org
+SMTP_HOST=smtp.sadohod.integration-sadohod.org
 SMTP_PORT=465
-SMTP_FROM=qa@sadohod.qa-example.org
-SMTP_USER=qa@sadohod.qa-example.org
+SMTP_FROM=qa@sadohod.integration-sadohod.org
+SMTP_USER=qa@sadohod.integration-sadohod.org
 SMTP_PASSWORD=cccccccccccccccccccc
 ALLOWED_ORIGINS=
 PHOTO_SEARCH_MIN_SCORE=0.20
 ENV
+drill=(docker compose --env-file "$tmp/qa.env" -f docker-compose.restore-drill.yml -p sadohod_restore_drill)
 "${qa[@]}" up -d --wait db files
 "${qa[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U sadohod -d sadohod <<'SQL'
 CREATE TABLE qa_sellers (id INTEGER PRIMARY KEY, title TEXT NOT NULL);
