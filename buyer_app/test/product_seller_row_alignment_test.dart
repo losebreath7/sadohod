@@ -29,8 +29,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final avatar = find.byWidgetPredicate((w) =>
-          w is SizedBox && w.width == 27 && w.height == 27);
+      final avatar = find.byKey(const ValueKey('buyer-seller-avatar'));
       final name = find.text('Студия 08');
       expect(avatar, findsOneWidget);
       expect(name, findsOneWidget);
