@@ -39,7 +39,11 @@ void main() {
     await tester.pumpAndSettle();
     addTearDown(router.dispose);
     expect(find.text('Как устроены адреса павильонов на «Садоводе»'),
-        findsOneWidget);
+        findsNothing);
+    final mapsButton = tester.widget<ElevatedButton>(find.byKey(
+        const ValueKey('market-guide-open-maps')));
+    expect(mapsButton.style?.backgroundColor?.resolve({}), Colors.black);
+    expect(mapsButton.style?.foregroundColor?.resolve({}), Colors.white);
     expect(find.text('корпус А'), findsOneWidget);
     await tester.ensureVisible(find.byKey(
         const ValueKey('market-guide-rows')));
