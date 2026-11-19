@@ -2454,7 +2454,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           for (final p in [...pavilions, ...requests]) ...[
             tap(
               Container(
-                height: 70,
+                height: 84,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: p['status'] == 'rejected'
@@ -2479,7 +2479,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                                 ? Colors.white
                                 : Colors.black,
                           ),
-                          const SizedBox(height: 10),
+                          if ('${p['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            label('${p['zone']}', 11,
+                              color: p['status'] == 'rejected'
+                                  ? Colors.white : const Color(0xFF595959)),
+                          ],
+                          const SizedBox(height: 5),
                           label(
                             name,
                             12,
