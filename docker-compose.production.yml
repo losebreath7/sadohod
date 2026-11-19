@@ -1,0 +1,86 @@
+# Standalone public deployment. NEVER combine with the local docker-compose.yml.
+# Separate project and volumes; published ports belong exclusively to Caddy.
+name: sadohod_public
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sadohod
+      POSTGRES_USER: sadohod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Production PostgreSQL password is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sadohod -d sadohod"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - public_pg:/var/lib/postgresql/data
+    networks:
+      - database
+
+  api:
+    build:
+      context: ./server
+      dockerfile: backend/Dockerfile.ml
+    restart: unless-stopped
+    environment:
+      SADOHOD_ENV: production
+      DEMO_SEED: "${DEMO_SEED:?Must explicitly set DEMO_SEED=0}"
+      DATABASE_URL: "postgresql+psycopg://sadohod:${POSTGRES_PASSWORD:?Missing password}@db:5432/sadohod"
+      SEARCH_BACKEND: clip
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      PHOTO_SEARCH_MIN_SCORE: "${PHOTO_SEARCH_MIN_SCORE:-0.20}"
+      SMTP_HOST: "${SMTP_HOST:?SMTP required}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_FROM: "${SMTP_FROM:?SMTP sender required}"
+      SMTP_USER: "${SMTP_USER:?SMTP username required}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:?SMTP password required}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:?Admin token required}"
+      FORWARDED_ALLOW_IPS: "*"
+      HF_HOME: /root/.cache/huggingface
+      TORCH_HOME: /root/.cache/torch
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_GROUP_ID: "${TELEGRAM_GROUP_ID:-}"
+    volumes:
+      - public_uploads:/app/backend/media/products/uploads
+      - public_admin_state:/app/state
+      - public_ml_cache:/root/.cache
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - database
+      - gateway
+    # No host port: the API is reached only through Caddy over the gateway network.
+
+  https:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: "${API_DOMAIN:?Public DNS name required}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./https/Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - public_caddy_data:/data
+      - public_caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - gateway
+
+networks:
+  database:
+    internal: true
+  gateway: {}
+
+volumes:
+  public_pg:
+  public_uploads:
+  public_admin_state:
+  public_ml_cache:
+  public_caddy_data:
+  public_caddy_config:
