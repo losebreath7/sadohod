@@ -14,7 +14,8 @@ for name in sadohod_backup_qa_qa_pg sadohod_backup_qa_qa_uploads \
   fi
 done
 tmp="$(mktemp -d)"
-trap 'rm -rf -- "$tmp"; "${qa[@]}" down || true; docker compose -f docker-compose.restore-drill.yml -p sadohod_restore_drill down || true' EXIT
+drill=(docker compose --env-file "$tmp/qa.env" -f docker-compose.restore-drill.yml -p sadohod_restore_drill)
+trap 'rm -rf -- "$tmp"; "${qa[@]}" down || true; "${drill[@]}" down || true' EXIT
 # All values below are synthetic. Environment is valid but is never sent to a network endpoint.
 cat > "$tmp/qa.env" <<'ENV'
 SADOHOD_ENV=production
@@ -30,7 +31,6 @@ SMTP_PASSWORD=cccccccccccccccccccc
 ALLOWED_ORIGINS=
 PHOTO_SEARCH_MIN_SCORE=0.20
 ENV
-drill=(docker compose --env-file "$tmp/qa.env" -f docker-compose.restore-drill.yml -p sadohod_restore_drill)
 "${qa[@]}" up -d --wait db files
 "${qa[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U sadohod -d sadohod <<'SQL'
 CREATE TABLE qa_sellers (id INTEGER PRIMARY KEY, title TEXT NOT NULL);
@@ -88,4 +88,12 @@ cmp "$tmp/source-relations.txt" "$tmp/recovered-relations.txt"
 if SADOHOD_PRODUCTION_ENV="$tmp/qa.env" bash tools/restore_drill.sh "$folder"; then
   echo "Repeated restoration overwrote a populated drill" >&2; exit 1
 fi
-echo "ISOLATED BACKUP/RESTORE E2E: PostgreSQL rows, photo bytes and admin files MATCH"
+# Database unavailable: backup must fail and leave no finalized snapshot.
+"${qa[@]}" stop db
+if SADOHOD_BACKUP_QA=1 bash tools/backup_production.sh "$tmp/failure-backups"; then
+  echo "Backup succeeded with PostgreSQL stopped" >&2; exit 1
+fi
+if [[ -d "$tmp/failure-backups" ]] && find "$tmp/failure-backups" -mindepth 1 -maxdepth 1 -type d | grep -q .; then
+  echo "Failed PostgreSQL backup left a finalized snapshot" >&2; exit 1
+fi
+echo "ISOLATED BACKUP/RESTORE E2E: PostgreSQL rows, photo bytes and admin files MATCH; failed DB backup rejected"
