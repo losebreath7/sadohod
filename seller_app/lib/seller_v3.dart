@@ -1322,14 +1322,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       final line = c('line').text.trim().toUpperCase();
       final number = c('number').text.trim().toUpperCase();
       final building = c('building').text.trim().toUpperCase();
-      if (zone == 'корпус А' || zone == 'корпус Б') {
+      if (zone == 'корпус А' || zone == 'корпус Б' ||
+          (fixing && building.isNotEmpty && floor.isNotEmpty)) {
         if (floor.isEmpty || line.isEmpty || number.isEmpty) {
           throw Exception('Укажите этаж, линию и номер павильона.');
         }
         // A numeric line uses floor-line-number; a letter line uses floorLetter-number.
-        code = RegExp(r'^\\d+$').hasMatch(line)
-            ? '${zone == 'корпус Б' ? 'Б-' : ''}$floor-$line-$number'
-            : '${zone == 'корпус Б' ? 'Б-' : ''}$floor$line-$number';
+        code = RegExp(r'^\d+$').hasMatch(line)
+            ? '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor-$line-$number'
+            : '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor$line-$number';
       } else if (zone == 'вещевые ряды') {
         if (line.isEmpty || number.isEmpty) {
           throw Exception('Укажите линию и номер павильона.');
