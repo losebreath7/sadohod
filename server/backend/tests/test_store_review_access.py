@@ -2,17 +2,14 @@
 
 All credentials and emails in this file are synthetic CI fixtures.
 """
-import sys
 import time
-from pathlib import Path
 from sqlalchemy import select
 from backend.app import account as auth
 from backend.app.models import Pavilion, Seller, SellerDetails
 from backend.app.merchant_models import PavilionClaim, ShopMembership, ShopRecord
 from test_account import setup as account_setup  # noqa: F401
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tools'))
-from manage_review_accounts import provision, revoke, validate_seller
+from backend.manage_review_accounts import provision, revoke, validate_seller
 
 
 def _verify(client, email, code):
