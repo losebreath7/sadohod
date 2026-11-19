@@ -5,6 +5,7 @@ from backend.app.buyer_interests import selected_tags
 from backend.app.buyer_interests_models import BuyerCategoryInterest
 from backend.app.catalog_taxonomy import BY_ID
 from backend.app.account import Buyer
+from test_merchant_v080 import env
 from test_product_safety import publish
 from test_moderation_workspace import provision
 
