@@ -1,7 +1,7 @@
 """Persistent moderation restrictions and transactional email dispatch receipts."""
 import time
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -33,6 +33,7 @@ class ShopRestriction(Base):
 
 class ModerationEmail(Base):
     __tablename__ = "moderation_email_outbox"
+    __table_args__ = (Index('ix_moderation_email_due', 'status', 'next_attempt_at'),)
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     recipient: Mapped[str] = mapped_column(String(254), nullable=False)
     subject: Mapped[str] = mapped_column(String(200), nullable=False)
