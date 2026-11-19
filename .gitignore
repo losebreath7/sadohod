@@ -73,3 +73,6 @@ server/backend/media/products/*
 !server/backend/media/products/p10.jpg
 !server/backend/media/products/p11.jpg
 !server/backend/media/products/p12.jpg
+
+# Approved legal text published on VPS, never committed with secrets
+legal_published/
