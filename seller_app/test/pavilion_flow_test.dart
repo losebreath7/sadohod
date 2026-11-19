@@ -47,7 +47,7 @@ class RequestFlowApi extends SellerApi {
 
 void main() {
   for (final width in [390.0, 402.0]) {
-    testWidgets('Pending request survives restart and camera cannot bypass approval ($width)', (tester) async {
+    testWidgets('Pending request survives restart, camera opens without publishing ($width)', (tester) async {
       tester.view.physicalSize = Size(width, 874);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -62,9 +62,18 @@ void main() {
         expect(find.text('у вас пока нет магазинов'), findsNothing);
       }
       await tester.tap(find.bySemanticsLabel('Камера'));
-      await tester.pumpAndSettle();
-      expect(find.text('мои магазины'), findsOneWidget);
+      // The actual camera has a live preview/spinner that never settles in a
+      // widget test without a physical camera. One frame is sufficient to
+      // verify navigation and that no product mutation was sent.
+      await tester.pump();
+      expect(find.text('добавить товар'), findsOneWidget);
+      expect(find.bySemanticsLabel('Снять фото'), findsOneWidget);
+      expect(find.bySemanticsLabel('из галереи'), findsOneWidget);
       expect(api.writes, isEmpty);
+      // Pavilion moderation is still reached through the stores tab;
+      // entering the camera must not silently publish a product.
+      await tester.tap(find.bySemanticsLabel('Магазины'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Б-2В-82'));
       await tester.pumpAndSettle();
       expect(find.text('магазин на проверке'), findsOneWidget);

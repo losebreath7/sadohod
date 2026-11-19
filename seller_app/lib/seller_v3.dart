@@ -1112,7 +1112,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       draftFailure(error);
       return;
     }
-    if (!testPreview && index != 2 && !await reload(navigate: false)) return;
+    // Entering the camera cannot depend on a successful catalogue refresh.
+    if (!testPreview && index == 0 && !await reload(navigate: false)) return;
     if (!mounted) return;
     setState(() {
       history.clear();
@@ -1124,25 +1125,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       selectionPavilionId = null;
       selected.clear();
       c('search').clear();
-      screen = index == 2
-          ? 'profile'
-          : index == 1
-          ? (pavilions.isEmpty
-                ? (requests.isNotEmpty ? 'stores' : 'address')
-                : 'capture')
-          : home;
+      // The centre tab is always the camera, including when a pavilion
+      // has not yet been approved. Product publishing is validated later.
+      screen = index == 2 ? 'profile' : index == 1 ? 'capture' : home;
     });
     if (index == 2) refreshUnreadNotifications();
-    if (index == 1 && pavilions.isNotEmpty && !testPreview) {
-      setState(() => busy = true);
-      try {
-        await restoreDraft('new');
-      } catch (error) {
-        draftFailure(error);
-      } finally {
-        if (mounted) setState(() => busy = false);
-      }
-    }
+    // Do not call restoreDraft('new') on the camera tab: it asynchronously
+    // replaces 'capture' with 'newProduct' and hides the live viewfinder.
   }
 
   void failure(Object error) {
@@ -1379,6 +1368,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photos
       ..clear()
       ..addAll(capturePhotos);
+    // The editor owns these images now. A later tap on the camera tab starts
+    // a new session rather than returning to a full, disabled 6/6 shutter.
+    capturePhotos.clear();
     go('newProduct');
     initialFormSnapshot = formSnapshot;
   }
@@ -3633,8 +3625,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               left: 10 * scaleX,
               right: 10 * scaleX,
               top: 18 * scaleY,
-              bottom: 130 * scaleY,
-              child: testPreview
+              // Keep the preview behind the shutter all the way to the
+              // bottom of the Figma camera rectangle, not 70px above it.
+              bottom: 60 * scaleY,
+              child: KeyedSubtree(
+                key: const ValueKey('seller-camera-viewport'),
+                child: testPreview
                   ? tap(
                       const SizedBox.expand(),
                       () => pick(),
@@ -3645,6 +3641,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       onCaptured: (image) => pick(selected: [image]),
                       onFallback: () => pick(camera: true),
                     ),
+              ),
             ),
             Positioned(
               left: 160 * scaleX,
@@ -3652,7 +3649,25 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               width: 70 * scaleX,
               height: 70 * scaleY,
               child: tap(
-                const SizedBox.expand(),
+                // The Figma image already draws a shutter in static previews.
+                // Live video covers that artwork, so a real shutter must
+                // render ABOVE the camera, not behind it.
+                Center(
+                  child: testPreview
+                      ? const SizedBox.expand()
+                      : DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: capturePhotos.length >= maxProductPhotos
+                                ? const Color(0xFFB4B4B4)
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: SizedBox(
+                            width: 52 * scaleX,
+                            height: 52 * scaleX,
+                          ),
+                        ),
+                ),
                 () {
                   if (capturePhotos.length >= maxProductPhotos) return;
                   if (testPreview) {

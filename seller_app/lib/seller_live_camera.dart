@@ -159,7 +159,33 @@ class SellerLiveCameraState extends State<SellerLiveCamera>
       child: ColoredBox(
         color: Colors.black,
         child: controller != null && controller.value.isInitialized
-            ? CameraPreview(controller)
+            ? LayoutBuilder(
+                builder: (context, bounds) {
+                  // The camera's native aspect is normally landscape even
+                  // when the phone is held vertically. Size the preview for
+                  // portrait, then crop it to the frame; never stretch pixels.
+                  final aspect = controller.value.aspectRatio;
+                  final portrait = bounds.maxHeight >= bounds.maxWidth;
+                  final nativeRatio = aspect > 1 ? aspect : 1 / aspect;
+                  final previewWidth = bounds.maxWidth;
+                  final previewHeight = portrait
+                      ? previewWidth * nativeRatio
+                      : previewWidth / nativeRatio;
+                  return ClipRect(
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: previewWidth,
+                          height: previewHeight,
+                          child: CameraPreview(controller),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              )
             : Center(
                 child: _error == null
                     ? const CircularProgressIndicator(color: Colors.white)
