@@ -22,7 +22,11 @@ def account_blocked(db, buyer_id):
 
 
 def shop_blocked(db, seller_id):
-    return active(db.get(ShopRestriction, seller_id))
+    if active(db.get(ShopRestriction, seller_id)):
+        return True
+    owners = db.scalars(select(ShopMembership.buyer_id).where(
+        ShopMembership.seller_id == seller_id, ShopMembership.role == 'owner')).all()
+    return any(account_blocked(db, bid) for bid in owners)
 
 
 def require_account_allowed(db, buyer_id):
