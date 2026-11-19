@@ -172,6 +172,9 @@ def seller_detail(id: str, session: Session = Depends(get_db)):
     seller = session.get(Seller, id)
     if not seller:
         raise HTTPException(status_code=404, detail="Продавец не найден")
+    from .moderation_enforcement import shop_blocked
+    if shop_blocked(session, id):
+        raise HTTPException(status_code=404, detail="Продавец не найден")
     statement = product_query().join(Offer).where(Offer.seller_id == id).order_by(Product.id)
     products = session.scalars(statement).unique().all()
     from .merchant_models import PavilionClaim
