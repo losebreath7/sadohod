@@ -700,6 +700,7 @@ tools/restore_drill.sh
 tools/run_client.ps1
 tools/start.ps1
 tools/sync_version.py
+tools/test_backup_archive.py
 tools/test_backup_restore_integration.sh
 tools/test_production_preflight.py
 tools/test_r8_chat_contract.py
