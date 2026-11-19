@@ -28,10 +28,23 @@ jobs:
           import pathlib
           import urllib.request
           expected = {"Manrope-ExtraLight.ttf":"f582541204bdc68b51de3c2fe50b99ec20c3c0319692177cbf427719929aa916","Manrope-Light.ttf":"d846bf4ff042a2d9ff27109aeaf64228c94d88ab6cf7ba4ac6bacff018e73f34","Manrope-Regular.ttf":"6383bd9f81e56d61139884d8e42cb7b2146a11dde4efde55c8bff1e4c2c0bbe8","Manrope-Medium.ttf":"88d3f8ef004b53483a202772d09acaab17ca99dd41905d9b4ab07ac635632378","Manrope-SemiBold.ttf":"abbefa1f58c7355b663c19f29ffe4cd7fc8c93a9e5f8b68f08d1e9ba2bc4ba0d","Manrope-Bold.ttf":"4aed5d180a4f41ed21f07e678486f889bb40eb0ddf5f473769b6302f507d1e36","Manrope-ExtraBold.ttf":"5be6d9b21d23981ab520f0bfc7800c434c9d093467ef24b85b16877e7709b03b"}
+          import io
+          import zipfile
           base_urls = [
               "https://www.mhfa-ersthelfer.de/static/font/Manrope/static/",
               "https://www.healpharmacy.com/wp-content/themes/healpharmacy/assets/font/manrope/",
           ]
+          google_zip = None
+          for url in ["https://fonts.google.com/download?family=Manrope", "https://fonts.google.com/download?kit=Manrope"]:
+              try:
+                  request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36"})
+                  with urllib.request.urlopen(request, timeout=40) as response:
+                      payload = response.read()
+                  google_zip = zipfile.ZipFile(io.BytesIO(payload))
+                  print("Downloaded official Google Fonts ZIP, entries:", google_zip.namelist())
+                  break
+              except Exception as exc:
+                  print("Official ZIP fetch failed:", exc)
           target = pathlib.Path("shared/flutter_core/assets/fonts")
           target.mkdir(parents=True, exist_ok=True)
           for filename, sha256 in expected.items():
@@ -51,6 +64,16 @@ jobs:
                       break
                   except Exception as exc:
                       print(f"{filename} fetch failed from {base}: {exc}")
+              if not verified and google_zip:
+                  for inner in [f"static/{filename}", filename]:
+                      if inner in google_zip.namelist():
+                          data = google_zip.read(inner)
+                          actual = hashlib.sha256(data).hexdigest()
+                          print(f"Google ZIP {filename}: {actual}")
+                          if actual == sha256:
+                              (target / filename).write_bytes(data)
+                              verified = True
+                              break
               if not verified:
                   raise SystemExit(f"Exact user-supplied file unavailable: {filename}; no substitute allowed")
       - name: Commit verified font assets
