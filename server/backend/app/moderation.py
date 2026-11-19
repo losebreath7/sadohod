@@ -281,6 +281,16 @@ def resolve_product_report(report_id: str, body: ProductReportDecision,
     reporter = db.get(Buyer, report.buyer_id)
     if reporter:
         queue_decision(db, reporter.email, 'Жалоба на товар рассмотрена', 'жалоба', report_id, note or body.decision)
+    if body.decision == 'hide':
+        owner = db.get(MerchantProduct, report.product_id)
+        owner_id = db.scalar(select(ShopMembership.buyer_id).where(
+            ShopMembership.seller_id == owner.seller_id,
+            ShopMembership.role == 'owner')) if owner else None
+        seller_buyer = db.get(Buyer, owner_id) if owner_id else None
+        product = db.get(Product, report.product_id)
+        if seller_buyer:
+            queue_decision(db, seller_buyer.email, 'Товар снят по жалобе', 'товар',
+                           product.title if product else report.product_id, note)
     db.commit()
     return {'id': report_id, 'status': body.decision}
 
@@ -382,6 +392,11 @@ def resolve_report(report_id: str, body: ReportResolution,
     reporter = db.get(Buyer, report.buyer)
     if reporter:
         queue_decision(db, reporter.email, 'Жалоба на отзыв рассмотрена', 'жалоба', report_id, body.note.strip() or body.decision)
+    if body.decision == 'hide' and review is not None:
+        author = db.get(Buyer, review.buyer)
+        if author:
+            queue_decision(db, author.email, 'Отзыв скрыт по жалобе',
+                           'отзыв', review.id, body.note.strip() or 'Решение модерации')
     db.commit()
     return {'id': report_id, 'status': body.decision}
 
