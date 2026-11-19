@@ -1,5 +1,5 @@
 """Daily coarse-grained product interest counters (30-day retention in recommendations)."""
-from sqlalchemy import Float, ForeignKey, Integer, String
+from sqlalchemy import Float, ForeignKey, Integer, String, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -7,6 +7,7 @@ from .database import Base
 
 class BuyerCategoryInterest(Base):
     __tablename__ = 'buyer_category_interests'
+    __table_args__ = (Index('ix_buyer_interests_day', 'day'),)
     buyer_id: Mapped[str] = mapped_column(
         String(32), ForeignKey('buyers.id', ondelete='CASCADE'), primary_key=True)
     category_id: Mapped[str] = mapped_column(String(80), primary_key=True)
