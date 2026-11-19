@@ -218,8 +218,14 @@ void main() {
     final dialog = find.byKey(const ValueKey('seller-review-detail-dialog'));
     expect(dialog, findsOneWidget);
     expect(MediaQuery.sizeOf(tester.element(dialog)), const Size(402, 874));
-    expect(tester.getSize(dialog).width, lessThanOrEqualTo(402));
-    expect(tester.getSize(dialog).height, lessThanOrEqualTo(874));
+    // AlertDialog's outer padding can fill the overlay; the inner
+    // Material is the visible white card with the fixed phone-safe width.
+    final card = find.descendant(
+      of: dialog, matching: find.byType(Material),
+    ).first;
+    expect(tester.getSize(card).width, greaterThanOrEqualTo(320));
+    expect(tester.getSize(card).width, lessThanOrEqualTo(402 - 40));
+    expect(tester.getSize(card).height, lessThanOrEqualTo(874));
     expect(find.text('закрыть'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -238,8 +244,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('seller-review-other')));
     await tester.pumpAndSettle();
     final dialog = find.byKey(const ValueKey('seller-review-detail-dialog'));
-    final bounds = tester.getRect(dialog);
+    final card = find.descendant(
+      of: dialog, matching: find.byType(Material),
+    ).first;
+    final bounds = tester.getRect(card);
     expect(bounds.left, greaterThanOrEqualTo(0));
+    expect(bounds.width, greaterThanOrEqualTo(275));
+    expect(bounds.width, lessThanOrEqualTo(320 - 40));
     expect(bounds.right, lessThanOrEqualTo(320));
     expect(bounds.top, greaterThanOrEqualTo(0));
     expect(bounds.bottom, lessThanOrEqualTo(640));
@@ -266,6 +277,37 @@ void main() {
       );
       expect(find.byKey(const ValueKey('seller-review-add')), findsNothing);
       expect(find.byKey(const ValueKey('seller-review-my-review')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final status in ['approved', 'pending', 'rejected']) {
+    testWidgets('Own $status review is first left without plus or duplicate',
+        (tester) async {
+      final own = <String, dynamic>{
+        'id': 'mine', 'name': 'losebreath', 'rating': 5,
+        'text': 'мой отзыв', 'moderation_status': status, 'photos': [],
+      };
+      final other = <String, dynamic>{
+        'id': 'other', 'name': 'Ирина', 'rating': 4,
+        'text': 'отзыв другого', 'moderation_status': 'approved', 'photos': [],
+      };
+      await mountReviews(tester, signedIn: true,
+        public: () async => {
+          'count': status == 'approved' ? 2 : 1,
+          'average': status == 'approved' ? 4.5 : 4.0,
+          // Deliberately return the other review first to verify sort.
+          'items': [other, if (status == 'approved') own],
+        },
+        mine: () async => {'item': own, 'hidden': false},
+      );
+      final mineCard = find.byKey(const ValueKey('seller-review-mine'));
+      final otherCard = find.byKey(const ValueKey('seller-review-other'));
+      expect(find.byKey(const ValueKey('seller-review-add')), findsNothing);
+      expect(mineCard, findsOneWidget);
+      expect(otherCard, findsOneWidget);
+      expect(tester.getTopLeft(mineCard).dx,
+          lessThan(tester.getTopLeft(otherCard).dx));
       expect(tester.takeException(), isNull);
     });
   }
