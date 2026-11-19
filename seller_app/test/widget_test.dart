@@ -195,6 +195,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(state.screen, 'newProduct');
     expect(state.photos.length, 6);
+    expect(state.capturePhotos, isEmpty);
+    // Starting another product must not reopen a full 6/6 session.
+    await tester.tap(find.bySemanticsLabel('Камера'));
+    await tester.pumpAndSettle();
+    expect(state.screen, 'capture');
+    expect(state.capturePhotos, isEmpty);
+    expect(find.bySemanticsLabel('Снять фото'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
