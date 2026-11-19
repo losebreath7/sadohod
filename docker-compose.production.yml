@@ -46,6 +46,8 @@ services:
     volumes:
       - public_uploads:/app/backend/media/products/uploads
       - public_admin_state:/app/state
+      # Operator-managed approved documents are never baked into the image.
+      - ./legal_published:/app/legal_published:ro
       - public_ml_cache:/root/.cache
     depends_on:
       db:

@@ -18,6 +18,7 @@ from .merchant_chat import router as merchant_chat_router
 from .moderation import router as moderation_router, admin_router as moderator_staff_router
 from .seller_notifications import router as seller_notifications_router
 from .product_safety import router as product_safety_router
+from .legal_documents import router as legal_router
 from .moderation_controls import router as moderation_controls_router
 from .buyer_interests import router as buyer_interests_router
 from . import buyer_interests_models  # noqa: F401
@@ -105,6 +106,7 @@ app.include_router(moderation_router)
 app.include_router(moderator_staff_router)
 app.include_router(seller_notifications_router)
 app.include_router(product_safety_router)
+app.include_router(legal_router)
 app.include_router(moderation_controls_router)
 app.include_router(buyer_interests_router)
 
