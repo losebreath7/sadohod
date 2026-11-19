@@ -85,7 +85,7 @@ def test_ml_flags_each_photo_not_just_first(monkeypatch):
                                               [[0.0] * s.DIM]))
     images = [SimpleNamespace(id='one'), SimpleNamespace(id='two')]
     db = SimpleNamespace(get=lambda _cls, key: SimpleNamespace(
-        embedding=[0.0] * s.DIM if key[0] == 'one' else vector))
+        embedding=([0.0, 1.0] + [0.0] * (s.DIM - 2)) if key[0] == 'one' else vector))
     product = SimpleNamespace(title='Товар', description='', images=images)
     assert 'опасные вещества' in s.assess(db, product)
 
