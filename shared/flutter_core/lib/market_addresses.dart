@@ -103,9 +103,9 @@ MarketAddress parseMarketAddress(String input, {String? territoryHint}) {
   if (explicit != null) {
     building = explicit.group(1);
     code = code.substring(explicit.end);
-  } else if (code.startsWith('Б-') || code.startsWith('А-')) {
+  } else if (RegExp(r'^[АБ]-?[12]').hasMatch(code)) {
     building = code[0];
-    code = code.substring(2);
+    code = code.substring(code[1] == '-' ? 2 : 1);
   }
   final letter = RegExp(r'^([12])([А-Я])-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
   final digit = RegExp(r'^([12])-([1-9]\d?)-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
