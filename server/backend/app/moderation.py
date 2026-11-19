@@ -28,6 +28,7 @@ from .merchant import (
 from .moderation_models import ModeratorUser, ModeratorSession, ModerationAction
 from .models import Seller, Product
 from .product_safety import ProductReport, ProductSafetyHold, take_down
+from .merchant_models import ShopApplication, PavilionRequest, MerchantProduct, MerchantListing, ShopMembership
 
 router = APIRouter(prefix='/api/v1/moderation', tags=['Moderation'])
 admin_router = APIRouter(prefix='/api/v1/admin/moderators',
@@ -247,6 +248,14 @@ def takedown_product(product_id: str, body: ProductTakedownInput,
         raise HTTPException(422, 'Укажите причину снятия товара')
     take_down(db, product_id, staff.id, reason)
     record_action(db, staff, 'products', product_id, 'takedown', reason)
+    from .moderation_email import queue_decision
+    owner = db.get(MerchantProduct, product_id)
+    buyer_id = db.scalar(select(ShopMembership.buyer_id).where(
+        ShopMembership.seller_id == owner.seller_id, ShopMembership.role == 'owner')) if owner else None
+    buyer = db.get(Buyer, buyer_id) if buyer_id else None
+    product = db.get(Product, product_id)
+    if buyer:
+        queue_decision(db, buyer.email, 'Товар снят с публикации', 'товар', product.title, reason)
     db.commit()
     return {'id': product_id, 'status': 'removed'}
 
@@ -268,6 +277,10 @@ def resolve_product_report(report_id: str, body: ProductReportDecision,
     report.resolution = body.decision
     report.resolved_at = time.time()
     record_action(db, staff, 'product_reports', report_id, body.decision, note)
+    from .moderation_email import queue_decision
+    reporter = db.get(Buyer, report.buyer_id)
+    if reporter:
+        queue_decision(db, reporter.email, 'Жалоба на товар рассмотрена', 'жалоба', report_id, note or body.decision)
     db.commit()
     return {'id': report_id, 'status': body.decision}
 
@@ -307,6 +320,10 @@ def decide(kind: Literal['applications', 'pavilions', 'products', 'listings', 'r
             raise HTTPException(409, 'Отзыв уже обработан')
         review.moderation_status = body.decision
         record_action(db, staff, kind, item_id, body.decision, note)
+        from .moderation_email import queue_decision
+        author = db.get(Buyer, review.buyer)
+        if author:
+            queue_decision(db, author.email, 'Отзыв рассмотрен модератором', 'отзыв', item_id, note or body.decision)
         db.commit()
         return {'id': item_id, 'status': body.decision}
 
@@ -316,6 +333,26 @@ def decide(kind: Literal['applications', 'pavilions', 'products', 'listings', 'r
     else:
         decision_data = DecisionInput(decision=body.decision, note=note)
     record_action(db, staff, kind, item_id, body.decision, note)
+    from .moderation_email import queue_decision
+    buyer_id = None
+    label = item_id
+    if kind == 'applications':
+        item = db.get(ShopApplication, item_id)
+        buyer_id = item.buyer_id if item else None
+        label = item.shop_name if item else item_id
+    elif kind == 'pavilions':
+        item = db.get(PavilionRequest, item_id)
+        buyer_id = db.scalar(select(ShopMembership.buyer_id).where(
+            ShopMembership.seller_id == item.seller_id, ShopMembership.role == 'owner')) if item else None
+    elif kind in ('products', 'listings'):
+        item = db.get(MerchantProduct, item_id) if kind == 'products' else db.get(MerchantListing, item_id)
+        buyer_id = db.scalar(select(ShopMembership.buyer_id).where(
+            ShopMembership.seller_id == item.seller_id, ShopMembership.role == 'owner')) if item else None
+        product = db.get(Product, item_id if kind == 'products' else item.product_id) if item else None
+        label = product.title if product else item_id
+    buyer = db.get(Buyer, buyer_id) if buyer_id else None
+    if buyer:
+        queue_decision(db, buyer.email, 'Решение по заявке: ' + body.decision, kind, label, note or body.decision)
     if kind == 'applications':
         return decide_application(item_id, decision_data, db)
     if kind == 'pavilions':
@@ -341,6 +378,10 @@ def resolve_report(report_id: str, body: ReportResolution,
     report.resolution = body.decision
     report.resolved_at = time.time()
     record_action(db, staff, 'reports', report_id, body.decision, body.note.strip())
+    from .moderation_email import queue_decision
+    reporter = db.get(Buyer, report.buyer)
+    if reporter:
+        queue_decision(db, reporter.email, 'Жалоба на отзыв рассмотрена', 'жалоба', report_id, body.note.strip() or body.decision)
     db.commit()
     return {'id': report_id, 'status': body.decision}
 
