@@ -58,6 +58,12 @@ def publish(payload: dict, destination: Path):
         raise ValueError("Refusing symlinked published document")
     if current.exists():
         old = json.loads(current.read_text("utf-8"))
+        if old.get("version") == payload["version"]:
+            if old.get("sha256") == payload["sha256"]:
+                return  # Publishing the same approved revision again is idempotent.
+            raise ValueError("Cannot change text under an already published version")
+        if str(old.get("version", "")) >= payload["version"]:
+            raise ValueError("A legal document must be published with a newer version")
         archive = destination / "archive" / payload["slug"]
         archive.mkdir(parents=True, exist_ok=True)
         old_target = archive / (old["version"] + ".json")
