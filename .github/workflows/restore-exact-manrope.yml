@@ -70,6 +70,13 @@ jobs:
                           data = google_zip.read(inner)
                           actual = hashlib.sha256(data).hexdigest()
                           print(f"Google ZIP {filename}: {actual}")
+                          if filename == "Manrope-ExtraLight.ttf" and actual != sha256:
+                              import struct
+                              count = struct.unpack_from(">H", data, 4)[0]
+                              for index in range(count):
+                                  tag, check, off, length = struct.unpack_from(">4sIII", data, 12 + index * 16)
+                                  table_bytes = data[off:off+length]
+                                  print("FONT TABLE", tag.decode("ascii"), length, hashlib.sha256(table_bytes).hexdigest())
                           if actual == sha256:
                               (target / filename).write_bytes(data)
                               verified = True
