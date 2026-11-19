@@ -93,16 +93,6 @@ class MarketNavigationGuideScreen extends StatelessWidget {
     child: ListView(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
       children: [
-        const Text(
-          'Как устроены адреса павильонов на «Садоводе»',
-          style: TextStyle(
-            fontFamily: SadohodFont.family,
-            fontSize: 14,
-            height: 1.45,
-            color: Color(0xFF626262),
-          ),
-        ),
-        const SizedBox(height: 20),
         for (final zone in marketGuideZones) ...[
           Semantics(
             button: true,
@@ -252,7 +242,7 @@ class _GuideMapButton extends StatelessWidget {
       key: const ValueKey('market-guide-open-maps'),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4C3831),
+        backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         shape: const StadiumBorder(),
         elevation: 0,
