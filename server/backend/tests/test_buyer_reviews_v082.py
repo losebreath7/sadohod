@@ -52,6 +52,18 @@ def test_reviews_edit_ratings_and_photo_limit(setup):
     assert c.get('/api/v1/sellers/s01/reviews').json()['items'][0]['rating']==5
     with sessions() as db:
         assert len(db.scalars(select(SellerReview)).all())==1
+    # Even after approval, sending again updates the same record rather
+    # than creating another review for this buyer and seller.
+    updated = c.post('/api/v1/sellers/s01/reviews', headers=a,
+                     json={'rating':3, 'text':'Обновил мнение'})
+    assert updated.status_code == 200
+    assert updated.json()['item']['id'] == review_id
+    assert c.get('/api/v1/sellers/s01/my-review',headers=a).json()['item']['id'] == review_id
+    # An edited review is re-moderated, not shown twice to other users.
+    assert c.get('/api/v1/sellers/s01/reviews').json()['count'] == 0
+    with sessions() as db:
+        rows = db.scalars(select(SellerReview)).all()
+        assert len(rows) == 1 and rows[0].moderation_status == 'pending'
 
 
 def test_reports_moderation_and_owner_isolation(setup,monkeypatch):
