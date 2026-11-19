@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,20 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/account.dart';
 import '../../data/api.dart';
 import 'review_flowers.dart';
+
+/// Constrain both review dialogs to the actual device viewport, not the
+/// browser window around a simulated iPhone. Large review bodies scroll,
+/// while dialog actions remain reachable on compact phones.
+BoxConstraints _reviewDialogConstraints(BuildContext context) {
+  final media = MediaQuery.of(context);
+  return BoxConstraints(
+    maxWidth: math.min(340.0, math.max(200.0, media.size.width - 40.0)),
+    maxHeight: math.max(
+      180.0,
+      media.size.height - media.padding.vertical - media.viewInsets.bottom - 32.0,
+    ),
+  );
+}
 
 /// Public reviews: personal opinions, never marked as verified purchases.
 class SellerReviewsPanel extends StatefulWidget {
@@ -46,6 +61,8 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   void _accountChanged() {
     if (_activeToken == AccountStore.instance.token) return;
     _activeToken = AccountStore.instance.token;
+    // Never retain the previous account's review identity while refreshing.
+    setState(() => _mine = null);
     _load();
   }
 
@@ -330,20 +347,46 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     if (mounted) await _load();
   }
 
+  bool _isOwnReview(Map<String, dynamic> item) =>
+      _signedIn &&
+      _mine != null &&
+      item['id']?.toString() == _mine!['id']?.toString();
+
   Future<void> _report(String reviewId) async {
+    // Client-side safeguard. The API also rejects direct self-report requests.
+    if (_signedIn && _mine?['id']?.toString() == reviewId) return;
     if (!AccountStore.instance.signedIn) { context.go('/account'); return; }
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: Colors.white,
-      title: const Text('пожаловаться на отзыв'),
-      content: TextField(controller: controller, maxLength: 200,
-        decoration: const InputDecoration(hintText: 'Причина жалобы')),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('отмена')),
-        TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          child: const Text('отправить')),
-      ],
-    ));
+    var draft = '';
+    final reason = await showDialog<String>(
+      context: context,
+      useRootNavigator: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) {
+          final bounds = _reviewDialogConstraints(ctx);
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            constraints: bounds,
+            scrollable: true,
+            title: const Text('пожаловаться на отзыв'),
+            content: TextField(
+              maxLength: 200,
+              onChanged: (value) => refresh(() => draft = value),
+              decoration: const InputDecoration(hintText: 'Причина жалобы'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx),
+                child: const Text('отмена')),
+              TextButton(
+                onPressed: draft.trim().length >= 4
+                    ? () => Navigator.pop(ctx, draft.trim())
+                    : null,
+                child: const Text('отправить')),
+            ],
+          );
+        },
+      ),
+    );
     if (reason == null || reason.length < 4) return;
     try {
       await AccountStore.instance.request(
@@ -418,11 +461,19 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
       {required bool ownUnpublished}) async {
     if (!mounted) return;
     final photos = item['photos'] as List? ?? const [];
-    await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+    final isOwn = _isOwnReview(item);
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (ctx) => AlertDialog(
+      key: const ValueKey('seller-review-detail-dialog'),
       backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      constraints: _reviewDialogConstraints(ctx),
+      scrollable: true,
       title: Text(item['name']?.toString() ?? 'Пользователь',
         style: const TextStyle(fontSize: 15)),
-      content: SingleChildScrollView(child: Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start, children: [
           ReviewRatingFlowers(
@@ -453,9 +504,9 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
               child: Text('ответ продавца: ${item['reply']}',
                 style: const TextStyle(fontSize: 12))),
         ],
-      )),
+      ),
       actions: [
-        if (!ownUnpublished)
+        if (!isOwn && !ownUnpublished)
           TextButton(onPressed: () {
             Navigator.pop(ctx);
             _report(item['id'].toString());
