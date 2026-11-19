@@ -39,6 +39,7 @@ class ReviewAccess(Base):
     """Pre-provisioned reviewer: private hashed code, lifetime cap, revocable."""
     __tablename__ = 'store_review_access'
     email: Mapped[str] = mapped_column(String(254), primary_key=True)
+    buyer_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     code_digest: Mapped[str] = mapped_column(String(128), nullable=False)
     platform: Mapped[str] = mapped_column(String(16), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -214,7 +215,7 @@ def verify(body: VerifyInput, request: Request, db: Session = Depends(get_db)):
             db.commit()
             raise HTTPException(400, 'Код неверный или истёк. Запросите новый.')
         buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
-        if buyer is None:
+        if buyer is None or buyer.id != reviewer.buyer_id:
             raise HTTPException(403, 'Учётная запись проверяющего не подготовлена.')
         token = secrets.token_urlsafe(32)
         duration = min(7 * 86400, int(reviewer.expires - now))
@@ -249,7 +250,7 @@ def current_buyer(authorization: str = Header(default=''), db: Session = Depends
     buyer = db.get(Buyer, session.buyer) if session and session.expires > time.time() else None
     if buyer is None:
         raise HTTPException(401, 'Войдите в аккаунт заново.')
-    reviewer = db.get(ReviewAccess, buyer.email)
+    reviewer = db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id))
     if reviewer is not None and (not reviewer.enabled or reviewer.expires <= time.time()):
         raise HTTPException(401, 'Доступ проверяющего завершён.')
     return buyer
@@ -308,6 +309,8 @@ def logout(authorization: str = Header(default=''), buyer: Buyer = Depends(curre
 
 @router.delete('/account')
 def remove_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    if db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id)):
+        raise HTTPException(409, 'Учётная запись проверяющего управляется отдельно.')
     # Shared buyer credentials may also own a merchant shop. Refuse to remove
     # the owner while the shop/pavilions/products are still attached: doing so
     # can revoke the only access to that merchant's records.
