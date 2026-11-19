@@ -5,16 +5,22 @@ on:
       - fix/manrope-only-font-family
     paths:
       - '.github/workflows/restore-exact-manrope.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - '.github/workflows/restore-exact-manrope.yml'
   workflow_dispatch:
 permissions:
   contents: write
 jobs:
   restore-fonts:
+    if: github.event_name == 'push' || github.head_ref == 'fix/manrope-only-font-family'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
+          ref: ${{ github.head_ref || github.ref_name }}
       - name: Download and verify EXACT uploaded font binaries
         shell: python
         run: |
