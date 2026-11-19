@@ -84,3 +84,31 @@ def test_staff_can_hide_review_without_report(setup, monkeypatch):
     assert c.post(url, headers=staff,
                   json={'action':'restore','reason':'Жалоба не подтвердилась'}).status_code == 200
     assert c.get('/api/v1/sellers/control-review-shop/reviews').json()['count'] == 1
+
+def test_mail_outbox_dispatch_and_retry(setup, monkeypatch):
+    from backend.app import moderation_email
+    from backend.app.moderation_enforcement_models import ModerationEmail
+    import time
+    c, codes, factory = setup
+    recipients = []
+    with factory() as db:
+        db.add(ModerationEmail(id='mail-one', recipient='notify@example.com',
+            subject='Решение', body='Причина', status='pending',
+            attempts=0, next_attempt_at=time.time(), created_at=time.time()))
+        db.commit()
+    def failure(item):
+        raise OSError('smtp unavailable')
+    monkeypatch.setattr(moderation_email, 'send_message', failure)
+    assert moderation_email.dispatch_due(factory) == 0
+    with factory() as db:
+        row = db.get(ModerationEmail, 'mail-one')
+        assert row.status == 'pending' and row.attempts == 1
+        row.next_attempt_at = time.time()-1
+        db.commit()
+    monkeypatch.setattr(moderation_email, 'send_message',
+                        lambda item: recipients.append(item.recipient))
+    assert moderation_email.dispatch_due(factory) == 1
+    assert recipients == ['notify@example.com']
+    with factory() as db:
+        row = db.get(ModerationEmail, 'mail-one')
+        assert row.status == 'sent' and row.attempts == 2 and row.sent_at is not None
