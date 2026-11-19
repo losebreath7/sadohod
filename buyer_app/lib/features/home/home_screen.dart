@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
   List<String> _tags = _fallbackTags;
   String? _lastToken;
+  int _lastInterestRevision = -1;
 
   @override
   void initState() {
@@ -41,8 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onAccountChanged() {
     final token = AccountStore.instance.token;
-    if (_lastToken == token) return;
+    final revision = AccountStore.instance.interestRevision;
+    if (_lastToken == token && _lastInterestRevision == revision) return;
+    final changedAccount = _lastToken != token;
     _lastToken = token;
+    _lastInterestRevision = revision;
+    if (changedAccount && mounted) setState(() => _tags = _fallbackTags);
     if (token == null) {
       if (mounted) setState(() => _tags = _fallbackTags);
       return;
