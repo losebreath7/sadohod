@@ -1328,10 +1328,17 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         }
         code = '${zone == 'корпус Б' || building == 'Б' ? 'Б-' : ''}$floor$line-$number';
       } else {
-        if (line.isEmpty || number.isEmpty) {
+        if (number.isEmpty ||
+            (line.isEmpty && zone != 'меха и кожа')) {
           throw Exception('Укажите линию/ряд и номер павильона.');
         }
-        code = '$line-$number';
+        if (zone == 'ангар') {
+          code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
+        } else if (zone == 'меха и кожа') {
+          code = '${line.startsWith('М') ? line : 'М$line'}-$number';
+        } else {
+          code = '$line-$number';
+        }
       }
       code = normalizeMarketAddress(code);
     }
@@ -2692,7 +2699,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 const SizedBox(height: 11),
               ],
               V3Field('адрес целиком', c('fullAddress'), onChanged: (value) {
-                final parsed = parseMarketAddress(value);
+                final parsed = parseMarketAddress(value, territoryHint: c('zone').text);
                 if (parsed.recognized) c('zone').text = parsed.territory;
                 setState(() {});
               }),
