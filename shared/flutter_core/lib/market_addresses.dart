@@ -29,7 +29,7 @@ class MarketAddress {
   String get explanation => parts.join('\n');
   // The address editor only needs decoded structural fields.
   String get details => recognized ? explanation :
-      'Не удалось распознать адрес. Его можно отправить на проверку.';
+      'не удалось распознать адрес. Его можно отправить на проверку.';
 
 }
 
