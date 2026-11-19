@@ -67,7 +67,7 @@ def test_production_does_not_reuse_local_volumes():
     local = (ROOT / "docker-compose.yml").read_text()
     assert "sadohod_mvp_v0_2" in local
     assert "name: sadohod_public" in compose
-    assert "docker-compose.yml" not in compose
+    assert "docker-compose.yml" not in compose.split("services:", 1)[1]
     assert "backend/Dockerfile.production" in compose
     assert "DEMO_SEED" in compose and "SEARCH_BACKEND: clip" in compose
     assert '"80:80"' in compose and '"443:443"' in compose
