@@ -179,6 +179,9 @@ def assess(db, product):
             vector = stored.embedding
             if not all(math.isfinite(float(n)) for n in vector):
                 return 'Автопроверка: некорректный ML-вектор'
+            norm = math.sqrt(sum(float(n) ** 2 for n in vector))
+            if not 0.95 <= norm <= 1.05:
+                return 'Автопроверка: ненормированный ML-вектор'
             # Reject malformed prompt embeddings and comparison results;
             # NaN in cosine scores must never turn into automatic approval.
             if not risk_prompts or not benign_prompts:
