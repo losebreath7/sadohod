@@ -140,6 +140,10 @@ def tags(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     now_day = int(time.time() // 86400)
     available = available_categories(db)
     scores = defaultdict(float)
+    # Global TTL pruning also runs on reads, including users who never browse again.
+    db.execute(delete(BuyerCategoryInterest).where(
+        BuyerCategoryInterest.day < now_day - WINDOW_DAYS))
+    db.commit()
     records = db.scalars(select(BuyerCategoryInterest).where(
         BuyerCategoryInterest.buyer_id == buyer.id,
         BuyerCategoryInterest.day >= now_day - WINDOW_DAYS)).all()
@@ -155,8 +159,6 @@ def tags(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     if favorite_ids:
         products = db.scalars(select(Product).where(Product.id.in_(favorite_ids))).all()
         for product in products:
-            if product.id not in {p.id for p in products}:
-                continue
             category = category_for(db, product)
             if category and category in available:
                 for ancestor in path_ids(category):
