@@ -602,7 +602,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             if (!_signedIn || (!_loading && _mineChecked && _mine == null))
             InkWell(
               key: const ValueKey('seller-review-add'),
-              onTap: _review,
+              onTap: () => _review(),
               child: Container(
                 width: 135, height: 85,
                 decoration: BoxDecoration(color: Colors.white,
