@@ -18,9 +18,9 @@ bool productInZones(DemoProduct p, Set<String> selected) {
       if (low.contains(name.toLowerCase())) return true;
       if (decoded.recognized && decoded.territory == name) return true;
       if (name == 'корпус А' &&
-          (low.contains('сектор а') || RegExp(r'(^|\\s)а-').hasMatch(low))) return true;
+          (low.contains('сектор а') || RegExp(r'(^|\s)а-').hasMatch(low))) return true;
       if (name == 'корпус Б' &&
-          (low.contains('сектор б') || RegExp(r'(^|\\s)б-').hasMatch(low))) return true;
+          (low.contains('сектор б') || RegExp(r'(^|\s)б-').hasMatch(low))) return true;
     }
   }
   return false;
