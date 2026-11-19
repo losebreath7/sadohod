@@ -15,8 +15,12 @@ import 'review_flowers.dart';
 /// while dialog actions remain reachable on compact phones.
 BoxConstraints _reviewDialogConstraints(BuildContext context) {
   final media = MediaQuery.of(context);
+  // Without minWidth, AlertDialog shrink-wraps short reviews into a narrow
+  // column even though its maxWidth is set. Keep the white card phone-sized.
+  final width = math.max(0.0, math.min(340.0, media.size.width - 40.0));
   return BoxConstraints(
-    maxWidth: math.min(340.0, math.max(200.0, media.size.width - 40.0)),
+    minWidth: width,
+    maxWidth: width,
     maxHeight: math.max(
       180.0,
       media.size.height - media.padding.vertical - media.viewInsets.bottom - 32.0,
@@ -566,11 +570,16 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
       .map((item) => Map<String, dynamic>.from(item))
       .toList();
     final status = _mine?['moderation_status']?.toString() ?? '';
-    final ownVisible = _mine != null && _mine!['hidden'] != true &&
-      (status == 'pending' || status == 'rejected');
+    // Place the signed-in buyer's own review first for every status,
+    // including approved reviews, then show everyone else's reviews.
+    // Exclude the public copy of the same review to avoid duplicates.
+    final ownVisible = _signedIn && _mine != null &&
+      _mine!['hidden'] != true;
+    final ownId = _mine?['id']?.toString();
     final entries = <Map<String, dynamic>>[
       if (ownVisible) _mine!,
-      ...published.where((row) => !ownVisible || row['id'] != _mine?['id']),
+      ...published.where((row) => ownId == null ||
+          row['id']?.toString() != ownId),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -618,11 +627,15 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                 ]),
               ),
             ),
-            for (final item in entries) ...[
-              const SizedBox(width: 10),
-              _tile(item,
-                pending: item['id'] == _mine?['id'] && status == 'pending',
-                rejected: item['id'] == _mine?['id'] && status == 'rejected'),
+            for (var index = 0; index < entries.length; index++) ...[
+              if (index > 0 || (!_signedIn ||
+                  (!_loading && _mineChecked && _mine == null)))
+                const SizedBox(width: 10),
+              _tile(entries[index],
+                pending: entries[index]['id']?.toString() == ownId &&
+                    status == 'pending',
+                rejected: entries[index]['id']?.toString() == ownId &&
+                    status == 'rejected'),
             ],
           ],
         ),
