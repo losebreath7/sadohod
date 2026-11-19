@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,13 +10,29 @@ Future<void> showSellerCaptureGallery({
   required ValueChanged<XFile> onRemove,
 }) => showDialog<void>(
   context: context,
-  builder: (context) => StatefulBuilder(
-    builder: (context, refresh) => AlertDialog(
+  // The browser device preview has its own full-screen Navigator above the
+  // simulated phone. Keep the dialog in the phone's Navigator and MediaQuery,
+  // just as it is on a physical device.
+  useRootNavigator: false,
+  builder: (dialogContext) => StatefulBuilder(
+    builder: (context, refresh) {
+      final window = MediaQuery.sizeOf(context);
+      final safe = MediaQuery.paddingOf(context);
+      return AlertDialog(
+      key: const ValueKey('seller-capture-gallery-dialog'),
       backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       title: Text('фотографии ${photos.length}/6'),
       content: SizedBox(
-        width: 320,
-        child: SingleChildScrollView(
+        width: math.min(320.0, math.max(200.0, window.width - 80.0)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: math.max(
+              96.0,
+              math.min(320.0, window.height - safe.vertical - 220.0),
+            ),
+          ),
+          child: SingleChildScrollView(
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -63,6 +80,7 @@ Future<void> showSellerCaptureGallery({
                 ),
             ],
           ),
+          ),
         ),
       ),
       actions: [
@@ -71,6 +89,7 @@ Future<void> showSellerCaptureGallery({
           child: const Text('закрыть'),
         ),
       ],
-    ),
+    );
+    },
   ),
 );
