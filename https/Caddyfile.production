@@ -1,0 +1,12 @@
+# Public HTTPS. Set API_DOMAIN to a real DNS name in .env.production.
+# Caddy obtains and renews public certificates automatically.
+{$API_DOMAIN} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000"
+        -Server
+    }
+    reverse_proxy api:8000
+}

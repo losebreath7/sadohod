@@ -49,7 +49,7 @@ class ReleaseEnvSecurityChecks(unittest.TestCase):
                 return archive.namelist()
 
     def test_allow_only_reviewed_env_examples(self):
-        names = ['.env.example', '.env.public.example']
+        names = ['.env.example', '.env.public.example', '.env.production.example']
         self.assertEqual(
             sorted(self._package(names)),
             sorted(['SADOHOD/' + name for name in names] +

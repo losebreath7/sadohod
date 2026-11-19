@@ -30,6 +30,14 @@ jobs:
       - name: Проверки синхронизации версий
         working-directory: tools
         run: python test_version.py
+      - name: Production preflight (unsafe env and deployment isolation)
+        run: python tools/test_production_preflight.py
+      - name: Validate isolated Compose YAML offline (no server or real secrets)
+        run: |
+          docker compose --env-file .env.production.example -f docker-compose.production.yml -p sadohod_public config --quiet
+          docker compose --env-file .env.production.example -f docker-compose.restore-drill.yml -p sadohod_restore_drill config --quiet
+      - name: Verify production shell scripts syntax
+        run: bash -n tools/backup_production.sh tools/restore_drill.sh
       - name: Проверить native IDs, permissions и release signing
         run: python tools/test_native_config.py
       - name: Проверить оригинальный Manrope во всех клиентах
