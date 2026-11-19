@@ -247,6 +247,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final status in ['approved', 'pending', 'rejected']) {
+    testWidgets('One existing $status review hides new-review card', (
+      tester,
+    ) async {
+      final own = <String, dynamic>{
+        'id': 'my-review', 'name': 'Мария', 'rating': 4,
+        'text': 'Уже оставленный отзыв', 'photos': [],
+        'moderation_status': status,
+      };
+      await mountReviews(tester, signedIn: true,
+        public: () async => {
+          'count': status == 'approved' ? 1 : 0,
+          'average': status == 'approved' ? 4.0 : null,
+          'items': status == 'approved' ? [own] : [],
+        },
+        mine: () async => {'item': own, 'hidden': false},
+      );
+      expect(find.byKey(const ValueKey('seller-review-add')), findsNothing);
+      expect(find.byKey(const ValueKey('seller-review-my-review')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Cannot create review when private review lookup fails', (
+    tester,
+  ) async {
+    await mountReviews(tester, signedIn: true,
+      public: () async => {'count': 0, 'average': null, 'items': []},
+      mine: () async => throw StateError('Temporary private API failure'),
+    );
+    expect(find.byKey(const ValueKey('seller-review-add')), findsNothing);
+    expect(find.text('Не удалось проверить ваш отзыв'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('No existing review still offers a single add card', (
+    tester,
+  ) async {
+    await mountReviews(tester, signedIn: true,
+      public: () async => {'count': 1, 'average': 4.0, 'items': [
+        {'id': 'another-review', 'name': 'Другой пользователь', 'rating': 4,
+         'text': 'Его отзыв', 'photos': []},
+      ]},
+      mine: () async => {'item': null, 'hidden': false},
+    );
+    expect(find.byKey(const ValueKey('seller-review-add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('seller-review-another-review')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('submit, acknowledge, return to seller without reopening editor',
       (tester) async {
     Map<String, dynamic>? own;
