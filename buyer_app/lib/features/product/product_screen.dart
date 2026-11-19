@@ -267,19 +267,11 @@ class _ProductScreenState extends State<ProductScreen> {
               ]),
               const SizedBox(height: 15),
               if (seller != null) ...[
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const SizedBox(width: 27, height: 27, child: DesignIcon('e7ce6')),
-                  const SizedBox(width: 7),
-                  Expanded(child: InkWell(
-                    onTap: () => context.push('/seller/${seller.id}'),
-                    child: Text(seller.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14, height: 1.3)),
-                  )),
-                  if ((selected?.saleModes ?? p.saleModes).contains('wholesale')) const _ModePill('опт'),
-                  if ((selected?.saleModes ?? p.saleModes).contains('retail')) ...[
-                    const SizedBox(width: 4), const _ModePill('розница'),
-                  ],
-                ]),
+                BuyerSellerIdentityRow(
+                  sellerName: seller.name,
+                  saleModes: selected?.saleModes ?? p.saleModes,
+                  onSellerTap: () => context.push('/seller/${seller.id}'),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 34),
                   child: ContactText(seller.contact),
@@ -332,6 +324,60 @@ List<String> _addressLines(String address, String zone) {
     '${match.group(4)}  - номер павильона',
   ];
   return [address, if (zone.isNotEmpty) zone];
+}
+
+/// The icon, seller name and wholesale/retail badges share a single
+/// vertical centre. Contacts remain on the following line, indented 34dp.
+class BuyerSellerIdentityRow extends StatelessWidget {
+  const BuyerSellerIdentityRow({
+    super.key,
+    required this.sellerName,
+    required this.saleModes,
+    this.onSellerTap,
+  });
+
+  final String sellerName;
+  final List<String> saleModes;
+  final VoidCallback? onSellerTap;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const SizedBox(
+        width: 27,
+        height: 27,
+        child: Center(child: DesignIcon('e7ce6')),
+      ),
+      const SizedBox(width: 7),
+      Expanded(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: InkWell(
+            onTap: onSellerTap,
+            child: Text(
+              sellerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: SadohodFont.family,
+                fontSize: 14,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ),
+      ),
+      if (saleModes.contains('wholesale')) ...[
+        const SizedBox(width: 8),
+        const _ModePill('опт'),
+      ],
+      if (saleModes.contains('retail')) ...[
+        const SizedBox(width: 4),
+        const _ModePill('розница'),
+      ],
+    ],
+  );
 }
 
 class _ModePill extends StatelessWidget {
