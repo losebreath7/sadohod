@@ -27,7 +27,7 @@ Use distinct codes for every account. In the examples replace values in angle
 brackets with actual emails (omit brackets).
 
 On the future VPS, execute within the existing API container's dependencies
-using a **one-time helper** mounted read-only from the repository. No secrets
+using the packaged backend operator command. No secrets
 are placed in arguments, Compose variables, or git-committed files:
 
 ```sh
@@ -35,8 +35,7 @@ cd /srv/sadohod
 # Once per reviewer account, repeat with apple/google and buyer/seller.
 docker compose --env-file .env.production -f docker-compose.production.yml -p sadohod_public \
   run --rm -it --no-deps \
-  -v "$PWD/tools/manage_review_accounts.py:/app/manage_review_accounts.py:ro" \
-  api python /app/manage_review_accounts.py provision \
+  api python -m backend.manage_review_accounts provision \
   --email reviewer-buyer@YOUR_DOMAIN --platform apple --role buyer --days 45
 ```
 
@@ -47,8 +46,7 @@ After the review period, disable the reviewer and revoke every active session:
 ```sh
 docker compose --env-file .env.production -f docker-compose.production.yml -p sadohod_public \
   run --rm -it --no-deps \
-  -v "$PWD/tools/manage_review_accounts.py:/app/manage_review_accounts.py:ro" \
-  api python /app/manage_review_accounts.py revoke --email reviewer-buyer@YOUR_DOMAIN
+  api python -m backend.manage_review_accounts revoke --email reviewer-buyer@YOUR_DOMAIN
 ```
 
 Rotation: repeat `provision` with the same platform/role/email, enter a *new*
@@ -85,8 +83,7 @@ are present):
 ```sh
 docker compose --env-file .env.production -f docker-compose.production.yml -p sadohod_public \
   run --rm -it --no-deps \
-  -v "$PWD/tools/manage_review_accounts.py:/app/manage_review_accounts.py:ro" \
-  api python /app/manage_review_accounts.py check-seller \
+  api python -m backend.manage_review_accounts check-seller \
   --email reviewer-seller@YOUR_DOMAIN
 ```
 
