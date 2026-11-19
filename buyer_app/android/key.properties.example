@@ -1,0 +1,7 @@
+# Local Android upload signing. Copy to key.properties and fill; do NOT commit.
+# Keep the buyer upload keystore outside the repository and separate from seller.
+# On Windows use forward slashes, e.g. C:/secrets/sadohod-buyer-upload.jks
+storeFile=/absolute/path/to/buyer-upload.jks
+storePassword=CHANGE_ME
+keyAlias=sadohod-buyer
+keyPassword=CHANGE_ME
