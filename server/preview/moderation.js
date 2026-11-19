@@ -7,13 +7,16 @@ const kinds=['applications','pavilions','products','listings','reviews','reports
 const names={all:'Все заявки',applications:'Заявки продавцов',pavilions:'Павильоны',
   products:'Товары',listings:'Предложения',reviews:'Отзывы',reports:'Жалобы',
   product_reports:'Жалобы на товары',
-  chats:'Обращения',history:'История решений'};
+  chats:'Обращения',history:'История решений',
+  control_accounts:'Все аккаунты',control_shops:'Все магазины',
+  control_products:'Весь каталог',control_reviews:'Все отзывы'};
 const typeName={applications:'ПРОДАВЕЦ',pavilions:'ПАВИЛЬОН',products:'ТОВАР',
   listings:'ПРЕДЛОЖЕНИЕ',reviews:'ОТЗЫВ',reports:'ЖАЛОБА',
-  product_reports:'ЖАЛОБА НА ТОВАР'};
+  product_reports:'ЖАЛОБА НА ТОВАР',control_accounts:'АККАУНТ',
+  control_shops:'МАГАЗИН',control_products:'ТОВАР',control_reviews:'ОТЗЫВ'};
 const state={token:sessionStorage.getItem('sadohod-moderator')||'',staff:null,
   section:'all',queue:{},history:[],chats:[],items:[],selected:null,
-  activeThread:null,busy:false,confirm:null};
+  activeThread:null,busy:false,confirm:null,controlRows:[]};
 let noticeTimer=0;
 function node(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);return n;}
 function append(parent,...children){for(const c of children)if(c!==null&&c!==undefined)parent.appendChild(c);return parent;}
@@ -40,7 +43,10 @@ function signedIn(user){
   $('loginScreen').hidden=true;$('workspace').hidden=false;
 }
 function identify(row,kind){return kind+':'+row.id;}
+function isControl(kind){return kind.startsWith('control_');}
+function controlKind(kind){return kind.slice(8);}
 function label(row,kind){
+  if(isControl(kind))return row.title||row.id;
   if(kind==='applications')return row.shop_name||'Новый продавец';
   if(kind==='pavilions')return (row.zone||'Сектор')+' · '+(row.code||'Павильон');
   if(kind==='products')return row.title||'Товар без названия';
@@ -52,6 +58,7 @@ function label(row,kind){
   return 'Заявка';
 }
 function supporting(row,kind){
+  if(isControl(kind))return row.subtitle||'';
   if(kind==='applications')return [row.email,row.zone,row.code].filter(Boolean).join(' · ');
   if(kind==='pavilions')return 'Продавец '+short(row.seller_id,18);
   if(kind==='products')return [row.category,short(row.description,60)].filter(Boolean).join(' · ');
@@ -88,13 +95,16 @@ function refreshHead(){
     :section==='chats'?'Диалоги покупателей и продавцов. Ответы пока остаются в Telegram.'
     :'Выберите заявку, проверьте детали и примите решение.';
   document.querySelectorAll('[data-section]').forEach(el=>el.classList.toggle('active',el.dataset.section===section));
-  $('metrics').hidden=section==='history'||section==='chats';
-  $('search').placeholder=section==='chats'?'Поиск по имени, почте или сообщению'
+  $('metrics').hidden=section==='history'||section==='chats'||isControl(section);
+  $('search').placeholder=isControl(section)?'Поиск по названию, email или ID'
+    :section==='chats'?'Поиск по имени, почте или сообщению'
     :section==='history'?'Поиск по решению, модератору или ID'
     :'Поиск по названию, ID, продавцу или адресу';
 }
 function visibleRows(){
-  let rows=state.section==='all'?allRows():state.section==='chats'
+  let rows=isControl(state.section)?state.controlRows.map(r=>({...r,_kind:state.section,
+      _key:identify(r,state.section)}))
+    :state.section==='all'?allRows():state.section==='chats'
     ?state.chats.map(r=>({...r,_kind:'chats',_key:'chats:'+r.buyer_id+':'+r.kind,
         id:r.buyer_id,created_at:r.sent}))
     :state.section==='history'?state.history.map(r=>({...r,_kind:'history',_key:'history:'+r.id}))
@@ -124,7 +134,8 @@ function renderList(){
     append(top,node('span','type-pill',typeName[r._kind]||'ДИАЛОГ'),node('span','queue-time',fmt(r.created_at||r.sent)));
     append(card,top,node('div','queue-title',label(r,r._kind)),node('div','queue-meta',supporting(r,r._kind)));
     const foot=node('div','queue-foot');
-    append(foot,node('span','',short(r.id,18)),node('strong','',r._kind==='chats'?'ПЕРЕПИСКА':'НА ПРОВЕРКЕ'));
+    append(foot,node('span','',short(r.id,18)),node('strong','',isControl(r._kind)?(r.blocked?'ОГРАНИЧЕН':'АКТИВЕН'):
+      r._kind==='chats'?'ПЕРЕПИСКА':'НА ПРОВЕРКЕ'));
     card.appendChild(foot);
     card.addEventListener('click',()=>{
       state.selected=r._key;renderList();
@@ -188,6 +199,7 @@ function loadReviewPhotos(body,row){
 function renderDetail(){
   const r=state.items.find(x=>x._key===state.selected);
   if(!r){showEmptyDetail();return;}
+  if(isControl(r._kind)){renderControlDetail(r);return;}
   const d=$('details');d.replaceChildren();
   const body=node('div','detail-inner');
   const header=node('div','detail-eyebrow');
@@ -273,6 +285,15 @@ function renderDetail(){
 function decisionButton(text,cls,fn){const b=node('button',cls,text);b.type='button';b.onclick=fn;return b;}
 function confirmDecision(row,action){
   state.confirm={row,action};
+  if(isControl(row._kind)){
+    $('confirmKicker').textContent='САМОСТОЯТЕЛЬНОЕ РЕШЕНИЕ';
+    $('confirmTitle').textContent=action==='hide'||action==='block'?'Ограничить доступ?':'Восстановить доступ?';
+    $('confirmDescription').textContent='Укажите причину. Действие фиксируется в журнале, а владельцу отправляется письмо.';
+    $('reasonWrap').hidden=false;$('categoryWrap').hidden=true;
+    $('reason').value='';$('confirmError').hidden=true;
+    $('submitConfirm').textContent='Подтвердить решение';$('confirmOverlay').hidden=false;
+    $('reason').focus();return;
+  }
   const reject=action==='rejected',productReport=row._kind==='product_reports';
   const report=row._kind==='reports'||productReport;
   $('confirmKicker').textContent=report?'РАССМОТРЕНИЕ ЖАЛОБЫ':'РЕШЕНИЕ ПО ЗАЯВКЕ';
@@ -298,6 +319,10 @@ async function submitDecision(){
   if(state.busy||!state.confirm)return;
   const {row,action}=state.confirm;
   const note=$('reason').value.trim();
+  if(isControl(row._kind)&&note.length<5){
+    $('confirmError').textContent='Причина обязательна (не менее 5 символов).';
+    $('confirmError').hidden=false;$('reason').focus();return;
+  }
   if(action==='rejected'&&note.length<3){
     $('confirmError').textContent='Напишите причину отклонения (не менее 3 символов).';
     $('confirmError').hidden=false;$('reason').focus();return;
@@ -312,7 +337,9 @@ async function submitDecision(){
   }
   state.busy=true;$('submitConfirm').disabled=true;
   try{
-    if(row._kind==='reports')await api('/reports/'+encodeURIComponent(row.id)+'/resolve','POST',
+    if(isControl(row._kind))await api('/control/'+controlKind(row._kind)+'/'+encodeURIComponent(row.id),'POST',
+      {action,reason:note});
+    else if(row._kind==='reports')await api('/reports/'+encodeURIComponent(row.id)+'/resolve','POST',
       {decision:action,note});
     else if(row._kind==='product_reports')await api('/product-reports/'+encodeURIComponent(row.id)+'/resolve','POST',
       {decision:action,note});
@@ -324,17 +351,48 @@ async function submitDecision(){
   }catch(e){$('confirmError').textContent=e.message;$('confirmError').hidden=false;}
   finally{state.busy=false;$('submitConfirm').disabled=false;}
 }
+
+async function loadControl(){
+  const section=state.section;
+  if(!isControl(section))return;
+  const result=await api('/control/search?kind='+encodeURIComponent(controlKind(section))+
+    '&q='+encodeURIComponent($('search').value.trim()));
+  if(state.section===section)state.controlRows=result.items||[];
+}
+function renderControlDetail(r){
+  const d=$('details');d.replaceChildren();
+  const body=node('div','detail-inner');
+  append(body,node('div','detail-eyebrow',typeName[r._kind]),
+    node('h2','detail-title',r.title||r.id));
+  dl(body,[['ID',r.id],['Сведения',r.subtitle||'—'],
+    ['Ограничение',r.blocked?'Действует':'Не установлено'],
+    ['Причина',r.reason||'—']]);
+  if(r.images?.length)addPictures(body,r.images);
+  if(r._kind==='control_reviews' && r.title)
+    section(body,'Текст отзыва').appendChild(node('p','detail-text',r.title));
+  const active=r.blocked;
+  const action=active?(r._kind==='control_accounts'||r._kind==='control_shops'?'unblock':'restore')
+    :(r._kind==='control_accounts'||r._kind==='control_shops'?'block':'hide');
+  const btn=decisionButton(active?'Восстановить':'Заблокировать / скрыть',
+    active?'secondary':'primary',()=>confirmDecision(r,action));
+  const actions=node('div','detail-actions');actions.appendChild(btn);
+  d.append(body,actions,node('div','detail-note',
+    'Без заявки или жалобы. Причина обязательна. Уведомление отправляется по email.'));
+}
+
 async function reload(){
   const result=await Promise.all([api('/queue'),api('/chats')]);
   state.queue=result[0];state.chats=result[1].items||[];
   if(state.section==='history')state.history=(await api('/history')).items||[];
+  if(isControl(state.section))await loadControl();
   $('updatedAt').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   $('liveState').classList.remove('is-error');
   renderList();
 }
 async function navigate(section){
   state.section=section;state.selected=null;$('search').value='';
-  try{if(section==='history')state.history=(await api('/history')).items||[];renderList();}
+  try{if(section==='history')state.history=(await api('/history')).items||[];
+    if(isControl(section))await loadControl();renderList();}
   catch(e){toast(e.message,true);}
 }
 $('loginForm').addEventListener('submit',async event=>{
@@ -358,7 +416,12 @@ $('navigation').addEventListener('click',event=>{
 document.querySelectorAll('.side-group [data-section]').forEach(btn=>{
   if(btn.parentElement.id!=='navigation')btn.addEventListener('click',()=>navigate(btn.dataset.section));
 });
-$('search').addEventListener('input',renderList);
+let searchTimer=0;
+$('search').addEventListener('input',()=>{
+  if(!isControl(state.section)){renderList();return;}
+  clearTimeout(searchTimer);searchTimer=setTimeout(()=>loadControl().then(renderList)
+    .catch(e=>toast(e.message,true)),250);
+});
 $('refresh').addEventListener('click',()=>reload().then(()=>toast('Очередь обновлена.')).catch(e=>toast(e.message,true)));
 $('closeConfirm').onclick=closeDialog;$('cancelConfirm').onclick=closeDialog;
 $('submitConfirm').onclick=submitDecision;
