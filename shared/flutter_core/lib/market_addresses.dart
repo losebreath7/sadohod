@@ -86,7 +86,95 @@ MarketAddress parseMarketAddress(String input, {String? territoryHint}) {
     '${hangar.group(1)} — обозначение ряда.',
     '${hangar.group(2)} — торговое место.',
   ]);
-  final fur = RegExp(r'^М([0-9]*)-(\d+[А-Я]?)$').firstMatch(c);
+  final wedding = RegExp(r'^СВ-(\\d+[А-Я]?)
+  if (fur != null) return found('меха и кожа', [
+    'М — корпус «Меха и кожа».',
+    if (fur.group(1)!.isNotEmpty) '${fur.group(1)} — галерея.',
+    '${fur.group(2)} — номер павильона.',
+  ]);
+  if (hint.contains('птич')) return found('птичий рынок', [
+    'Торговая зона — Птичий рынок.',
+    'Обозначение места — $c; сектор и ряд необходимо уточнить.',
+  ]);
+  // An explicit building letter is only read at the beginning.
+  var code = c;
+  String? building;
+  final explicit = RegExp(r'^(?:КОРПУС|КОРП\.?|К)([АБ])-?').firstMatch(code);
+  if (explicit != null) {
+    building = explicit.group(1);
+    code = code.substring(explicit.end);
+  } else if (RegExp(r'^[АБ]-?[12]').hasMatch(code)) {
+    building = code[0];
+    code = code.substring(code[1] == '-' ? 2 : 1);
+  }
+  final letter = RegExp(r'^([12])([А-Я])-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
+  final digit = RegExp(r'^([12])-([1-9]\d?)-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
+  if (letter != null || digit != null) {
+    final floor = (letter ?? digit)!.group(1)!;
+    final row = (letter ?? digit).group(2)!;
+    final place = (letter ?? digit).group(3)!;
+    final territory = building == 'Б' ? 'корпус Б' : 'корпус А';
+    final pieces = place.split('/');
+    final placeInfo = pieces.length == 2
+        ? '${pieces[0]} — основной павильон, ${pieces[1]} — секция.'
+        : '$place — номер павильона.';
+    return found(territory, [
+      '${building == 'Б' ? 'Б' : 'А'} — корпус.',
+      '$floor — этаж.',
+      '$row — ${letter != null ? 'буквенная линия' : 'цифровая линия'}.',
+      placeInfo,
+    ], code: '${building == 'Б' ? 'Б-' : ''}$code', inferred: building == null);
+  }
+  return MarketAddress(raw: input, code: c, territory: territoryHint ?? '', parts: const [], recognized: false);
+}
+).firstMatch(c);
+  if (wedding != null) return found('корпус Б', [
+    'СВ — обозначение Свадебной галереи корпуса Б.',
+    '${wedding.group(1)} — номер торгового места.',
+    'Основное расположение галереи — второй этаж.',
+  ]);
+  final fur = RegExp(r'^М([0-9]*)-(\d+[А-Я]?)
+  if (fur != null) return found('меха и кожа', [
+    'М — корпус «Меха и кожа».',
+    if (fur.group(1)!.isNotEmpty) '${fur.group(1)} — галерея.',
+    '${fur.group(2)} — номер павильона.',
+  ]);
+  if (hint.contains('птич')) return found('птичий рынок', [
+    'Торговая зона — Птичий рынок.',
+    'Обозначение места — $c; сектор и ряд необходимо уточнить.',
+  ]);
+  // An explicit building letter is only read at the beginning.
+  var code = c;
+  String? building;
+  final explicit = RegExp(r'^(?:КОРПУС|КОРП\.?|К)([АБ])-?').firstMatch(code);
+  if (explicit != null) {
+    building = explicit.group(1);
+    code = code.substring(explicit.end);
+  } else if (RegExp(r'^[АБ]-?[12]').hasMatch(code)) {
+    building = code[0];
+    code = code.substring(code[1] == '-' ? 2 : 1);
+  }
+  final letter = RegExp(r'^([12])([А-Я])-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
+  final digit = RegExp(r'^([12])-([1-9]\d?)-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
+  if (letter != null || digit != null) {
+    final floor = (letter ?? digit)!.group(1)!;
+    final row = (letter ?? digit).group(2)!;
+    final place = (letter ?? digit).group(3)!;
+    final territory = building == 'Б' ? 'корпус Б' : 'корпус А';
+    final pieces = place.split('/');
+    final placeInfo = pieces.length == 2
+        ? '${pieces[0]} — основной павильон, ${pieces[1]} — секция.'
+        : '$place — номер павильона.';
+    return found(territory, [
+      '${building == 'Б' ? 'Б' : 'А'} — корпус.',
+      '$floor — этаж.',
+      '$row — ${letter != null ? 'буквенная линия' : 'цифровая линия'}.',
+      placeInfo,
+    ], code: '${building == 'Б' ? 'Б-' : ''}$code', inferred: building == null);
+  }
+  return MarketAddress(raw: input, code: c, territory: territoryHint ?? '', parts: const [], recognized: false);
+}
+).firstMatch(c);
   if (fur != null) return found('меха и кожа', [
     'М — корпус «Меха и кожа».',
     if (fur.group(1)!.isNotEmpty) '${fur.group(1)} — галерея.',
