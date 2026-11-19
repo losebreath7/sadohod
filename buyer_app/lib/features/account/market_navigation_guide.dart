@@ -206,7 +206,7 @@ class _GuideShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final header = BuyerHeaderLayout.of(context);
-    return ColoredBox(
+    return Material(
       color: const Color(0xFFF1F1F1),
       child: Column(children: [
         Container(
