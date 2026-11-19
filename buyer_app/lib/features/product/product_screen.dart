@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,112 @@ import '../../core/widgets/design.dart';
 import '../../data/api.dart';
 import '../../data/account.dart';
 import '../../data/catalog.dart';
+
+/// Match the modal to the actual phone (or the simulated phone Navigator),
+/// not the surrounding desktop browser viewport.
+BoxConstraints _reportDialogConstraints(BuildContext context) {
+  final media = MediaQuery.of(context);
+  return BoxConstraints(
+    maxWidth: math.min(380.0, math.max(200.0, media.size.width - 32.0)),
+    maxHeight: math.max(
+      180.0,
+      media.size.height -
+          media.padding.vertical -
+          media.viewInsets.bottom -
+          32.0,
+    ),
+  );
+}
+
+/// The complaint form owns its controller until the dialog route is disposed,
+/// so closing the keyboard cannot race disposal of a still-mounted TextField.
+class BuyerProductReportDialog extends StatefulWidget {
+  const BuyerProductReportDialog({super.key});
+
+  @override
+  State<BuyerProductReportDialog> createState() =>
+      _BuyerProductReportDialogState();
+}
+
+class _BuyerProductReportDialogState extends State<BuyerProductReportDialog> {
+  final TextEditingController _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    key: const ValueKey('buyer-product-report-dialog'),
+    backgroundColor: Colors.white,
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    constraints: _reportDialogConstraints(context),
+    scrollable: true,
+    title: const Text('Пожаловаться на товар'),
+    content: TextField(
+      controller: _reason,
+      autofocus: true,
+      maxLength: 200,
+      maxLines: 3,
+      onChanged: (_) => setState(() {}),
+      decoration: const InputDecoration(
+        hintText: 'Укажите причину жалобы',
+        border: OutlineInputBorder(),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Отмена'),
+      ),
+      TextButton(
+        onPressed: _reason.text.trim().length >= 4
+            ? () => Navigator.pop(context, _reason.text.trim())
+            : null,
+        child: const Text('Отправить'),
+      ),
+    ],
+  );
+}
+
+Future<String?> showBuyerProductReportDialog(BuildContext context) =>
+    showDialog<String>(
+      context: context,
+      useRootNavigator: false,
+      builder: (_) => const BuyerProductReportDialog(),
+    );
+
+/// Secondary report action shared by product details and widget tests.
+class BuyerProductReportButton extends StatelessWidget {
+  const BuyerProductReportButton({
+    super.key,
+    required this.onPressed,
+    this.sending = false,
+  });
+
+  final VoidCallback? onPressed;
+  final bool sending;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.center,
+    child: TextButton(
+      onPressed: sending ? null : onPressed,
+      child: Text(
+        sending ? 'отправка...' : 'пожаловаться на товар',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: SadohodFont.family,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFFA5A5A5),
+        ),
+      ),
+    ),
+  );
+}
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({required this.id, super.key});
@@ -27,8 +135,12 @@ class _ProductScreenState extends State<ProductScreen> {
     if (!AccountStore.instance.signedIn) {
       final goToLogin = await showDialog<bool>(
         context: context,
+        useRootNavigator: false,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          constraints: _reportDialogConstraints(dialogContext),
+          scrollable: true,
           title: const Text('Пожаловаться на товар'),
           content: const Text('Для отправки жалобы нужно войти в аккаунт.'),
           actions: [
@@ -43,38 +155,7 @@ class _ProductScreenState extends State<ProductScreen> {
       return;
     }
 
-    final reasonController = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, updateDialog) => AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('Пожаловаться на товар'),
-          content: TextField(
-            controller: reasonController,
-            autofocus: true,
-            maxLength: 200,
-            maxLines: 3,
-            onChanged: (_) => updateDialog(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Укажите причину жалобы',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Отмена')),
-            TextButton(
-              onPressed: reasonController.text.trim().length >= 4
-                  ? () => Navigator.pop(dialogContext, reasonController.text.trim())
-                  : null,
-              child: const Text('Отправить'),
-            ),
-          ],
-        ),
-      ),
-    );
-    reasonController.dispose();
+    final reason = await showBuyerProductReportDialog(context);
     if (!mounted || reason == null) return;
     setState(() => _reportSending = true);
     try {
@@ -229,13 +310,9 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _reportSending ? null : _reportProduct,
-                  child: Text(_reportSending
-                      ? 'Отправка...' : 'Пожаловаться на товар'),
-                ),
+              BuyerProductReportButton(
+                sending: _reportSending,
+                onPressed: _reportProduct,
               ),
             ],
           )),
