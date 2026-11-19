@@ -516,6 +516,7 @@ server/backend/app/seller_notifications.py
 server/backend/app/telegram_bridge.py
 server/backend/app/telegram_diagnostics.py
 server/backend/app/text_search.py
+server/backend/manage_review_accounts.py
 server/backend/media/products/p01.jpg
 server/backend/media/products/p02.jpg
 server/backend/media/products/p03.jpg
