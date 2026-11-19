@@ -722,6 +722,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   bool showSecondPhone = false;
   bool pavilionValidationError = false;
   bool manualAddressEntry = false;
+  bool addressMethodSelected = false;
   TextEditingController c(String key) => controllers.putIfAbsent(key, () {
     final controller = TextEditingController();
     if (key.startsWith('price:')) controller.addListener(scheduleDraft);
@@ -1019,6 +1020,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (next == 'capture' && screen != 'capture') capturePhotos.clear();
     if (next == 'address') {
       manualAddressEntry = false;
+      addressMethodSelected = false;
       for (final key in [
         'zone',
         'fullAddress',
@@ -2681,13 +2683,60 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     );
   }
 
+  Widget addressMethodCard({
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(6),
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 66),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                label(title, 14, bold: true),
+                const SizedBox(height: 5),
+                label(description, 11, color: const Color(0xFF808080)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right, size: 20, color: Color(0xFF808080)),
+        ],
+      ),
+    ),
+  );
+
   Widget addressBody() {
     final fix = screen == 'fixAddress';
-    final manual = manualAddressEntry || screen == 'manualAddress';
+    final manual = manualAddressEntry;
     final input = c('fullAddress').text.trim();
-    final parsed = manual && input.isNotEmpty
-        ? parseMarketAddress(input) : null;
+    final parsed = manual && input.isNotEmpty ? parseMarketAddress(input) : null;
     final zone = c('zone').text;
+    final complete = manual
+        ? input.isNotEmpty
+        : zone.isNotEmpty &&
+            (zone == 'меха и кожа'
+                ? c('number').text.trim().isNotEmpty
+                : zone == 'птичий рынок'
+                    ? c('number').text.trim().isNotEmpty
+                    : zone == 'корпус А' || zone == 'корпус Б'
+                        ? c('floor').text.trim().isNotEmpty &&
+                            c('line').text.trim().isNotEmpty &&
+                            c('number').text.trim().isNotEmpty
+                        : c('line').text.trim().isNotEmpty &&
+                            c('number').text.trim().isNotEmpty);
+    final canSubmit = complete && (fix || addressMethodSelected);
     return page(
       fix ? 'исправить адрес' : 'добавить магазин',
       scroll(
@@ -2700,11 +2749,64 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   color: const Color(0xFF808080)),
               const SizedBox(height: 18),
             ] else ...[
-              V3Field('название', c('addressName')..text = name,
-                  readOnly: true),
-              const SizedBox(height: 11),
+              V3Field('название', c('addressName')..text = name, readOnly: true),
+              const SizedBox(height: 20),
             ],
-            if (!manual) ...[
+            if (!fix && !addressMethodSelected) ...[
+              label('Как укажете адрес магазина?', 14, bold: true),
+              const SizedBox(height: 16),
+              addressMethodCard(
+                title: 'Выбрать торговую зону',
+                description: 'Корпус, ряд или территория рынка',
+                onTap: () => setState(() {
+                  manualAddressEntry = false;
+                  addressMethodSelected = true;
+                  c('fullAddress').clear();
+                  c('zone').clear();
+                  c('floor').clear();
+                  c('line').clear();
+                  c('number').clear();
+                }),
+              ),
+              const SizedBox(height: 15),
+              label('или', 12, color: const Color(0xFFA5A5A5),
+                  align: TextAlign.center),
+              const SizedBox(height: 15),
+              addressMethodCard(
+                title: 'Ввести адрес целиком',
+                description: 'Например, 2А-23/1Б или СТ7-166',
+                onTap: () => setState(() {
+                  manualAddressEntry = true;
+                  addressMethodSelected = true;
+                  c('fullAddress').clear();
+                  c('zone').clear();
+                  c('floor').clear();
+                  c('line').clear();
+                  c('number').clear();
+                }),
+              ),
+            ] else ...[
+              if (!fix) ...[
+                tap(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: label('изменить способ ввода', 12,
+                        color: const Color(0xFF7A7A7A)),
+                  ),
+                  () => setState(() {
+                    addressMethodSelected = false;
+                    manualAddressEntry = false;
+                    c('zone').clear();
+                    c('fullAddress').clear();
+                    c('floor').clear();
+                    c('line').clear();
+                    c('number').clear();
+                    c('building').clear();
+                  }),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (!manual) ...[
               InkWell(
                 onTap: () async {
                   final choice = await showModalBottomSheet<String>(
@@ -2767,20 +2869,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     ? 'номер места' : 'номер павильона', c('number')),
                 const SizedBox(height: 11),
               ],
-              const SizedBox(height: 10),
-              tap(
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: label('ввести адрес вручную', 12,
-                      color: const Color(0xFF7A7A7A)),
-                ),
-                () => setState(() {
-                  manualAddressEntry = true;
-                  c('zone').clear();
-                  c('fullAddress').clear();
-                }),
-              ),
-            ] else ...[
+              ] else ...[
               V3Field('адрес целиком', c('fullAddress'),
                   onChanged: (_) => setState(() {})),
               const SizedBox(height: 11),
@@ -2792,23 +2881,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     color: const Color(0xFF808080)),
                 const SizedBox(height: 11),
               ],
-              const SizedBox(height: 10),
-              tap(
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: label('выбрать торговую зону', 12,
-                      color: const Color(0xFF7A7A7A)),
-                ),
-                () => setState(() {
-                  manualAddressEntry = false;
-                  c('fullAddress').clear();
-                  c('zone').clear();
-                  c('building').clear();
-                  c('floor').clear();
-                  c('line').clear();
-                  c('number').clear();
-                }),
-              ),
+              ],
             ],
             if (fix) ...[
               const SizedBox(height: 12),
@@ -2825,8 +2898,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ),
             ],
             const SizedBox(height: 25),
-            pill(fix ? 'отправить повторно' : 'отправить на проверку',
-                sendAddress),
+            pill(
+              fix ? 'отправить повторно' : 'отправить на проверку',
+              canSubmit ? sendAddress : null,
+              color: canSubmit ? brown : const Color(0xFFB8ADA9),
+            ),
             const SizedBox(height: 8),
           ],
         ),

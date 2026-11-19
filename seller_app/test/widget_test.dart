@@ -41,6 +41,34 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+  testWidgets('Address entry offers two exclusive methods separated by or', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      home: SellerV3(api: SellerApi(), initialFrame: '366:15855'),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Выбрать торговую зону'), findsOneWidget);
+    expect(find.text('Ввести адрес целиком'), findsOneWidget);
+    expect(find.text('или'), findsOneWidget);
+    expect(find.text('Адреса нет в справочнике?'), findsNothing);
+    await tester.tap(find.text('Ввести адрес целиком'));
+    await tester.pumpAndSettle();
+    expect(find.text('адрес целиком'), findsOneWidget);
+    expect(find.text('торговая зона'), findsNothing);
+    expect(find.text('изменить способ ввода'), findsOneWidget);
+    await tester.tap(find.text('изменить способ ввода'));
+    await tester.pumpAndSettle();
+    expect(find.text('или'), findsOneWidget);
+    await tester.tap(find.text('Выбрать торговую зону'));
+    await tester.pumpAndSettle();
+    expect(find.text('торговая зона'), findsOneWidget);
+    expect(find.text('адрес целиком'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Every V3 screen fits mobile widths without overflow', (
     tester,
   ) async {
