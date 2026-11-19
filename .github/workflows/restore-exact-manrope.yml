@@ -35,7 +35,7 @@ jobs:
               "https://www.healpharmacy.com/wp-content/themes/healpharmacy/assets/font/manrope/",
           ]
           google_zip = None
-          for url in ["https://fonts.google.com/download?family=Manrope", "https://fonts.google.com/download?kit=Manrope"]:
+          for url in ["https://www.1001freefonts.com/d/78532/manrope.zip", "https://fonts.google.com/download?family=Manrope", "https://fonts.google.com/download?kit=Manrope"]:
               try:
                   request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36"})
                   with urllib.request.urlopen(request, timeout=40) as response:
