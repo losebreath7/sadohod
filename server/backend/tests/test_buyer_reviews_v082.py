@@ -63,6 +63,14 @@ def test_reports_moderation_and_owner_isolation(setup,monkeypatch):
     with sessions() as db:
         db.get(SellerReview,rid).moderation_status='approved'
         db.commit()
+    # Even an approved published review must not accept its author's report.
+    own_report = c.post(f'/api/v1/sellers/s01/reviews/{rid}/report',
+                        headers=alice, json={'reason':'Сам себе жалуюсь'})
+    assert own_report.status_code == 403
+    assert 'собственный' in own_report.json()['detail']
+    with sessions() as db:
+        assert db.scalar(select(ReviewReport)) is None
+    # A different authenticated buyer can still report the same review.
     assert c.post(f'/api/v1/sellers/s01/reviews/{rid}/report',headers=bob,json={'reason':'Спам и флуд'}).status_code==200
     assert c.post(f'/api/v1/sellers/s01/reviews/{rid}/report',headers=bob,json={'reason':'Повтор'}).status_code==200
     with sessions() as db:
