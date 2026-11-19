@@ -39,7 +39,7 @@ void main() {
       for (final element in [name, wholesale, retail]) {
         expect(tester.getCenter(element).dy, closeTo(center, 1));
       }
-      expect(tester.getRight(retail).dx, lessThanOrEqualTo(width - 29));
+      expect(tester.getRect(retail).right, lessThanOrEqualTo(width - 29));
       expect(tester.takeException(), isNull);
 
       await tester.tap(name);
