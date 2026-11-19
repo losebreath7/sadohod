@@ -41,4 +41,4 @@ def upgrade():
 
 
 def downgrade():
-    raise RuntimeError('Moderation enforcement downgrade disabled: preserve audit and email history')
+    raise RuntimeError('Moderation enforcement downgrade is disabled: preserve audit and email history')
