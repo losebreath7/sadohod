@@ -23,7 +23,7 @@ services:
   api:
     build:
       context: ./server
-      dockerfile: backend/Dockerfile.ml
+      dockerfile: backend/Dockerfile.production
     restart: unless-stopped
     environment:
       SADOHOD_ENV: production
