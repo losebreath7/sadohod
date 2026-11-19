@@ -21,6 +21,7 @@ def test_staff_can_block_account_and_notify(setup, monkeypatch):
     result = c.post(url, headers=staff, json={'action': 'block', 'reason': 'Нарушение правил'})
     assert result.status_code == 200, result.text
     assert c.get('/api/v1/account', headers=auth).status_code == 401
+    assert c.post('/api/v1/auth/code', json={'email':'control-user@example.com'}).status_code == 403
     assert c.post(url, headers=staff, json={'action': 'block', 'reason': 'Повтор'}).status_code == 409
     with factory() as db:
         assert db.get(AccountRestriction, uid).active
@@ -58,3 +59,28 @@ def test_moderator_can_block_shop_and_cut_off_offers(env, monkeypatch):
         assert db.get(ShopRestriction, sid).active
     result = c.post(url, headers=staff, json={'action': 'unblock', 'reason': 'Решение пересмотрено'})
     assert result.status_code == 200, result.text
+
+def test_staff_can_hide_review_without_report(setup, monkeypatch):
+    from backend.app.models import Pavilion, Seller
+    from backend.app.buyer_reviews_v082 import SellerReview
+    c, codes, factory = setup
+    login(c, codes, 'control-review@example.com')
+    with factory() as db:
+        buyer = db.scalar(select(Buyer).where(Buyer.email == 'control-review@example.com'))
+        db.add(Pavilion(id='control-review-pav', zone='В', code='91'))
+        db.flush()
+        db.add(Seller(id='control-review-shop', name='Магазин',
+                      pavilion_id='control-review-pav'))
+        db.flush()
+        db.add(SellerReview(id='control-review-id', buyer=buyer.id,
+                            seller='control-review-shop', rating=4,
+                            text='Проверяемый отзыв', moderation_status='approved'))
+        db.commit()
+    _, _, _, staff = provision(c, monkeypatch, username='global-control-review')
+    url = '/api/v1/moderation/control/reviews/control-review-id'
+    assert c.post(url, headers=staff,
+                  json={'action':'hide','reason':'Нарушение правил отзывов'}).status_code == 200
+    assert c.get('/api/v1/sellers/control-review-shop/reviews').json()['count'] == 0
+    assert c.post(url, headers=staff,
+                  json={'action':'restore','reason':'Жалоба не подтвердилась'}).status_code == 200
+    assert c.get('/api/v1/sellers/control-review-shop/reviews').json()['count'] == 1
