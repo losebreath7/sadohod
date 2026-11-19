@@ -342,6 +342,8 @@ def remove_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(
             detail='Аккаунт связан с кабинетом продавца или действующей заявкой. '
                    'Для безопасного удаления обратитесь в поддержку.',
         )
+    from .buyer_interests_models import BuyerCategoryInterest
+    db.execute(delete(BuyerCategoryInterest).where(BuyerCategoryInterest.buyer_id == buyer.id))
     db.execute(delete(Favorite).where(Favorite.buyer == buyer.id))
     db.execute(delete(BuyerSession).where(BuyerSession.buyer == buyer.id))
     db.execute(delete(LoginCode).where(LoginCode.email == buyer.email))
