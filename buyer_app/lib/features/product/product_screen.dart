@@ -367,7 +367,6 @@ class BuyerProductNavigationAddress extends StatelessWidget {
     final trimmed = address.trim();
     final location = zone.trim().toLowerCase();
     if (marketTerritories.contains(location)) {
-      final parsed = parseMarketAddress(trimmed, territoryHint: location);
       return Column(
         key: const ValueKey('buyer-address-territorial'),
         mainAxisSize: MainAxisSize.min,
