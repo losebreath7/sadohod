@@ -1320,11 +1320,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       final floor = c('floor').text.trim();
       final line = c('line').text.trim().toUpperCase();
       final number = c('number').text.trim().toUpperCase();
-      if (zone == 'корпус А' || zone == 'корпус Б') {
+      final building = c('building').text.trim().toUpperCase();
+      if (zone == 'корпус А' || zone == 'корпус Б' ||
+          (building.isNotEmpty && floor.isNotEmpty)) {
         if (floor.isEmpty || line.isEmpty || number.isEmpty) {
           throw Exception('Укажите этаж, линию и номер павильона.');
         }
-        code = '${zone == 'корпус Б' ? 'Б-' : ''}$floor$line-$number';
+        code = '${zone == 'корпус Б' || building == 'Б' ? 'Б-' : ''}$floor$line-$number';
       } else {
         if (line.isEmpty || number.isEmpty) {
           throw Exception('Укажите линию/ряд и номер павильона.');
