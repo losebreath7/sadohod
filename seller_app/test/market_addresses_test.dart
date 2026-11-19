@@ -49,6 +49,12 @@ void main() {
     expect(parseMarketAddress('М1-24').territory, 'меха и кожа');
   });
 
+  test('wedding gallery is a subdivision of building B', () {
+    final wedding = parseMarketAddress('СВ-12');
+    expect(wedding.recognized, isTrue);
+    expect(wedding.territory, 'корпус Б');
+  });
+
   test('unknown formats do not get invented locations', () {
     final unknown = parseMarketAddress('25/-49');
     expect(unknown.recognized, isFalse);
