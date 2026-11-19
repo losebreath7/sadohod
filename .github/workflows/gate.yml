@@ -30,6 +30,8 @@ jobs:
       - name: Проверки синхронизации версий
         working-directory: tools
         run: python test_version.py
+      - name: Проверить native IDs, permissions и release signing
+        run: python tools/test_native_config.py
       - name: Релизный ZIP из чистого клона
         run: python tools/package_release.py "${{ runner.temp }}/sadohod_source_ci.zip"
       - name: Подписи версий в админке (JavaScript)
