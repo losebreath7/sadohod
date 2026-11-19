@@ -9,8 +9,9 @@ abstract final class SadohodFont {
   // Flutter prefixes font families exported from package pubspec manifests.
   // Both Flutter apps use the same bundled Manrope family, including U+20BD (₽).
   static const family = 'packages/sadohod_shared_core/Manrope';
-  // Fallback is only for glyphs missing from Manrope; ₽ is in Manrope itself.
-  static const fallback = <String>['Arial', 'Roboto'];
+  // Do not specify an alternate application font family. Missing glyphs are
+  // handled by the Flutter text engine; all bundled UI typography is Manrope.
+  static const fallback = <String>[];
 
   static const caption = 12.0;
   static const supporting = 13.0;
