@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_v3.dart';
+import 'package:sadohod_seller/seller_catalog_caption.dart';
 import 'package:sadohod_shared_core/chat_widgets.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 
@@ -323,6 +324,33 @@ void main() {
     await tester.tap(find.text('выйти без сохранения'));
     await tester.pumpAndSettle();
     expect(find.text('изменить товар'), findsNothing);
+  });
+
+  testWidgets('Catalog product cards show address and price above title',
+      (tester) async {
+    await openFrame(tester, '366:16277');
+    expect(find.byType(SellerCatalogCaption), findsWidgets);
+    final first = find.byType(SellerCatalogCaption).first;
+    final address = find.descendant(
+      of: first,
+      matching: find.byKey(const ValueKey('seller-card-address')),
+    );
+    final price = find.descendant(
+      of: first,
+      matching: find.byKey(const ValueKey('seller-card-price')),
+    );
+    final title = find.descendant(
+      of: first,
+      matching: find.byKey(const ValueKey('seller-card-title')),
+    );
+    expect(find.descendant(of: first, matching: find.text('Б-2В-81')),
+        findsOneWidget);
+    expect(find.descendant(of: first, matching: find.text('300 ₽')),
+        findsOneWidget);
+    expect(tester.getCenter(address).dy, closeTo(tester.getCenter(price).dy, 1));
+    expect(tester.getTopLeft(title).dy,
+        greaterThan(tester.getBottomLeft(address).dy));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Catalog separates published and hidden items', (tester) async {
