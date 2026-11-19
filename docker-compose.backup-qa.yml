@@ -1,0 +1,34 @@
+# Synthetic backup integration tests. NEVER reuse local or production compose.
+name: sadohod_backup_qa
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: sadohod
+      POSTGRES_USER: sadohod
+      POSTGRES_PASSWORD: qa-only-no-production-data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sadohod -d sadohod"]
+      interval: 2s
+      timeout: 2s
+      retries: 25
+    volumes:
+      - qa_pg:/var/lib/postgresql/data
+    networks:
+      - qa_private
+  files:
+    image: alpine:3.20
+    entrypoint: ["sh", "-c"]
+    command: ["sleep infinity"]
+    volumes:
+      - qa_uploads:/uploads
+      - qa_admin_state:/state
+    networks:
+      - qa_private
+networks:
+  qa_private:
+    internal: true
+volumes:
+  qa_pg:
+  qa_uploads:
+  qa_admin_state:

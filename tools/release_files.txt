@@ -155,6 +155,7 @@ buyer_app/web/icons/Icon-maskable-192.png
 buyer_app/web/icons/Icon-maskable-512.png
 buyer_app/web/index.html
 buyer_app/web/manifest.json
+docker-compose.backup-qa.yml
 docker-compose.first.yml
 docker-compose.https.yml
 docker-compose.ml.yml
@@ -699,9 +700,12 @@ tools/restore_drill.sh
 tools/run_client.ps1
 tools/start.ps1
 tools/sync_version.py
+tools/test_backup_archive.py
+tools/test_backup_restore_integration.sh
 tools/test_production_preflight.py
 tools/test_r8_chat_contract.py
 tools/test_version.py
+tools/verify_backup_archive.py
 ВОРОТА.bat
 ОБНОВИТЬ САДОХОД.bat
 ОТКРЫТЬ МОДЕРАЦИЮ.bat
