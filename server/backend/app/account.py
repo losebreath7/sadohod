@@ -195,6 +195,9 @@ def verify(body: VerifyInput, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(400, 'Код неверный или истёк. Запросите новый.')
     db.delete(row)  # Consumed once in the same transaction as session creation.
     buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
+    if buyer is not None:
+        from .moderation_enforcement import require_account_allowed
+        require_account_allowed(db, buyer.id)
     if buyer is None:
         buyer = Buyer(id=secrets.token_hex(16), email=body.email, name='')
         db.add(buyer)
@@ -210,6 +213,8 @@ def current_buyer(authorization: str = Header(default=''), db: Session = Depends
     buyer = db.get(Buyer, session.buyer) if session and session.expires > time.time() else None
     if buyer is None:
         raise HTTPException(401, 'Войдите в аккаунт заново.')
+    from .moderation_enforcement import require_account_allowed
+    require_account_allowed(db, buyer.id)
     return buyer
 
 
