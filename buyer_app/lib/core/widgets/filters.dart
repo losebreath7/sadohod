@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import '../../data/catalog.dart';
+import 'package:sadohod_shared_core/market_addresses.dart';
 
-/// Fixed labels match Figma. They filter existing offers; do not invent locations.
-const marketZones = [
-  'корпус А', 'корпус Б', 'вещевые ряды', 'дом бижутерии',
-  'пав. собаки', 'медицинский центр', 'тц «салют»', 'птичий рынок',
-  'центр посуды и техники', 'пальто меха и кожа', 'голубиный рай', 'ковры и текстиль',
-];
+/// Territories are physical market areas; product categories are separate.
+const marketZones = marketTerritories;
 
 bool productInZones(DemoProduct p, Set<String> selected) {
   if (selected.isEmpty) return true;
-  final locations = [
-    ...p.availableOffers.map((o) => '${o.pavilion} ${o.seller.zone}'),
-    '${p.pavilion} ${p.seller?.zone ?? ''}',
-  ].join(' ').toLowerCase();
-  for (final name in selected) {
-    if (name == 'корпус А' && (locations.contains('корпус а') || locations.contains('сектор а') ||
-        RegExp(r'(^|\s)а-').hasMatch(locations))) return true;
-    if (name == 'корпус Б' && (locations.contains('корпус б') || locations.contains('сектор б') ||
-        RegExp(r'(^|\s)б-').hasMatch(locations))) return true;
-    if (locations.contains(name.toLowerCase())) return true;
+  final offers = p.availableOffers;
+  final locations = offers.isEmpty
+      ? ['${p.pavilion} ${p.seller?.zone ?? ''}']
+      : offers.map((o) => '${o.pavilion} ${o.seller.zone}').toList();
+  for (final location in locations) {
+    final low = location.toLowerCase();
+    final decoded = parseMarketAddress(location.split(' ').first);
+    for (final name in selected) {
+      if (low.contains(name.toLowerCase())) return true;
+      if (decoded.recognized && decoded.territory == name) return true;
+      if (name == 'корпус А' &&
+          (low.contains('сектор а') || RegExp(r'(^|\s)а-').hasMatch(low))) return true;
+      if (name == 'корпус Б' &&
+          (low.contains('сектор б') || RegExp(r'(^|\s)б-').hasMatch(low))) return true;
+    }
   }
   return false;
 }

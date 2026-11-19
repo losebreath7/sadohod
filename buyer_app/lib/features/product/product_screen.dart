@@ -3,6 +3,7 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -204,7 +205,9 @@ class _ProductScreenState extends State<ProductScreen> {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) => SafeArea(
-        child: Padding(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+          child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.fromLTRB(30, 26, 30, 28),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -213,6 +216,15 @@ class _ProductScreenState extends State<ProductScreen> {
             ]),
             Text('${offers.length} ${offers.length == 1 ? 'павильон' : 'павильона'} · демонстрационные данные',
               style: const TextStyle(fontFamily: SadohodFont.family, color: Color(0xffa5a5a5), fontSize: 12)),
+            const SizedBox(height: 14),
+            Text('Как расшифровывается адрес', style: const TextStyle(
+              fontFamily: SadohodFont.family, fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(parseMarketAddress(
+              offers[_selectedOffer.clamp(0, offers.length - 1).toInt()].pavilion,
+              territoryHint: offers[_selectedOffer.clamp(0, offers.length - 1).toInt()].seller.zone,
+            ).details, style: const TextStyle(
+              fontFamily: SadohodFont.family, fontSize: 12, color: Color(0xff6c6c6c))),
             const SizedBox(height: 20),
             for (int i = 0; i < offers.length; i++)
               InkWell(
@@ -229,6 +241,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
           ]),
+          )),
         ),
       ),
     );

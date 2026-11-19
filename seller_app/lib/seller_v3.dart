@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
+import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
@@ -1018,6 +1019,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (next == 'address') {
       for (final key in [
         'zone',
+        'fullAddress',
         'building',
         'floor',
         'line',
@@ -1299,17 +1301,52 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   String address(RowData p) => '${p['code'] ?? ''}';
   Future<void> sendAddress() async => run(() async {
     final fixing = screen == 'fixAddress';
-    final zone = c('zone').text.trim(),
-        code = [
-          c('building').text.trim(),
-          c('floor').text.trim() + c('line').text.trim(),
-          c('number').text.trim(),
-        ].where((s) => s.isNotEmpty).join('-');
+    var zone = c('zone').text.trim();
+    var code = '';
     if (screen == 'manualAddress') {
-      throw StateError('API не поддерживает ручной адрес без номера павильона');
+      code = normalizeMarketAddress(c('manual').text);
+      if (zone.isEmpty) {
+        final parsed = parseMarketAddress(code);
+        zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
+      }
+    } else if (c('fullAddress').text.trim().isNotEmpty) {
+      final parsed = parseMarketAddress(c('fullAddress').text, territoryHint: zone);
+      if (!parsed.recognized) {
+        throw Exception('Адрес не распознан. Выберите зону и заполните поля вручную.');
+      }
+      zone = parsed.territory;
+      code = parsed.code;
+    } else {
+      final floor = c('floor').text.trim();
+      final line = c('line').text.trim().toUpperCase();
+      final number = c('number').text.trim().toUpperCase();
+      final building = c('building').text.trim().toUpperCase();
+      if (zone == 'корпус А' || zone == 'корпус Б' ||
+          (building.isNotEmpty && floor.isNotEmpty)) {
+        if (floor.isEmpty || line.isEmpty || number.isEmpty) {
+          throw Exception('Укажите этаж, линию и номер павильона.');
+        }
+        code = '${zone == 'корпус Б' || building == 'Б' ? 'Б-' : ''}$floor$line-$number';
+      } else {
+        if (number.isEmpty ||
+            (line.isEmpty && zone != 'меха и кожа')) {
+          throw Exception('Укажите линию/ряд и номер павильона.');
+        }
+        if (zone == 'ангар') {
+          code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
+        } else if (zone == 'меха и кожа') {
+          code = '${line.startsWith('М') ? line : 'М$line'}-$number';
+        } else {
+          code = '$line-$number';
+        }
+      }
+      code = normalizeMarketAddress(code);
     }
-    if (zone.isEmpty || c('number').text.trim().isEmpty) {
-      throw Exception('Укажите торговую зону и номер павильона.');
+    if (zone.isEmpty || code.isEmpty) {
+      throw Exception('Укажите торговую зону и адрес.');
+    }
+    if (code.length > 32) {
+      throw Exception('Адрес слишком длинный. Уточните номер торгового места.');
     }
     final application = fixing
         ? pavilion['_requestType'] != 'pavilion'
@@ -2585,6 +2622,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         return;
                       }
                       if (reject) {
+                        c('fullAddress').clear();
                         for (final key in [
                           'building',
                           'floor',
@@ -2660,13 +2698,65 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 11),
               ],
-              for (final f in [
-                ['торговая зона', 'zone'],
-                ['корпус', 'building'],
-                ['этаж', 'floor'],
-                ['линия / ряд', 'line'],
-                ['номер павильона', 'number'],
-              ]) ...[V3Field(f[0], c(f[1])), const SizedBox(height: 11)],
+              V3Field('адрес целиком', c('fullAddress'), onChanged: (value) {
+                final parsed = parseMarketAddress(value, territoryHint: c('zone').text);
+                if (parsed.recognized) c('zone').text = parsed.territory;
+                setState(() {});
+              }),
+              const SizedBox(height: 11),
+              if (c('fullAddress').text.trim().isNotEmpty &&
+                  parseMarketAddress(c('fullAddress').text).recognized) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 11),
+                  child: label(parseMarketAddress(c('fullAddress').text).details,
+                      12, color: const Color(0xFF808080)),
+                ),
+              ],
+              InkWell(
+                onTap: () async {
+                  final choice = await showModalBottomSheet<String>(
+                    context: context,
+                    backgroundColor: Colors.white,
+                    builder: (context) => SafeArea(
+                      child: ListView(shrinkWrap: true, children: [
+                        for (final territory in marketTerritories)
+                          ListTile(
+                            title: Text(territory, style: type(14)),
+                            onTap: () => Navigator.pop(context, territory),
+                          ),
+                      ]),
+                    ),
+                  );
+                  if (choice != null && mounted) {
+                    setState(() {
+                      c('zone').text = choice;
+                      c('fullAddress').clear();
+                      c('floor').clear();
+                      c('line').clear();
+                      c('number').clear();
+                      c('building').text = choice == 'корпус Б' ? 'Б' :
+                          choice == 'корпус А' ? 'А' : '';
+                    });
+                  }
+                },
+                child: IgnorePointer(
+                  child: V3Field('торговая зона', c('zone'), readOnly: true),
+                ),
+              ),
+              const SizedBox(height: 11),
+              if (c('fullAddress').text.trim().isEmpty) ...[
+                if (c('zone').text == 'корпус А' ||
+                    c('zone').text == 'корпус Б') ...[
+                  V3Field('этаж', c('floor')),
+                  const SizedBox(height: 11),
+                ],
+                if (c('zone').text.isNotEmpty) ...[
+                  V3Field('линия / ряд', c('line')),
+                  const SizedBox(height: 11),
+                  V3Field('номер павильона', c('number')),
+                  const SizedBox(height: 11),
+                ],
+              ],
             ],
             if (!fix && !manual) ...[
               const SizedBox(height: 17),
