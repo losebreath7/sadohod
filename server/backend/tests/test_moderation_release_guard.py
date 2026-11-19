@@ -43,9 +43,6 @@ def test_classic_approved_photo_replacement_returns_product_to_queue(env, monkey
     first = client.post(f"/api/v1/merchant/products/{pid}/images", headers=auth,
                         files={"files": ("a.jpg", photo(), "image/jpeg")})
     assert first.status_code == 201
-    item = first.json()
-    # Read image ID from authenticated seller response.
-    image_id = item["images"][0]["id"] if isinstance(item.get("images", [None])[0], dict) else None
     saved = client.put(f"/api/v1/merchant/products/{pid}/save", headers=auth,
         json={"request_id": "moderation-replace-01", "title": "Куртка", "category": "Одежда",
               "submit": True, "listings": [{"pavilion_id": pavilion, "price": 500,
