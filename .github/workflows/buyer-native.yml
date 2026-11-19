@@ -1,12 +1,7 @@
 name: buyer native smoke
 
 on:
-  pull_request:
-    branches: [develop, main]
-    paths:
-      - 'buyer_app/**'
-      - 'shared/flutter_core/**'
-      - '.github/workflows/buyer-native.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
