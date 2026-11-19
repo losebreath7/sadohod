@@ -165,6 +165,8 @@ def report_review(seller_id: str, review_id: str, body: ReportInput,
     row=db.get(SellerReview, review_id)
     if row is None or row.seller != seller_id or row.hidden or row.moderation_status != 'approved':
         raise HTTPException(404, 'Отзыв не найден')
+    if row.buyer == buyer.id:
+        raise HTTPException(403, 'Нельзя пожаловаться на собственный отзыв')
     already=db.scalar(select(ReviewReport).where(ReviewReport.buyer==buyer.id,ReviewReport.review_id==review_id))
     if already:
         return {'saved':True}
