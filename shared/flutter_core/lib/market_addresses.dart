@@ -116,9 +116,10 @@ MarketAddress parseMarketAddress(String input, {String? territoryHint}) {
   final letter = RegExp(r'^([12])([А-Я])-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
   final digit = RegExp(r'^([12])-([1-9]\d?)-(\d+(?:/\d+[А-Я]?)?)$').firstMatch(code);
   if (letter != null || digit != null) {
-    final floor = (letter ?? digit)!.group(1)!;
-    final row = (letter ?? digit).group(2)!;
-    final place = (letter ?? digit).group(3)!;
+    final match = (letter ?? digit)!;
+    final floor = match.group(1)!;
+    final row = match.group(2)!;
+    final place = match.group(3)!;
     final territory = building == 'Б' ? 'корпус Б' : 'корпус А';
     final pieces = place.split('/');
     final placeInfo = pieces.length == 2
