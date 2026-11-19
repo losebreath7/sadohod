@@ -458,7 +458,7 @@ class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
   @override
   void initState() {
     super.initState();
-    document = _load();
+    document = widget.kind == 'about' ? Future.value('') : _load();
   }
 
   Future<String> _load() async {
@@ -474,7 +474,7 @@ class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
       throw const FormatException('Неверный формат юридического документа');
     }
     final body = (json['body'] as String)
-        .replaceAll(RegExp(r'(?m)^#{1,5}\s*'), '')
+        .replaceAll(RegExp(r'^#{1,5}\s*', multiLine: true), '')
         .replaceAll('**', '');
     return '$body\\Редакция ${json['version']} · действует с ${json['effective_date']}';
   }
