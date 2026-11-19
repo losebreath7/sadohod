@@ -345,6 +345,7 @@ class BuyerSellerIdentityRow extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       const SizedBox(
+        key: ValueKey('buyer-seller-avatar'),
         width: 27,
         height: 27,
         child: Center(child: DesignIcon('e7ce6')),
