@@ -270,6 +270,38 @@ void main() {
     });
   }
 
+  testWidgets('Own existing review can be edited, not added again', (
+    tester,
+  ) async {
+    final own = <String, dynamic>{
+      'id': 'one-review', 'name': 'Мария', 'rating': 4,
+      'text': 'Первый отзыв', 'photos': [],
+      'moderation_status': 'approved',
+    };
+    await mountReviews(tester, signedIn: true,
+      public: () async => {
+        'count': 1, 'average': 4.0, 'items': [own],
+      },
+      mine: () async => {'item': own, 'hidden': false},
+    );
+    expect(find.byKey(const ValueKey('seller-review-add')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('seller-review-one-review')));
+    await tester.pumpAndSettle();
+    expect(find.text('пожаловаться'), findsNothing);
+    expect(find.text('редактировать'), findsOneWidget);
+    await tester.tap(find.text('редактировать'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('review-compose-sheet')), findsOneWidget);
+    expect(find.text('Редактировать отзыв'), findsOneWidget);
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey('review-comment')),
+    );
+    expect(field.controller!.text, 'Первый отзыв');
+    await tester.tap(find.byTooltip('Закрыть отзыв'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Cannot create review when private review lookup fails', (
     tester,
   ) async {
