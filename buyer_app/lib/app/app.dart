@@ -15,6 +15,7 @@ import '../features/search/results_screen.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/favorites_screen.dart';
 import '../features/account/profile_features.dart';
+import '../features/account/market_navigation_guide.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/home',
@@ -86,6 +87,12 @@ final appRouter = GoRouter(
                   ? ConfirmScreen(email: s.extra as String)
                   : const AccountScreen(),
             ),
+            GoRoute(path: '/navigation',
+              builder: (_, _) => const MarketNavigationGuideScreen()),
+            GoRoute(path: '/navigation/:zone',
+              builder: (_, s) => MarketNavigationZoneScreen(
+                slug: s.pathParameters['zone'] ?? '',
+              )),
             GoRoute(path: '/profile', builder: (_, _) => const ProfileEditScreen()),
             GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
             GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
