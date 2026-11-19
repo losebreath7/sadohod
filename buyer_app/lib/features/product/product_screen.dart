@@ -318,9 +318,7 @@ class _ProductScreenState extends State<ProductScreen> {
   );
 }
 
-/// Address label from the approved Figma layout.
-  /// The sector and line values are centered within their own column, while
-  /// descriptions start from the same left edge. Both columns move as a unit.
+/// Figma address grid: value labels center in column one; captions align left.
 class BuyerProductNavigationAddress extends StatelessWidget {
   const BuyerProductNavigationAddress({
     super.key,
@@ -333,10 +331,51 @@ class BuyerProductNavigationAddress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Standard market address: "А-14" -> "А - сектор" / "14 - линия".
-    // Never fabricate a sector/line if the supplied address uses another schema.
-    final match = RegExp(r'^\s*([^\s–—-]+)\s*[-–—]\s*(\d+)\s*
+    final trimmed = address.trim();
+    // Supports standard sector-line addresses, e.g. А-14 or Б-125.
+    // Unknown schemas are shown as supplied rather than being fabricated.
+    final match = RegExp(r'^\s*([^\s–—-]+)\s*[-–—]\s*(\d+)\s*').firstMatch(trimmed);
+    if (match == null || match.group(0) != trimmed) {
+      return Column(
+        key: const ValueKey('buyer-address-fallback'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(address, style: BuyerProductType.detailNavigation),
+          if (zone.trim().isNotEmpty)
+            Text(zone, style: BuyerProductType.detailNavigation),
+        ],
+      );
+    }
 
+    return Row(
+      key: const ValueKey('buyer-navigation-address-grid'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Column(
+          key: const ValueKey('buyer-address-values'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(match.group(1)!, style: BuyerProductType.detailNavigation),
+            Text(match.group(2)!, style: BuyerProductType.detailNavigation),
+          ],
+        ),
+        const SizedBox(width: 10),
+        Column(
+          key: const ValueKey('buyer-address-descriptions'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text('- сектор', style: BuyerProductType.detailNavigation),
+            Text('- линия', style: BuyerProductType.detailNavigation),
+          ],
+        ),
+      ],
+    );
+  }
+}
 /// One centered line for the avatar, seller name and sale-mode badges.
 /// Keep the seller name flexible, but never let it push the badges offscreen.
 class BuyerSellerIdentityRow extends StatelessWidget {
