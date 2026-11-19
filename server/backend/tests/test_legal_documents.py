@@ -71,6 +71,12 @@ def test_version_archive_is_immutable(documents):
     new_body = sample() + "Новый текст после проверки и даты ввода.\n"
     second = prepare(new_body, "privacy", "2026-12-02", "2026-12-02", "QA Reviewer")
     publish(second, documents)
+    with pytest.raises(ValueError):
+        publish(prepare(sample() + "Изменённый текст.", "privacy", "2026-12-02",
+                        "2026-12-02", "QA Reviewer"), documents)
+    publish(second, documents)
+    with pytest.raises(ValueError):
+        publish(first, documents)
     archived = json.loads((documents / "archive/privacy/2026-12-01.json").read_text())
     assert archived["body"] == sample()
     client = TestClient(app)
