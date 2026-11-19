@@ -1,12 +1,7 @@
 name: seller native smoke
 
 on:
-  pull_request:
-    branches: [develop, main]
-    paths:
-      - 'seller_app/**'
-      - 'shared/flutter_core/**'
-      - '.github/workflows/seller-native.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
