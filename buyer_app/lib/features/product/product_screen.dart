@@ -126,7 +126,20 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
-  late Future<DemoProduct?> _product = CatalogApi.instance.product(widget.id);
+  late Future<DemoProduct?> _product = _loadProduct();
+
+  Future<DemoProduct?> _loadProduct() async {
+    final product = await CatalogApi.instance.product(widget.id);
+    if (product != null && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
+      try {
+        await AccountStore.instance.request('/account/interests/view',
+          body: {'product_id': product.id});
+      } catch (_) {
+        // Recommendations must never interfere with opening the product.
+      }
+    }
+    return product;
+  }
   int _selectedOffer = 0;
   bool _reportSending = false;
 
@@ -220,7 +233,7 @@ class _ProductScreenState extends State<ProductScreen> {
     future: _product,
     builder: (context, snap) {
       if (!snap.hasData) {
-        if (snap.hasError) return ApiFailure(error: snap.error!, retry: () => setState(() => _product = CatalogApi.instance.product(widget.id)));
+        if (snap.hasError) return ApiFailure(error: snap.error!, retry: () => setState(() => _product = _loadProduct()));
         if (snap.connectionState != ConnectionState.done) return const LoadingCatalog();
         return const Center(child: Text('Товар больше недоступен'));
       }
