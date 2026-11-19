@@ -15,7 +15,7 @@ for name in sadohod_backup_qa_qa_pg sadohod_backup_qa_qa_uploads \
 done
 tmp="$(mktemp -d)"
 drill=(docker compose --env-file "$tmp/qa.env" -f docker-compose.restore-drill.yml -p sadohod_restore_drill)
-trap 'rm -rf -- "$tmp"; "${qa[@]}" down || true; "${drill[@]}" down || true' EXIT
+trap '"${qa[@]}" down || true; "${drill[@]}" down || true; rm -rf -- "$tmp"' EXIT
 # All values below are synthetic. Environment is valid but is never sent to a network endpoint.
 cat > "$tmp/qa.env" <<'ENV'
 SADOHOD_ENV=production
