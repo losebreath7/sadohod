@@ -368,7 +368,7 @@ class BuyerProductNavigationAddress extends StatelessWidget {
     final location = zone.trim().toLowerCase();
     if (marketTerritories.contains(location)) {
       return Column(
-        key: const ValueKey('buyer-address-territorial'),
+        key: const ValueKey('buyer-address-fallback'),
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
