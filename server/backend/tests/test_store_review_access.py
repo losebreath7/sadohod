@@ -55,6 +55,10 @@ def test_reviewer_code_is_hashed_and_account_bound(account_setup):
     assert response.status_code == 200
     token = {'Authorization': 'Bearer ' + response.json()['token']}
     assert client.get('/api/v1/account', headers=token).status_code == 200
+    assert client.post('/api/v1/account/email/request', headers=token,
+                       json={'email': 'different@test.invalid'}).status_code == 403
+    assert client.post('/api/v1/account/email/confirm', headers=token,
+                       json={'email': 'different@test.invalid', 'code': '000000'}).status_code == 403
     with sessions() as db:
         revoke(db, 'buyer-google@test.invalid')
     assert client.get('/api/v1/account', headers=token).status_code == 401
