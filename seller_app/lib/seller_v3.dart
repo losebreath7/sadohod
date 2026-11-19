@@ -721,6 +721,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   bool showSecondPhone = false;
   bool pavilionValidationError = false;
+  bool manualAddressEntry = false;
   TextEditingController c(String key) => controllers.putIfAbsent(key, () {
     final controller = TextEditingController();
     if (key.startsWith('price:')) controller.addListener(scheduleDraft);
@@ -1017,6 +1018,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     }
     if (next == 'capture' && screen != 'capture') capturePhotos.clear();
     if (next == 'address') {
+      manualAddressEntry = false;
       for (final key in [
         'zone',
         'fullAddress',
@@ -1303,42 +1305,46 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final fixing = screen == 'fixAddress';
     var zone = c('zone').text.trim();
     var code = '';
-    if (screen == 'manualAddress') {
-      code = normalizeMarketAddress(c('manual').text);
-      if (zone.isEmpty) {
-        final parsed = parseMarketAddress(code);
-        zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
+    if (manualAddressEntry) {
+      final supplied = c('fullAddress').text.trim();
+      if (supplied.isEmpty) {
+        throw Exception('Введите адрес торгового места.');
       }
-    } else if (c('fullAddress').text.trim().isNotEmpty) {
-      final parsed = parseMarketAddress(c('fullAddress').text, territoryHint: zone);
-      if (!parsed.recognized) {
-        throw Exception('Адрес не распознан. Выберите зону и заполните поля вручную.');
-      }
-      zone = parsed.territory;
-      code = parsed.code;
+      final parsed = parseMarketAddress(supplied);
+      // Unknown formats are permitted for moderation, without inventing a zone.
+      zone = parsed.recognized ? parsed.territory : 'адрес требует уточнения';
+      code = parsed.recognized ? parsed.code : normalizeMarketAddress(supplied);
     } else {
+      if (!marketTerritories.contains(zone) && !fixing) {
+        throw Exception('Выберите торговую зону.');
+      }
       final floor = c('floor').text.trim();
       final line = c('line').text.trim().toUpperCase();
       final number = c('number').text.trim().toUpperCase();
       final building = c('building').text.trim().toUpperCase();
       if (zone == 'корпус А' || zone == 'корпус Б' ||
-          (building.isNotEmpty && floor.isNotEmpty)) {
+          (fixing && building.isNotEmpty && floor.isNotEmpty)) {
         if (floor.isEmpty || line.isEmpty || number.isEmpty) {
           throw Exception('Укажите этаж, линию и номер павильона.');
         }
-        code = '${zone == 'корпус Б' || building == 'Б' ? 'Б-' : ''}$floor$line-$number';
+        // A numeric line uses floor-line-number; a letter line uses floorLetter-number.
+        code = RegExp(r'^\d+$').hasMatch(line)
+            ? '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor-$line-$number'
+            : '${zone == 'корпус Б' || (fixing && building == 'Б') ? 'Б-' : ''}$floor$line-$number';
+      } else if (zone == 'вещевые ряды') {
+        if (line.isEmpty || number.isEmpty) {
+          throw Exception('Укажите линию и номер павильона.');
+        }
+        code = '$line-$number';
+      } else if (zone == 'ангар') {
+        if (line.isEmpty || number.isEmpty) throw Exception('Укажите ряд и место.');
+        code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
+      } else if (zone == 'меха и кожа') {
+        if (number.isEmpty) throw Exception('Укажите номер павильона.');
+        code = '${line.startsWith('М') ? line : 'М$line'}-$number';
       } else {
-        if (number.isEmpty ||
-            (line.isEmpty && zone != 'меха и кожа')) {
-          throw Exception('Укажите линию/ряд и номер павильона.');
-        }
-        if (zone == 'ангар') {
-          code = '${line.startsWith('АН') ? line : 'АН$line'}-$number';
-        } else if (zone == 'меха и кожа') {
-          code = '${line.startsWith('М') ? line : 'М$line'}-$number';
-        } else {
-          code = '$line-$number';
-        }
+        if (number.isEmpty) throw Exception('Укажите номер торгового места.');
+        code = line.isEmpty ? number : '$line-$number';
       }
       code = normalizeMarketAddress(code);
     }
@@ -2448,7 +2454,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           for (final p in [...pavilions, ...requests]) ...[
             tap(
               Container(
-                height: 70,
+                height: 84,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: p['status'] == 'rejected'
@@ -2473,7 +2479,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                                 ? Colors.white
                                 : Colors.black,
                           ),
-                          const SizedBox(height: 10),
+                          if ('${p['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            label('${p['zone']}', 11,
+                              color: p['status'] == 'rejected'
+                                  ? Colors.white : const Color(0xFF595959)),
+                          ],
+                          const SizedBox(height: 5),
                           label(
                             name,
                             12,
@@ -2566,6 +2578,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 14, bold: true),
+                          const SizedBox(height: 6),
+                        ],
                         label(address(pavilion), 22, bold: true),
                         const SizedBox(height: 12),
                         label(
@@ -2622,6 +2638,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         return;
                       }
                       if (reject) {
+                        manualAddressEntry = false;
                         c('fullAddress').clear();
                         for (final key in [
                           'building',
@@ -2665,66 +2682,57 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }
 
   Widget addressBody() {
-    final fix = screen == 'fixAddress', manual = screen == 'manualAddress';
+    final fix = screen == 'fixAddress';
+    final manual = manualAddressEntry || screen == 'manualAddress';
+    final input = c('fullAddress').text.trim();
+    final parsed = manual && input.isNotEmpty
+        ? parseMarketAddress(input) : null;
+    final zone = c('zone').text;
     return page(
-      fix
-          ? 'исправить адрес'
-          : manual
-          ? 'адрес не найден'
-          : 'добавить магазин',
+      fix ? 'исправить адрес' : 'добавить магазин',
       scroll(
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 11),
-            if (fix || manual) ...[
-              label(
-                manual
-                    ? 'Укажи расположение торговой точки вручную.'
-                    : 'Исправь данные и отправь заявку ещё раз.',
-                12,
-                color: const Color(0xFF808080),
-              ),
+            if (fix) ...[
+              label('Исправь данные и отправь заявку ещё раз.', 12,
+                  color: const Color(0xFF808080)),
               const SizedBox(height: 18),
-            ],
-            if (manual)
-              V3Field('указать адрес', c('manual'))
-            else ...[
-              if (!fix) ...[
-                V3Field(
-                  'название',
-                  c('addressName')..text = name,
-                  readOnly: true,
-                ),
-                const SizedBox(height: 11),
-              ],
-              V3Field('адрес целиком', c('fullAddress'), onChanged: (value) {
-                final parsed = parseMarketAddress(value, territoryHint: c('zone').text);
-                if (parsed.recognized) c('zone').text = parsed.territory;
-                setState(() {});
-              }),
+            ] else ...[
+              V3Field('название', c('addressName')..text = name,
+                  readOnly: true),
               const SizedBox(height: 11),
-              if (c('fullAddress').text.trim().isNotEmpty &&
-                  parseMarketAddress(c('fullAddress').text).recognized) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 11),
-                  child: label(parseMarketAddress(c('fullAddress').text).details,
-                      12, color: const Color(0xFF808080)),
-                ),
-              ],
+            ],
+            if (!manual) ...[
               InkWell(
                 onTap: () async {
                   final choice = await showModalBottomSheet<String>(
                     context: context,
+                    isScrollControlled: true,
                     backgroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20))),
                     builder: (context) => SafeArea(
-                      child: ListView(shrinkWrap: true, children: [
-                        for (final territory in marketTerritories)
-                          ListTile(
-                            title: Text(territory, style: type(14)),
-                            onTap: () => Navigator.pop(context, territory),
-                          ),
-                      ]),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+                        child: ListView(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          children: [
+                            for (final territory in marketTerritories)
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 9),
+                                minVerticalPadding: 12,
+                                title: Text(territory, style: type(14)),
+                                onTap: () => Navigator.pop(context, territory),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                   if (choice != null && mounted) {
@@ -2744,57 +2752,81 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 11),
-              if (c('fullAddress').text.trim().isEmpty) ...[
-                if (c('zone').text == 'корпус А' ||
-                    c('zone').text == 'корпус Б') ...[
-                  V3Field('этаж', c('floor')),
-                  const SizedBox(height: 11),
-                ],
-                if (c('zone').text.isNotEmpty) ...[
-                  V3Field('линия / ряд', c('line')),
-                  const SizedBox(height: 11),
-                  V3Field('номер павильона', c('number')),
-                  const SizedBox(height: 11),
-                ],
+              if (zone == 'корпус А' || zone == 'корпус Б') ...[
+                V3Field('этаж', c('floor')),
+                const SizedBox(height: 11),
               ],
-            ],
-            if (!fix && !manual) ...[
-              const SizedBox(height: 17),
+              if (zone.isNotEmpty) ...[
+                V3Field(zone == 'вещевые ряды'
+                    ? 'линия (1–33, СТ, ТЦ)'
+                    : zone == 'птичий рынок' ? 'сектор / ряд (если есть)'
+                    : zone == 'меха и кожа' ? 'галерея (если есть)'
+                    : 'линия / ряд', c('line')),
+                const SizedBox(height: 11),
+                V3Field(zone == 'птичий рынок'
+                    ? 'номер места' : 'номер павильона', c('number')),
+                const SizedBox(height: 11),
+              ],
+              const SizedBox(height: 10),
               tap(
-                label(
-                  'Адреса нет в справочнике?',
-                  12,
-                  color: const Color(0xFF7A7A7A),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: label('ввести адрес вручную', 12,
+                      color: const Color(0xFF7A7A7A)),
                 ),
-                () => go('manualAddress'),
+                () => setState(() {
+                  manualAddressEntry = true;
+                  c('zone').clear();
+                  c('fullAddress').clear();
+                }),
               ),
-              const SizedBox(height: 25),
-            ] else if (fix) ...[
+            ] else ...[
+              V3Field('адрес целиком', c('fullAddress'),
+                  onChanged: (_) => setState(() {})),
+              const SizedBox(height: 11),
+              if (parsed != null && parsed.recognized) ...[
+                label(parsed.explanation, 12,
+                    color: const Color(0xFF808080)),
+                const SizedBox(height: 12),
+                label(parsed.territory, 12,
+                    color: const Color(0xFF808080)),
+                const SizedBox(height: 11),
+              ],
+              const SizedBox(height: 10),
+              tap(
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: label('выбрать торговую зону', 12,
+                      color: const Color(0xFF7A7A7A)),
+                ),
+                () => setState(() {
+                  manualAddressEntry = false;
+                  c('fullAddress').clear();
+                  c('zone').clear();
+                  c('building').clear();
+                  c('floor').clear();
+                  c('line').clear();
+                  c('number').clear();
+                }),
+              ),
+            ],
+            if (fix) ...[
+              const SizedBox(height: 12),
               tap(
                 Container(
                   height: 56,
                   color: Colors.white,
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.only(left: 20),
-                  child: label(
-                    'добавить новое фото входа',
-                    12,
-                    color: const Color(0xFF808080),
-                  ),
+                  child: label('добавить новое фото входа', 12,
+                      color: const Color(0xFF808080)),
                 ),
                 missing,
               ),
-              const SizedBox(height: 25),
-            ] else
-              const SizedBox(height: 380),
-            pill(
-              fix
-                  ? 'отправить повторно'
-                  : manual
-                  ? 'отправить адрес'
-                  : 'отправить на проверку',
-              sendAddress,
-            ),
+            ],
+            const SizedBox(height: 25),
+            pill(fix ? 'отправить повторно' : 'отправить на проверку',
+                sendAddress),
             const SizedBox(height: 8),
           ],
         ),
@@ -2913,7 +2945,16 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               children: [
                 Expanded(
                   child: tap(
-                    label(address(pavilion), 16, bold: true, color: brown),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ('${pavilion['zone'] ?? ''}'.trim().isNotEmpty) ...[
+                          label('${pavilion['zone']}', 12, color: brown),
+                          const SizedBox(height: 4),
+                        ],
+                        label(address(pavilion), 16, bold: true, color: brown),
+                      ],
+                    ),
                     () => go('approved'),
                   ),
                 ),

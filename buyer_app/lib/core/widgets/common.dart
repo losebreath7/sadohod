@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:go_router/go_router.dart';
@@ -120,7 +121,10 @@ class ProductTile extends StatelessWidget {
             child: GestureDetector(
               onTap: () => context.push('/product/${product.id}'),
               child: Text(
-                product.pavilion,
+                product.seller != null &&
+                    marketTerritories.contains(product.seller!.zone.toLowerCase())
+                    ? '${product.seller!.zone} · ${product.pavilion}'
+                    : product.pavilion,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: BuyerProductType.catalogAddress,

@@ -27,21 +27,10 @@ class MarketAddress {
   final bool recognized;
 
   String get explanation => parts.join('\n');
-  String get details {
-    if (!recognized) {
-      return 'Адрес не удалось однозначно расшифровать. Уточните обозначение у продавца.';
-    }
-    final category = switch (territory) {
-      'корпус А' => 'Обычно здесь продают одежду, обувь и сумки.',
-      'корпус Б' => 'Обычно здесь продают текстиль, шторы, постельное бельё и одежду. На втором этаже также расположена Свадебная галерея.',
-      'вещевые ряды' => 'Уличные торговые ряды под навесами. Линии СТ — поперечные торговые линии.',
-      'ангар' => 'Торговые места в ангаре.',
-      'меха и кожа' => 'Специализированный торговый корпус «Меха и кожа».',
-      'птичий рынок' => 'Отдельная торговая зона с тематическими секторами.',
-      _ => '',
-    };
-    return [explanation, if (inferredBuilding) 'Корпус А определён по правилу написания адреса: корпус Б обычно указывают явно.', if (category.isNotEmpty) category, 'Точное положение павильона на карте требует подтверждения.'].join('\n\n');
-  }
+  // The address editor only needs decoded structural fields.
+  String get details => recognized ? explanation :
+      'не удалось распознать адрес. Его можно отправить на проверку.';
+
 }
 
 String normalizeMarketAddress(String input) {
@@ -62,6 +51,19 @@ MarketAddress parseMarketAddress(String input, {String? territoryHint}) {
   MarketAddress found(String territory, List<String> parts, {String? code, bool inferred = false}) =>
       MarketAddress(raw: input, code: code ?? c, territory: territory, parts: parts, inferredBuilding: inferred);
 
+  final namedBird = RegExp(r'^(?:ПТИЧИЙРЫНОК|ПТИЧКА)[,:-]?(.*)$').firstMatch(c);
+  if (namedBird != null && namedBird.group(1)!.isNotEmpty) {
+    final inner = namedBird.group(1)!;
+    final numeric = RegExp(r'^([0-9]+)-([0-9]+[А-Я]?)$').firstMatch(inner);
+    return found('птичий рынок', [
+      'Птичий рынок — торговая зона.',
+      if (numeric != null) ...[
+        '${numeric.group(1)} — линия.',
+        '${numeric.group(2)} — павильон.',
+      ] else
+        '$inner — обозначение торгового места.',
+    ], code: inner);
+  }
   // A street row is not an indoor floor. Prioritize specialized prefixes.
   final st = RegExp(r'^СТ-?([1-9])-?(\d+[А-Я]?)$').firstMatch(c);
   if (st != null) return found('вещевые ряды', [
