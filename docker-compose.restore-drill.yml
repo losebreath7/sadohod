@@ -16,8 +16,19 @@ services:
       - restore_pg:/var/lib/postgresql/data
     networks:
       - restore_private
+  files:
+    image: alpine:3.20
+    entrypoint: ["sh", "-c"]
+    command: ["sleep infinity"]
+    volumes:
+      - restore_uploads:/uploads
+      - restore_admin_state:/state
+    networks:
+      - restore_private
 networks:
   restore_private:
     internal: true
 volumes:
   restore_pg:
+  restore_uploads:
+  restore_admin_state:
