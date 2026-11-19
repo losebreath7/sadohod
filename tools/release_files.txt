@@ -178,6 +178,13 @@ docs/SOURCES.md
 docs/STORE_REVIEW_ACCESS.md
 docs/VERIFICATION.md
 docs/VERSIONS_R5.md
+docs/legal/RELEASE_CHECKLIST.md
+docs/legal/drafts/buyer-terms.md
+docs/legal/drafts/content-rules.md
+docs/legal/drafts/data-consent.md
+docs/legal/drafts/data-deletion.md
+docs/legal/drafts/privacy.md
+docs/legal/drafts/seller-terms.md
 docs/reference_figma/366_15805.json
 docs/reference_figma/366_15805.png
 docs/reference_figma/366_15805.txt
@@ -495,6 +502,7 @@ server/backend/app/config.py
 server/backend/app/crop.py
 server/backend/app/database.py
 server/backend/app/image_features.py
+server/backend/app/legal_documents.py
 server/backend/app/main.py
 server/backend/app/merchant.py
 server/backend/app/merchant_chat.py
@@ -538,6 +546,7 @@ server/backend/migrations/versions/20261116_03_moderation.py
 server/backend/migrations/versions/20261116_04_optional_price.py
 server/backend/migrations/versions/20261116_05_seller_notifications.py
 server/backend/migrations/versions/20261119_08_store_review_access.py
+server/backend/publish_legal.py
 server/backend/requirements-dev.txt
 server/backend/requirements-ml.txt
 server/backend/requirements.txt
@@ -552,6 +561,7 @@ server/backend/tests/test_chat_attachment_batch.py
 server/backend/tests/test_chat_auto_replies.py
 server/backend/tests/test_crop.py
 server/backend/tests/test_features.py
+server/backend/tests/test_legal_documents.py
 server/backend/tests/test_merchant_chat_attachments_r7_patch.py
 server/backend/tests/test_merchant_operations.py
 server/backend/tests/test_merchant_v080.py
@@ -700,6 +710,7 @@ tools/compose.qa.yml
 tools/gate.ps1
 tools/manage_review_accounts.py
 tools/package_release.py
+tools/publish_legal.py
 tools/release_files.txt
 tools/restore_drill.sh
 tools/run_client.ps1
