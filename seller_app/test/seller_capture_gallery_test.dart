@@ -64,8 +64,14 @@ void main() {
     // The outer browser Navigator is 1440x1000, but the device Navigator
     // must provide the phone's own MediaQuery to the modal.
     expect(MediaQuery.sizeOf(tester.element(dialog)), const Size(402, 874));
-    expect(tester.getSize(dialog).width, lessThanOrEqualTo(402 - 32));
-    expect(tester.getSize(dialog).height, lessThanOrEqualTo(874 - 32));
+    // AlertDialog itself can span the available overlay; the inner Material
+    // is the actual white card and must respect the 16dp side insets.
+    final card = find.descendant(
+      of: dialog,
+      matching: find.byType(Material),
+    ).first;
+    expect(tester.getSize(card).width, lessThanOrEqualTo(402 - 32));
+    expect(tester.getSize(card).height, lessThanOrEqualTo(874 - 32));
     expect(find.text('фотографии 6/6'), findsOneWidget);
     expect(find.text('закрыть'), findsOneWidget);
 
