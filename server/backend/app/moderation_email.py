@@ -11,7 +11,7 @@ import ssl
 import time
 from email.message import EmailMessage
 
-from sqlalchemy import select
+from sqlalchemy import select, or_, and_
 
 from .moderation_enforcement_models import ModerationEmail
 
@@ -68,7 +68,9 @@ def dispatch_due(session_factory, *, limit=20):
     for _ in range(limit):
         with session_factory() as db:
             q = select(ModerationEmail).where(
-                ModerationEmail.status == 'pending',
+                or_(ModerationEmail.status == 'pending',
+                    and_(ModerationEmail.status == 'sending',
+                         ModerationEmail.next_attempt_at <= time.time())),
                 ModerationEmail.next_attempt_at <= time.time()
             ).order_by(ModerationEmail.created_at).limit(1)
             if db.bind.dialect.name == 'postgresql':
@@ -78,6 +80,7 @@ def dispatch_due(session_factory, *, limit=20):
                 break
             # Status is reserved before SMTP to avoid duplicate concurrent sends.
             row.status = 'sending'
+            row.next_attempt_at = time.time() + 300  # Reclaim abandoned sends after 5m
             db.commit()
             rid = row.id
             recipient = row.recipient
