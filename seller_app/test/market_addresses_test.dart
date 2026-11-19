@@ -55,6 +55,23 @@ void main() {
     expect(wedding.territory, 'корпус Б');
   });
 
+  test('explanation contains only address fields, no selling hints', () {
+    final decoded = parseMarketAddress('2А-23/1Б');
+    expect(decoded.details, contains('23 — основной павильон'));
+    expect(decoded.details, isNot(contains('Обычно здесь')));
+    expect(decoded.details, isNot(contains('карте требует подтверждения')));
+    expect(decoded.details, isNot(contains('корпус Б обычно')));
+  });
+
+  test('explicit bird-market prefix keeps numerical address in bird territory', () {
+    final decoded = parseMarketAddress('Птичий рынок, 3-33');
+    expect(decoded.recognized, isTrue);
+    expect(decoded.territory, 'птичий рынок');
+    expect(decoded.code, '3-33');
+    expect(decoded.details, contains('3 — линия'));
+    expect(parseMarketAddress('3-33').territory, 'вещевые ряды');
+  });
+
   test('unknown formats do not get invented locations', () {
     final unknown = parseMarketAddress('25/-49');
     expect(unknown.recognized, isFalse);
