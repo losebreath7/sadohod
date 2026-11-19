@@ -162,6 +162,10 @@ def rate_limit(db, key, maximum, window=3600):
 @router.post('/auth/code')
 def request_code(body: EmailInput, request: Request, db: Session = Depends(get_db)):
     smtp_config()
+    from .moderation_enforcement import require_account_allowed
+    known = db.scalar(select(Buyer).where(Buyer.email == body.email))
+    if known:
+        require_account_allowed(db, known.id)
     ip = request.client.host if request.client else 'unknown'
     rate_limit(db, 'mail-ip:' + digest(ip), 20)
     rate_limit(db, 'mail:' + digest(body.email), 5)
@@ -217,6 +221,8 @@ def verify(body: VerifyInput, request: Request, db: Session = Depends(get_db)):
         buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
         if buyer is None or buyer.id != reviewer.buyer_id:
             raise HTTPException(403, 'Учётная запись проверяющего не подготовлена.')
+        from .moderation_enforcement import require_account_allowed
+        require_account_allowed(db, buyer.id)
         token = secrets.token_urlsafe(32)
         duration = min(7 * 86400, int(reviewer.expires - now))
         db.add(BuyerSession(digest=digest(token), buyer=buyer.id, expires=now + duration))
@@ -235,6 +241,9 @@ def verify(body: VerifyInput, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(400, 'Код неверный или истёк. Запросите новый.')
     db.delete(row)  # Consumed once in the same transaction as session creation.
     buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
+    if buyer is not None:
+        from .moderation_enforcement import require_account_allowed
+        require_account_allowed(db, buyer.id)
     if buyer is None:
         buyer = Buyer(id=secrets.token_hex(16), email=body.email, name='')
         db.add(buyer)
@@ -253,6 +262,8 @@ def current_buyer(authorization: str = Header(default=''), db: Session = Depends
     reviewer = db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id))
     if reviewer is not None and (not reviewer.enabled or reviewer.expires <= time.time()):
         raise HTTPException(401, 'Доступ проверяющего завершён.')
+    from .moderation_enforcement import require_account_allowed
+    require_account_allowed(db, buyer.id)
     return buyer
 
 

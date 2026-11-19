@@ -119,6 +119,8 @@ def shop_for(buyer: Buyer, db: Session) -> Seller:
     shop = db.scalar(select(Seller).where(Seller.id == membership.seller_id).with_for_update(of=Seller)) if membership else None
     if shop is None or db.get(ShopRecord, shop.id) is None:
         raise HTTPException(403, 'Для этого действия необходим подтверждённый кабинет продавца.')
+    from .moderation_enforcement import require_shop_allowed
+    require_shop_allowed(db, shop.id)
     return shop
 
 
@@ -675,6 +677,8 @@ def decide_pavilion(rid: str, body: DecisionInput, db: Session = Depends(get_db)
 def publish_listing(db, row, *, screened=False, moderator_approved=False):
     from .product_safety import require_publishable
     require_publishable(db, row.product_id)
+    from .moderation_enforcement import require_shop_allowed
+    require_shop_allowed(db, row.seller_id)
     # The final Offer creation point is shared by save, submit, resume,
     # move, copy and staff decisions. Never trust a listing status alone.
     owner = db.get(MerchantProduct, row.product_id)

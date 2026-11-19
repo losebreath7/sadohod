@@ -18,6 +18,8 @@ from .merchant_chat import router as merchant_chat_router
 from .moderation import router as moderation_router, admin_router as moderator_staff_router
 from .seller_notifications import router as seller_notifications_router
 from .product_safety import router as product_safety_router
+from .moderation_controls import router as moderation_controls_router
+from .moderation_enforcement_models import AccountRestriction, ShopRestriction, ModerationEmail  # noqa: F401
 from .config import ALLOWED_ORIGINS, DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND, SADOHOD_ENV
 from .database import SessionLocal, init_db
 from .build_info import BUILD_INFO
@@ -50,15 +52,31 @@ async def lifespan(app: FastAPI):
             reclassify_indexed_products(session)
         # Health becomes available only after indexing and classification.
     bridge_task = asyncio.create_task(run_bridge()) if telegram_configured() else None
+    mail_task = asyncio.create_task(_moderation_mail_loop())
     try:
         yield
     finally:
+        mail_task.cancel()
+        try:
+            await mail_task
+        except asyncio.CancelledError:
+            pass
         if bridge_task is not None:
             bridge_task.cancel()
             try:
                 await bridge_task
             except asyncio.CancelledError:
                 pass
+
+
+async def _moderation_mail_loop():
+    from .moderation_email import dispatch_due
+    while True:
+        try:
+            await asyncio.to_thread(dispatch_due, SessionLocal)
+        except Exception:
+            logging.getLogger(__name__).exception('Moderation email dispatcher failed')
+        await asyncio.sleep(30)
 
 
 app = FastAPI(title="Садоход API", version=BUILD_INFO['full_version'], lifespan=lifespan)
@@ -85,6 +103,7 @@ app.include_router(moderation_router)
 app.include_router(moderator_staff_router)
 app.include_router(seller_notifications_router)
 app.include_router(product_safety_router)
+app.include_router(moderation_controls_router)
 
 
 @app.get("/health")

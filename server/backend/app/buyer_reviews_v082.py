@@ -75,6 +75,9 @@ class ModerationInput(BaseModel):
 def require_seller(db: Session, seller_id: str):
     if len(seller_id) > 32 or not db.get(Seller, seller_id):
         raise HTTPException(404, 'Продавец не найден')
+    from .moderation_enforcement import shop_blocked
+    if shop_blocked(db, seller_id):
+        raise HTTPException(404, 'Продавец не найден')
 
 
 def clean_photos(photos: list[str]) -> list[str]:
