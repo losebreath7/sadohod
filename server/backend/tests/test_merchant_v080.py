@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.app import account, admin, merchant
+from backend.app import account, admin, merchant, product_screening
 from backend.app.account import Buyer
 from backend.app.admin_auth import require_admin
 from backend.app.database import Base, get_db
@@ -36,6 +36,16 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(account, 'send_code', lambda email, code: codes.update({email: code}))
     monkeypatch.setattr(admin, 'MEDIA', tmp_path)
     monkeypatch.setattr(admin, 'SEARCH_BACKEND', 'classic')
+    # Legacy catalog tests exercise shop/pavilion/catalog workflows, not
+    # recognition quality. Simulate a successful photo review for benign
+    # content; dedicated moderation tests restore real fail-closed assess().
+    original_assess = product_screening.assess
+    def approved_test_photo(db, product):
+        if product_screening.SEARCH_BACKEND == 'classic':
+            return product_screening._text_reason(
+                product.title or '', product.description or '')
+        return original_assess(db, product)
+    monkeypatch.setattr(product_screening, 'assess', approved_test_photo)
     try:
         yield TestClient(app), codes, factory, tmp_path
     finally:

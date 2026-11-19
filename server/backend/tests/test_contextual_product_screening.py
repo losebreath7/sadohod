@@ -4,7 +4,10 @@ Image triage in clip mode requires indexed OpenCLIP photo vectors and a
 calibrated labeled photo set; it must not be called a production classifier
 based only on these deterministic API tests.
 """
+from backend.app import product_screening as s
 from test_instant_publication import setup_seller
+
+REAL_ASSESS = s.assess
 from test_merchant_v080 import env, photo
 
 
@@ -36,15 +39,17 @@ def test_actual_weapon_text_goes_to_staff_without_public_offer(env):
                for p in queued['products'])
 
 
-def test_shirt_with_weapon_print_is_not_a_physical_weapon(env):
+def test_shirt_with_weapon_print_is_not_a_physical_weapon(env, monkeypatch):
+    monkeypatch.setattr(s, 'assess', REAL_ASSESS)
     client, auth, pavilion = setup_seller(env)
     pid, body = _new(client, auth, pavilion, 'Футболка с принтом пистолета', 'screen-print-save-1')
     saved = client.put(f'/api/v1/merchant/products/{pid}/save',
                        headers=auth, json=body)
     assert saved.status_code == 200, saved.text
-    assert saved.json()['status'] == 'approved'
-    assert saved.json()['listings'][0]['published'] is True
-    assert client.get(f'/api/v1/products/{pid}').status_code == 200
+    assert saved.json()['status'] == 'pending'
+    assert saved.json()['listings'][0]['published'] is False
+    assert 'classic' in saved.json()['note']
+    assert client.get(f'/api/v1/products/{pid}').status_code == 404
 
 
 def test_editing_published_item_into_weapon_removes_live_offer(env):

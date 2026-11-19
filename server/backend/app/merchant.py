@@ -422,6 +422,14 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
     current_count = len(db.get(Product, owner.product_id).images)
     if current_count + len(files) - (1 if replace_id else 0) > 6:
         raise HTTPException(422, 'На товар можно добавить не больше 6 фотографий.')
+    # Stage a moderation hold in the same transaction as the new photo
+    # records. The shared uploader commits both atomically; there is never
+    # a committed, publicly visible unreviewed photo.
+    was_approved = owner.status == 'approved'
+    if was_approved:
+        from .product_screening import hold_for_review
+        hold_for_review(db, owner, db.get(Product, pid),
+                        'Автопроверка: фотография обновлена, проверка ожидается')
     replaced_filename = None
     if replace_id:
         from sqlalchemy import delete, text
@@ -451,14 +459,28 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
     # before classification; another request may already have submitted the draft.
     shop_for(buyer, db)
     owner = merchant_product(pid, seller, db)
-    if owner.status in ('draft', 'rejected', 'approved'):
+    if owner.status in ('draft', 'rejected', 'pending', 'approved'):
         product = db.get(Product, pid)
         assign_category(db, product)
-        if owner.status == 'approved':
-            from .product_screening import assess, hold_for_review
+        if was_approved:
+            from .product_screening import assess
             reason = assess(db, product)
+            rows = db.scalars(select(MerchantListing).where(
+                MerchantListing.product_id == pid)).all()
             if reason:
-                hold_for_review(db, owner, product, reason)
+                owner.note = reason
+                for row in rows:
+                    if row.status == 'pending':
+                        row.note = reason
+            else:
+                # Only a successful visual check may restore previously
+                # published listings after the atomic image replacement.
+                for row in rows:
+                    if row.status == 'pending':
+                        publish_listing(db, row, screened=True)
+                owner.status = 'approved'
+                owner.note = ''
+                product.details.active = any(row.offer_id is not None for row in rows)
         safe_commit(db)
     return as_product(db, merchant_product(pid, seller, db))
 
@@ -566,7 +588,7 @@ def submit_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session 
     else:
         for r in rows:
             if r.status in ('draft', 'rejected'):
-                publish_listing(db, r)
+                publish_listing(db, r, screened=True)
         owner.status = 'approved'
         owner.note = ''
         p.details.active = any(r.offer_id is not None for r in rows)
@@ -650,9 +672,14 @@ def decide_pavilion(rid: str, body: DecisionInput, db: Session = Depends(get_db)
     return {'id': request.id, 'status': request.status}
 
 
-def publish_listing(db, row):
+def publish_listing(db, row, *, screened=False, moderator_approved=False):
     from .product_safety import require_publishable
     require_publishable(db, row.product_id)
+    # The final Offer creation point is shared by save, submit, resume,
+    # move, copy and staff decisions. Never trust a listing status alone.
+    owner = db.get(MerchantProduct, row.product_id)
+    if owner is None or not (owner.status == 'approved' or screened or moderator_approved):
+        raise HTTPException(409, 'Товар должен пройти проверку перед публикацией.')
     claim = db.scalar(select(PavilionClaim).where(PavilionClaim.pavilion_id == row.pavilion_id, PavilionClaim.seller_id == row.seller_id))
     if not claim:
         raise HTTPException(409, 'Павильон больше не закреплён за продавцом.')
@@ -701,7 +728,7 @@ def decide_product(pid: str, body: ProductDecisionInput, db: Session = Depends(g
         if not rows:
             raise HTTPException(409, 'Нельзя публиковать товар без доступных предложений.')
         for row in rows:
-            if row.status == 'pending': publish_listing(db, row)
+            if row.status == 'pending': publish_listing(db, row, moderator_approved=True)
         p.details.active = any(row.offer_id is not None for row in rows)
     else:
         p.details.active = False

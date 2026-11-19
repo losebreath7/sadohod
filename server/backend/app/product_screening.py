@@ -165,8 +165,11 @@ def assess(db, product):
     if reason:
         return reason
     if SEARCH_BACKEND != 'clip':
-        # Explicit limitation: classic mode only has keyword screening.
-        return None
+        # Classic descriptors are not semantic content moderation. Never treat
+        # a photo as screened merely because its metadata is searchable.
+        if product.images:
+            return 'Автопроверка: фотографии ожидают ручной проверки (classic)'
+        return 'Автопроверка: отсутствуют проверенные фотографии'
     try:
         risk_prompts, benign_prompts = _prompts()
         for image in product.images:
@@ -176,10 +179,25 @@ def assess(db, product):
             vector = stored.embedding
             if not all(math.isfinite(float(n)) for n in vector):
                 return 'Автопроверка: некорректный ML-вектор'
+            norm = math.sqrt(sum(float(n) ** 2 for n in vector))
+            if not 0.95 <= norm <= 1.05:
+                return 'Автопроверка: ненормированный ML-вектор'
+            # Reject malformed prompt embeddings and comparison results;
+            # NaN in cosine scores must never turn into automatic approval.
+            if not risk_prompts or not benign_prompts:
+                return 'Автопроверка: отсутствуют контрольные ML-примеры'
+            if any(len(prompt) != DIM or not all(math.isfinite(float(n)) for n in prompt)
+                   for _, prompt in risk_prompts):
+                return 'Автопроверка: некорректные контрольные ML-векторы'
+            if any(len(prompt) != DIM or not all(math.isfinite(float(n)) for n in prompt)
+                   for prompt in benign_prompts):
+                return 'Автопроверка: некорректные допустимые ML-векторы'
             risk_scores = [(category, _dot(vector, prompt))
                            for category, prompt in risk_prompts]
             category, risk = max(risk_scores, key=lambda item: item[1])
             benign = max(_dot(vector, prompt) for prompt in benign_prompts)
+            if not math.isfinite(risk) or not math.isfinite(benign):
+                return 'Автопроверка: некорректные показатели ML-анализа'
             # Heuristic similarity thresholds; NOT probabilities, calibrate
             # by category before shipping to a live marketplace.
             if risk >= 0.25 and risk - benign >= 0.025:

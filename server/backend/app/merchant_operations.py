@@ -384,6 +384,16 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
     existing = db.scalars(select(MerchantListing).where(MerchantListing.product_id == pid)).all()
     if any(r.status == 'pending' for r in existing):
         raise HTTPException(409, 'Предложение уже на модерации.')
+    # Price and pavilion edits do not change previously reviewed content.
+    # Any text/photo edit does; photo uploads invalidate approval separately.
+    content_unchanged = (
+        owner.status == 'approved'
+        and product.title == (data.title.strip() or 'Без названия')
+        and product.description == data.description.strip()
+        and product.colors == data.colors
+        and product.details.sizes == data.sizes
+        and product.category == (data.category.strip() or 'Без категории')
+    )
     product.title = data.title.strip() or 'Без названия'
     product.category = data.category.strip() or 'Без категории'
     product.description = data.description.strip()
@@ -392,7 +402,7 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
     from .category_inference import assign_category
     assign_category(db, product)
     from .product_screening import assess
-    screening_reason = assess(db, product) if data.submit else None
+    screening_reason = (None if content_unchanged else assess(db, product)) if data.submit else None
     for row in existing:
         if row.pavilion_id not in ids:
             drop_offer(db, row)
@@ -411,7 +421,7 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
                 if row.status != 'paused':
                     row.status = 'pending'
             elif row.status != 'paused':
-                m.publish_listing(db, row)
+                m.publish_listing(db, row, screened=True)
         else:
             drop_offer(db, row)
             row.status = 'draft'

@@ -6,6 +6,8 @@ quality. A separately labelled real-photo benchmark is required for rollout.
 from types import SimpleNamespace
 
 from backend.app import product_screening as s
+
+REAL_ASSESS = s.assess
 from test_instant_publication import setup_seller
 from test_merchant_v080 import env, photo
 
@@ -43,12 +45,13 @@ def test_explicit_adult_content_is_sent_to_review(env):
     assert client.get('/api/v1/products/' + pid).status_code == 404
 
 
-def test_safe_apparel_is_published_in_classic_mode(env):
+def test_safe_apparel_still_requires_photo_review_in_classic_mode(env, monkeypatch):
+    monkeypatch.setattr(s, 'assess', REAL_ASSESS)
     client, auth, pavilion = setup_seller(env)
     pid, result = _publish(client, auth, pavilion,
                            'Футболка с принтом пистолета', 'v2-shirt-01')
-    assert result['status'] == 'approved'
-    assert client.get('/api/v1/products/' + pid).status_code == 200
+    assert result['status'] == 'pending'
+    assert client.get('/api/v1/products/' + pid).status_code == 404
 
 
 def test_context_exceptions_do_not_hide_explicit_real_weapon():
@@ -82,7 +85,7 @@ def test_ml_flags_each_photo_not_just_first(monkeypatch):
                                               [[0.0] * s.DIM]))
     images = [SimpleNamespace(id='one'), SimpleNamespace(id='two')]
     db = SimpleNamespace(get=lambda _cls, key: SimpleNamespace(
-        embedding=[0.0] * s.DIM if key[0] == 'one' else vector))
+        embedding=([0.0, 1.0] + [0.0] * (s.DIM - 2)) if key[0] == 'one' else vector))
     product = SimpleNamespace(title='Товар', description='', images=images)
     assert 'опасные вещества' in s.assess(db, product)
 
