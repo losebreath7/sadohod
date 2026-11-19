@@ -36,6 +36,7 @@ class SellerCatalogCaption extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
+              flex: 11,
               child: Text(
                 address,
                 key: const ValueKey('seller-card-address'),
@@ -46,12 +47,19 @@ class SellerCatalogCaption extends StatelessWidget {
             ),
             if (price != null) ...[
               const SizedBox(width: 6),
-              Text(
-                rubles(price!),
-                key: const ValueKey('seller-card-price'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: BuyerProductType.catalogPrice,
+              Flexible(
+                flex: 9,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    rubles(price!),
+                    key: const ValueKey('seller-card-price'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: BuyerProductType.catalogPrice,
+                  ),
+                ),
               ),
             ],
           ],
