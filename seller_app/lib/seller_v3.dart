@@ -19,6 +19,7 @@ import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'seller_live_camera.dart';
 import 'seller_capture_gallery.dart';
+import 'seller_catalog_caption.dart';
 import 'seller_settings.dart';
 
 import 'package:sadohod_shared_core/chat_widgets.dart';
@@ -3104,7 +3105,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final matches = scoped.where((l) => hidden
         ? l['status'] == 'paused'
         : l['published'] == true || l['status'] == 'approved').toList();
-    final ls = matches;
+    final listing = matches.firstOrNull;
+    final location = sellerListingAddress(listing, pavilions);
+    final rawPrice = listing?['price'];
+    final price = rawPrice is num ? rawPrice.toInt() : null;
     return tap(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3185,30 +3189,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           SizedBox(
             width: width,
-            height: 58,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${p['title'] ?? ''}'.trim().isEmpty
-                      ? 'Без названия'
-                      : '${p['title']}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: SellerProductType.cardTitle,
-                ),
-                const SizedBox(height: 5),
-                if (ls.isNotEmpty && ls.first['price'] != null)
-                  Text(
-                    '≈ ${ls.first['price']} ₽',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: SellerProductType.cardPrice,
-                  ),
-              ],
+            child: SellerCatalogCaption(
+              address: location,
+              price: price,
+              title: '${p['title'] ?? ''}',
             ),
           ),
         ],
