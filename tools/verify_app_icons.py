@@ -20,7 +20,7 @@ DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 def png_size(path):
     with path.open("rb") as handle:
         header = handle.read(26)
-    assert header[:8] == b"\\x89PNG\\r\\n\\x1a\\n", f"Not PNG: {path}"
+    assert header[:8] == b"\x89PNG\r\n\x1a\n", f"Not PNG: {path}"
     return struct.unpack(">II", header[16:24]), header[25]
 
 
@@ -81,7 +81,7 @@ def main(fix=False):
             errors.append(f"Missing original vector source: {app}")
 
     if errors:
-        print("\\n".join(errors), file=sys.stderr)
+        print("\n".join(errors), file=sys.stderr)
         raise SystemExit(1)
     print("OK: both app iconsets, Android adaptive assets, dimensions and iOS opacity")
 
