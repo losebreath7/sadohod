@@ -149,6 +149,10 @@ def rate_limit(db, key, maximum, window=3600):
 @router.post('/auth/code')
 def request_code(body: EmailInput, request: Request, db: Session = Depends(get_db)):
     smtp_config()
+    from .moderation_enforcement import require_account_allowed
+    existing_buyer = db.scalar(select(Buyer).where(Buyer.email == body.email))
+    if existing_buyer:
+        require_account_allowed(db, existing_buyer.id)
     ip = request.client.host if request.client else 'unknown'
     rate_limit(db, 'mail-ip:' + digest(ip), 20)
     rate_limit(db, 'mail:' + digest(body.email), 5)
