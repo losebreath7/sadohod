@@ -138,13 +138,15 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     }
   }
 
-  Future<void> _review() async {
+  Future<void> _review({bool editing = false}) async {
     if (!_signedIn) {
       context.go('/account');
       return;
     }
-    // The add action is never an alternative route to a second review.
-    if (_loading || !_mineChecked || _mine != null) return;
+    // New review requires no existing record. Editing updates the same
+    // seller/buyer record, which the server enforces with a unique constraint.
+    if (_loading || !_mineChecked || (_mine != null && !editing)) return;
+    if (editing && _mine == null) return;
     final current = _mine;
     var rating = (current?['rating'] as num?)?.toInt() ?? 0;
     final comment = TextEditingController(text: current?['text']?.toString() ?? '');
@@ -171,8 +173,8 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  const Expanded(child: Text('Оставить отзыв',
-                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700))),
+                  Expanded(child: Text(editing ? 'Редактировать отзыв' : 'Оставить отзыв',
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700))),
                   IconButton(
                     tooltip: 'Закрыть отзыв',
                     onPressed: submitting ? null :
@@ -535,6 +537,14 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
         ],
       ),
       actions: [
+        if (isOwn)
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _review(editing: true);
+            },
+            child: const Text('редактировать',
+              style: TextStyle(color: Colors.black))),
         if (!isOwn && !ownUnpublished)
           TextButton(onPressed: () {
             Navigator.pop(ctx);
