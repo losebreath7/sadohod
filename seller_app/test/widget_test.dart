@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_v3.dart';
 import 'package:sadohod_shared_core/chat_widgets.dart';
@@ -121,11 +122,13 @@ void main() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
-  testWidgets('No-pavilion camera action opens address, not product editor', (
+  testWidgets('Camera tab always opens capture even without a pavilion', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 700);
     tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         home: SellerV3(api: SellerApi(), initialFrame: '419:530'),
@@ -135,11 +138,12 @@ void main() {
     expect(find.text('у вас пока нет магазинов'), findsOneWidget);
     await tester.tap(find.bySemanticsLabel('Камера'));
     await tester.pumpAndSettle();
-    expect(find.text('добавить магазин'), findsOneWidget);
-    expect(find.text('номер павильона'), findsOneWidget);
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
+    expect(find.byKey(const ValueKey('seller-camera-viewport')), findsOneWidget);
+    expect(find.bySemanticsLabel('Снять фото'), findsOneWidget);
+    expect(find.bySemanticsLabel('из галереи'), findsOneWidget);
+    expect(find.text('номер павильона'), findsNothing);
   });
+
   Future<void> openFrame(WidgetTester tester, String frame) async {
     tester.view.physicalSize = const Size(390, 700);
     tester.view.devicePixelRatio = 1;
@@ -153,6 +157,58 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('Camera preview extends below the shutter, no black band', (
+    tester,
+  ) async {
+    await openFrame(tester, '366:15969');
+    final viewport = find.byKey(const ValueKey('seller-camera-viewport'));
+    final shutter = find.bySemanticsLabel('Снять фото');
+    expect(viewport, findsOneWidget);
+    expect(shutter, findsOneWidget);
+    expect(
+      tester.getBottomLeft(viewport).dy,
+      greaterThan(tester.getBottomLeft(shutter).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Camera collects six photos and opens editor only on Next', (
+    tester,
+  ) async {
+    await openFrame(tester, '366:15969');
+    final dynamic state = tester.state(find.byType(SellerV3));
+    final data = await rootBundle.load('assets/figma/045ce.png');
+    final bytes = data.buffer.asUint8List();
+    final chosen = [
+      for (var i = 0; i < 7; i++)
+        XFile.fromData(bytes, name: 'capture_$i.png', mimeType: 'image/png'),
+    ];
+    await state.pick(selected: chosen);
+    await tester.pumpAndSettle();
+    expect(state.screen, 'capture');
+    expect(state.capturePhotos.length, 6);
+    expect(find.text('6/6'), findsOneWidget);
+    expect(find.text('далее'), findsOneWidget);
+    expect(find.bySemanticsLabel('из галереи'), findsOneWidget);
+    await tester.tap(find.text('далее'));
+    await tester.pumpAndSettle();
+    expect(state.screen, 'newProduct');
+    expect(state.photos.length, 6);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Switching from product editor to camera does not restore draft', (
+    tester,
+  ) async {
+    await openFrame(tester, '366:17304');
+    final dynamic state = tester.state(find.byType(SellerV3));
+    await tester.tap(find.bySemanticsLabel('Камера'));
+    await tester.pumpAndSettle();
+    expect(state.screen, 'capture');
+    expect(find.bySemanticsLabel('Снять фото'), findsOneWidget);
+    expect(find.text('Незавершённый товар восстановлен'), findsNothing);
+  });
 
   testWidgets('Shop search actually filters products', (tester) async {
     await openFrame(tester, '440:713');
