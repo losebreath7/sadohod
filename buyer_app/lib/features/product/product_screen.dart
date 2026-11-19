@@ -293,7 +293,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: _addressLines(address, seller?.zone ?? '').map((line) =>
-                          Text(line, style: BuyerProductType.secondary)).toList(),
+                          Text(line, style: BuyerProductType.detailNavigation)).toList(),
                       )),
                       const CircleAvatar(backgroundColor: Colors.black, radius: 17,
                         child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 23)),

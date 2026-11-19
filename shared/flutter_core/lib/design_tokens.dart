@@ -85,6 +85,17 @@ abstract final class BuyerProductType {
     height: 1.25,
     color: BuyerColors.muted,
   );
+
+  // Product-detail navigation address: use the actual bundled Medium 500 face.
+  // Keep size, line height and color unchanged from the approved card geometry.
+  static const detailNavigation = TextStyle(
+    fontFamily: SadohodFont.family,
+    fontFamilyFallback: SadohodFont.fallback,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.25,
+    color: BuyerColors.muted,
+  );
 }
 
 abstract final class SellerProductType {

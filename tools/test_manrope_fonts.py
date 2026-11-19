@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Regression gate for the exact user-approved Manrope font binaries."""
 from __future__ import annotations
+import argparse
 import hashlib
+import json
 import pathlib
 import re
 import sys
@@ -50,8 +52,40 @@ for app in ("buyer_app", "seller_app"):
     if not (ROOT / app / "pubspec.yaml").is_file():
         errors.append(f"Missing {app} Flutter manifest")
 
+# Optional post-build check: validate actual font files packaged for the browser.
+# This guards against a valid source asset being silently replaced during Flutter build.
+parser = argparse.ArgumentParser()
+parser.add_argument("--web-build", type=pathlib.Path)
+args = parser.parse_args()
+if args.web_build is not None:
+    web_root = args.web_build.resolve()
+    assets_root = web_root / "assets"
+    for weight, digest in EXPECTED.items():
+        filename = "Manrope-" + weight + ".ttf"
+        matches = list(assets_root.rglob(filename)) if assets_root.is_dir() else []
+        if not matches:
+            errors.append(f"Flutter Web build missing {filename}: {web_root}")
+        for path in matches:
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            if actual != digest:
+                errors.append(f"Flutter Web packaged a SUBSTITUTE font at {path}: {actual}")
+    manifests = list(assets_root.rglob("FontManifest.json")) if assets_root.is_dir() else []
+    if manifests:
+        manifest_fonts = json.loads(manifests[0].read_text(encoding="utf-8"))
+        manrope = [family for family in manifest_fonts
+                   if family.get("family") == "packages/sadohod_shared_core/Manrope"]
+        if not manrope:
+            errors.append("Flutter Web FontManifest does not register the shared Manrope")
+        elif not any(
+            font.get("weight") == 500
+            and font.get("asset", "").endswith("Manrope-Medium.ttf")
+            for font in manrope[0].get("fonts", [])
+        ):
+            errors.append("Flutter Web FontManifest has no Manrope Medium 500 mapping")
+
 if errors:
     for problem in errors:
         print("FAIL:", problem, file=sys.stderr)
     raise SystemExit(1)
-print("PASS: 7 byte-exact approved Manrope assets; all weight mappings and app font rules validated.")
+print("PASS: 7 original Manrope TTF hashes and weights validated"
+      + ("; browser build includes the same exact TTF binaries" if args.web_build else "") + ".")
