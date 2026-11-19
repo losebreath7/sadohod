@@ -76,7 +76,7 @@ def test_clip_missing_or_nonfinite_prompt_vectors_fail_closed(monkeypatch):
     monkeypatch.setattr(screening, "SEARCH_BACKEND", "clip")
     item = SimpleNamespace(title="Купальник", description="",
                            images=[SimpleNamespace(id="i")])
-    db = SimpleNamespace(get=lambda *_: SimpleNamespace(embedding=[0.0] * screening.DIM))
+    db = SimpleNamespace(get=lambda *_: SimpleNamespace(embedding=[1.0] + [0.0] * (screening.DIM - 1)))
     monkeypatch.setattr(screening, "_prompts", lambda: (
         [("оружие", [float("nan")] + [0.0] * (screening.DIM - 1))],
         [[0.0] * screening.DIM]))
