@@ -1,0 +1,7 @@
+# Local Android signing: copy to key.properties and fill; never commit credentials.
+# Store the keystore securely outside the repository and back it up.
+# On Windows use / rather than backslashes, e.g. C:/secure/sadohod-buyer-upload.jks
+storeFile=/absolute/path/to/buyer-upload.jks
+storePassword=CHANGE_ME
+keyAlias=sadohod-buyer
+keyPassword=CHANGE_ME
