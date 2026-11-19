@@ -179,7 +179,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('seller-review-my-approved-review')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('seller-review-detail-dialog')), findsOneWidget);
-    expect(find.text('Мой опубликованный отзыв'), findsOneWidget);
+    expect(find.descendant(
+      of: find.byKey(const ValueKey('seller-review-detail-dialog')),
+      matching: find.text('Мой опубликованный отзыв'),
+    ), findsOneWidget);
     expect(find.text('пожаловаться'), findsNothing);
     expect(find.text('закрыть'), findsOneWidget);
     await tester.tap(find.text('закрыть'));
@@ -187,7 +190,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('seller-review-different-buyer-review')));
     await tester.pumpAndSettle();
-    expect(find.text('Отзыв другого пользователя'), findsOneWidget);
+    expect(find.descendant(
+      of: find.byKey(const ValueKey('seller-review-detail-dialog')),
+      matching: find.text('Отзыв другого пользователя'),
+    ), findsOneWidget);
     expect(find.text('пожаловаться'), findsOneWidget);
     await tester.tap(find.text('закрыть'));
     await tester.pumpAndSettle();
