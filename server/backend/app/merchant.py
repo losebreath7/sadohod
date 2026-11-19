@@ -566,7 +566,7 @@ def submit_product(pid: str, buyer: Buyer = Depends(current_buyer), db: Session 
     else:
         for r in rows:
             if r.status in ('draft', 'rejected'):
-                publish_listing(db, r)
+                publish_listing(db, r, screened=True)
         owner.status = 'approved'
         owner.note = ''
         p.details.active = any(r.offer_id is not None for r in rows)
@@ -650,9 +650,14 @@ def decide_pavilion(rid: str, body: DecisionInput, db: Session = Depends(get_db)
     return {'id': request.id, 'status': request.status}
 
 
-def publish_listing(db, row):
+def publish_listing(db, row, *, screened=False, moderator_approved=False):
     from .product_safety import require_publishable
     require_publishable(db, row.product_id)
+    # The final Offer creation point is shared by save, submit, resume,
+    # move, copy and staff decisions. Never trust a listing status alone.
+    owner = db.get(MerchantProduct, row.product_id)
+    if owner is None or not (owner.status == 'approved' or screened or moderator_approved):
+        raise HTTPException(409, 'Товар должен пройти проверку перед публикацией.')
     claim = db.scalar(select(PavilionClaim).where(PavilionClaim.pavilion_id == row.pavilion_id, PavilionClaim.seller_id == row.seller_id))
     if not claim:
         raise HTTPException(409, 'Павильон больше не закреплён за продавцом.')
@@ -701,7 +706,7 @@ def decide_product(pid: str, body: ProductDecisionInput, db: Session = Depends(g
         if not rows:
             raise HTTPException(409, 'Нельзя публиковать товар без доступных предложений.')
         for row in rows:
-            if row.status == 'pending': publish_listing(db, row)
+            if row.status == 'pending': publish_listing(db, row, moderator_approved=True)
         p.details.active = any(row.offer_id is not None for row in rows)
     else:
         p.details.active = False
