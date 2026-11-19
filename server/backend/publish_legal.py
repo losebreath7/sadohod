@@ -77,7 +77,7 @@ def publish(payload: dict, destination: Path):
         tmp.unlink(missing_ok=True)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--slug", choices=sorted(SLUGS), required=True)
@@ -97,3 +97,6 @@ if __name__ == "__main__":
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         parser.exit(1, f"Legal publication refused: {exc}\n")
     print(f"Published {args.slug} version {args.version}; archive preserved")
+
+if __name__ == "__main__":
+    main()
