@@ -5,15 +5,6 @@ import 'package:sadohod/features/account/market_navigation_guide.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 
 void main() {
-  final router = GoRouter(initialLocation: '/navigation', routes: [
-    GoRoute(path: '/navigation',
-        builder: (_, _) => const MarketNavigationGuideScreen()),
-    GoRoute(path: '/navigation/:zone',
-        builder: (_, state) => MarketNavigationZoneScreen(
-          slug: state.pathParameters['zone'] ?? '',
-        )),
-  ]);
-
   test('the guide has exactly six agreed territorial areas', () {
     expect(marketGuideZones.map((z) => z.slug), [
       'a', 'b', 'rows', 'hangar', 'fur', 'birds',
@@ -32,12 +23,21 @@ void main() {
   });
 
   testWidgets('navigation index opens the zone guide', (tester) async {
+    final router = GoRouter(initialLocation: '/navigation', routes: [
+      GoRoute(path: '/navigation',
+          builder: (_, _) => const MarketNavigationGuideScreen()),
+      GoRoute(path: '/navigation/:zone',
+          builder: (_, state) => MarketNavigationZoneScreen(
+            slug: state.pathParameters['zone'] ?? '',
+          )),
+    ]);
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
+    addTearDown(router.dispose);
     expect(find.text('Как устроены адреса павильонов на «Садоводе»'),
         findsOneWidget);
     expect(find.text('ангар'), findsOneWidget);
