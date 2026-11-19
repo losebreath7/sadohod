@@ -4,12 +4,15 @@ Synthetic vectors verify routing, not real-world recognition accuracy.
 from types import SimpleNamespace
 
 from backend.app import product_screening as screening
+
+REAL_ASSESS = screening.assess
 from test_merchant_v080 import env, login, admin_client, photo
 from test_instant_publication import setup_seller
 
 
 def test_classic_safe_text_cannot_publish_unscreened_photo(env, monkeypatch):
     monkeypatch.setattr(screening, "SEARCH_BACKEND", "classic")
+    monkeypatch.setattr(screening, "assess", REAL_ASSESS)
     client, auth, pavilion = setup_seller(env)
     created = client.post("/api/v1/merchant/products", headers=auth,
                           json={"title": "Футболка с принтом пистолета"})
@@ -37,6 +40,7 @@ def test_classic_safe_text_cannot_publish_unscreened_photo(env, monkeypatch):
 
 def test_classic_approved_photo_replacement_returns_product_to_queue(env, monkeypatch):
     monkeypatch.setattr(screening, "SEARCH_BACKEND", "classic")
+    monkeypatch.setattr(screening, "assess", REAL_ASSESS)
     client, auth, pavilion = setup_seller(env)
     pid = client.post("/api/v1/merchant/products", headers=auth,
                       json={"title": "Куртка"}).json()["id"]
