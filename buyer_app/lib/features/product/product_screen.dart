@@ -335,7 +335,7 @@ class BuyerProductNavigationAddress extends StatelessWidget {
   Widget build(BuildContext context) {
     // Standard market address: "А-14" -> "А - сектор" / "14 - линия".
     // Never fabricate a sector/line if the supplied address uses another schema.
-    final match = RegExp(r'^\s*([^\s\\-–—]+)\s*[-–—]\s*(\d+)\s*
+    final match = RegExp(r'^\s*([^\s–—-]+)\s*[-–—]\s*(\d+)\s*
 
 /// One centered line for the avatar, seller name and sale-mode badges.
 /// Keep the seller name flexible, but never let it push the badges offscreen.
