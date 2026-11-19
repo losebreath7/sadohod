@@ -3154,7 +3154,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                if (hidden && ls.any((l) => l['status'] == 'paused'))
+                if (hidden && matches.any((l) => l['status'] == 'paused'))
                   Positioned.fill(
                     child: ColoredBox(
                       color: Colors.white.withValues(alpha: .38),
