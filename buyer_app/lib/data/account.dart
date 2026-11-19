@@ -29,6 +29,11 @@ class AccountStore extends ChangeNotifier {
   Uint8List? avatar, cover;
   String? syncError;
   bool get signedIn => token != null;
+  int interestRevision = 0;
+  void interestViewed() {
+    interestRevision++;
+    notifyListeners();
+  }
 
   /// Check before requesting a one-time email code: on iPhone a plain HTTP
   /// LAN address is not a secure browser context. A code must not be consumed
@@ -233,6 +238,7 @@ class AccountStore extends ChangeNotifier {
         );
       }
       syncError = null;
+      if (!seller && signedIn) interestViewed();
     } catch (_) {
       if (token == sessionToken) {
         was ? set.add(id) : set.remove(id);

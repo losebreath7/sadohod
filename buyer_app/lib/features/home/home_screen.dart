@@ -8,6 +8,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/design.dart';
 import '../../data/catalog.dart';
 import '../../data/api.dart';
+import '../../data/account.dart';
 
 /// Buyer feed: the opening artwork and the compact search share one scroll view.
 /// No second catalogue page, no hard transition, no forced scroll reset.
@@ -25,6 +26,37 @@ class _HomeScreenState extends State<HomeScreen> {
   late final TextEditingController _query = TextEditingController(text: widget.initialQuery);
   late Future<List<DemoProduct>> _products = CatalogApi.instance.products();
   late String _category = widget.initialCategory;
+  static const _fallbackTags = <String>[
+    'брюки', 'верхняя одежда', 'головные уборы', 'футболки', 'обувь',
+  ];
+  List<String> _tags = _fallbackTags;
+  String? _lastToken;
+  int _lastInterestRevision = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    AccountStore.instance.addListener(_onAccountChanged);
+    _onAccountChanged();
+  }
+
+  void _onAccountChanged() {
+    final token = AccountStore.instance.token;
+    final revision = AccountStore.instance.interestRevision;
+    if (_lastToken == token && _lastInterestRevision == revision) return;
+    final changedAccount = _lastToken != token;
+    _lastToken = token;
+    _lastInterestRevision = revision;
+    if (changedAccount && mounted) setState(() => _tags = _fallbackTags);
+    if (token == null) {
+      if (mounted) setState(() => _tags = _fallbackTags);
+      return;
+    }
+    CatalogApi.instance.recommendedTags(token).then((items) {
+      if (!mounted || _lastToken != token) return;
+      if (items.isNotEmpty) setState(() => _tags = items);
+    });
+  }
 
   @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
@@ -35,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    AccountStore.instance.removeListener(_onAccountChanged);
     _scroll.dispose();
     _query.dispose();
     super.dispose();
@@ -71,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPhotoTap: () => context.push('/search'),
             onLogoTap: _backToTop,
             onTag: (value) => _submitSearch(value),
+            tags: _tags,
           ),
         ),
         SliverPadding(
@@ -126,11 +160,13 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onPhotoTap,
     required this.onLogoTap,
     required this.onTag,
+    required this.tags,
   });
 
   final BuyerHeaderLayout header;
   final TextEditingController controller;
   final ValueChanged<String> onChanged, onSubmitted, onTag;
+  final List<String> tags;
   final VoidCallback onPhotoTap, onLogoTap;
   static const double _max = 402;
 
@@ -227,9 +263,7 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
                   ),
                   child: ListView(
                   scrollDirection: Axis.horizontal,
-                  children: [for (final tag in [
-                    'брюки', 'верхняя одежда', 'головные уборы', 'футболки', 'обувь'
-                  ]) Padding(
+                  children: [for (final tag in tags) Padding(
                     padding: const EdgeInsets.only(right: 4),
                     child: Material(
                       color: const Color(0xffeaeaea),
@@ -299,6 +333,7 @@ class _SadoHomeHeader extends SliverPersistentHeaderDelegate {
       old.controller != controller || old.onChanged != onChanged ||
       old.onSubmitted != onSubmitted || old.onPhotoTap != onPhotoTap ||
       old.onLogoTap != onLogoTap || old.onTag != onTag ||
+      old.tags != tags ||
       old.header.height != header.height ||
       old.header.contentTop != header.contentTop;
 }
