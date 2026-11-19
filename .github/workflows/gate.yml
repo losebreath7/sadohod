@@ -82,6 +82,8 @@ jobs:
         run: flutter test
       - name: Flutter Web build
         run: flutter build web --dart-define=API_BASE_URL=http://localhost:8000
+      - name: Verify browser ships original Manrope, not a font substitution
+        run: python ../tools/test_manrope_fonts.py --web-build build/web
       - name: Buyer demo in real iPhone SafeArea shell
         if: matrix.app == 'buyer_app'
         run: flutter build web --dart-define=USE_LOCAL_DEMO=true --dart-define=API_BASE_URL=http://localhost:8000
