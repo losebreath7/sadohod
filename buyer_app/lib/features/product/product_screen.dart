@@ -365,6 +365,19 @@ class BuyerProductNavigationAddress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trimmed = address.trim();
+    final location = zone.trim().toLowerCase();
+    if (marketTerritories.contains(location)) {
+      final parsed = parseMarketAddress(trimmed, territoryHint: location);
+      return Column(
+        key: const ValueKey('buyer-address-territorial'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(zone, style: BuyerProductType.detailNavigation),
+          Text(trimmed, style: BuyerProductType.detailNavigation),
+        ],
+      );
+    }
     // Supports standard sector-line addresses, e.g. А-14 or Б-125.
     // Unknown schemas are shown as supplied rather than being fabricated.
     final match = RegExp(r'^\s*([^\s–—-]+)\s*[-–—]\s*(\d+)\s*').firstMatch(trimmed);
