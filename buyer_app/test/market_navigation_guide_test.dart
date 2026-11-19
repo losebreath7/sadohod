@@ -40,7 +40,7 @@ void main() {
     addTearDown(router.dispose);
     expect(find.text('Как устроены адреса павильонов на «Садоводе»'),
         findsOneWidget);
-    expect(find.text('ангар'), findsOneWidget);
+    expect(find.text('корпус А'), findsOneWidget);
     await tester.ensureVisible(find.byKey(
         const ValueKey('market-guide-rows')));
     await tester.tap(find.byKey(const ValueKey('market-guide-rows')));
