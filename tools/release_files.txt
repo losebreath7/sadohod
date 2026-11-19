@@ -1,4 +1,5 @@
 .env.example
+.env.production.example
 .gitignore
 README.md
 RELEASE.json
@@ -157,6 +158,8 @@ buyer_app/web/manifest.json
 docker-compose.first.yml
 docker-compose.https.yml
 docker-compose.ml.yml
+docker-compose.production.yml
+docker-compose.restore-drill.yml
 docker-compose.update.yml
 docker-compose.yml
 docs/AUTO_REPLIES_R6.md
@@ -166,6 +169,7 @@ docs/MIGRATIONS_R4.md
 docs/MODERATION_WORKSPACE.md
 docs/PAVILION_FLOW_R7.md
 docs/PHOTO_SEARCH_R23.md
+docs/PRODUCTION_DEPLOYMENT.md
 docs/R7_CHAT_AND_PG_PATCH.md
 docs/R8_CHAT_LAYOUT_POLISH.md
 docs/R8_UNIFIED_CHATS.md
@@ -303,6 +307,7 @@ docs/reference_figma/montage20.png
 docs/reference_figma/montage30.png
 docs/reference_figma/montage40.png
 https/Caddyfile
+https/Caddyfile.production
 seller_app/NATIVE_BUILD.md
 seller_app/analysis_options.yaml
 seller_app/android/.gitignore
@@ -470,6 +475,7 @@ seller_app/web/manifest.json
 server/.dockerignore
 server/backend/Dockerfile
 server/backend/Dockerfile.ml
+server/backend/Dockerfile.production
 server/backend/Dockerfile.qa
 server/backend/__init__.py
 server/backend/alembic.ini
@@ -548,14 +554,15 @@ server/backend/tests/test_merchant_v080.py
 server/backend/tests/test_migration_graph.py
 server/backend/tests/test_migrations.py
 server/backend/tests/test_ml_index.py
-server/backend/tests/test_photo_search_benchmark.py
 server/backend/tests/test_moderation_workspace.py
 server/backend/tests/test_pavilion_resubmission.py
+server/backend/tests/test_photo_search_benchmark.py
 server/backend/tests/test_postgres_migrations.py
 server/backend/tests/test_postgres_onboarding.py
 server/backend/tests/test_postgres_search_change.py
 server/backend/tests/test_product_categories.py
 server/backend/tests/test_product_lifecycle.py
+server/backend/tests/test_production_runtime.py
 server/backend/tests/test_sale_modes_v071.py
 server/backend/tests/test_save_v18.py
 server/backend/tests/test_search_upload_bounds.py
@@ -566,8 +573,8 @@ server/backend/tests/test_text_photo_search.py
 server/backend/tests/test_v04.py
 server/backend/tools/__init__.py
 server/backend/tools/admin_access.py
-server/backend/tools/evaluate_photos.py
 server/backend/tools/evaluate_photo_search_live.py
+server/backend/tools/evaluate_photos.py
 server/backend/tools/evaluate_search.py
 server/demo_data/CLOTHING_DATASET_LICENSE.txt
 server/demo_data/photo_catalog.json
@@ -681,14 +688,18 @@ shared/flutter_core/lib/design_tokens.dart
 shared/flutter_core/lib/device_preview_shell.dart
 shared/flutter_core/lib/product_photo.dart
 shared/flutter_core/pubspec.yaml
+tools/backup_production.sh
 tools/check.ps1
+tools/check_production_env.py
 tools/compose.qa.yml
 tools/gate.ps1
 tools/package_release.py
 tools/release_files.txt
+tools/restore_drill.sh
 tools/run_client.ps1
 tools/start.ps1
 tools/sync_version.py
+tools/test_production_preflight.py
 tools/test_r8_chat_contract.py
 tools/test_version.py
 ВОРОТА.bat
