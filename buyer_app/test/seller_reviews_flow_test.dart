@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sadohod_shared_core/device_preview_shell.dart';
 import 'package:sadohod/features/seller/review_flowers.dart';
 import 'package:sadohod/features/seller/seller_reviews_panel.dart';
 
@@ -11,12 +13,21 @@ void main() {
     Future<Map<String, dynamic>> Function()? mine,
     Future<void> Function(int, String, List<String>)? save,
     bool signedIn = false,
+    bool frame = false,
+    double width = 390,
+    double height = 844,
   }) async {
-    tester.view.physicalSize = const Size(390, 844);
+    if (frame) SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = Size(width, height);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(
+    await tester.pumpWidget(MaterialApp(
+      builder: frame
+          ? (context, child) =>
+              SadohodDevicePreviewShell(forcePreview: true, child: child!)
+          : null,
+      home: Scaffold(
       body: SingleChildScrollView(
         child: SellerReviewsPanel(
           sellerId: 'seller-1',
@@ -138,6 +149,95 @@ void main() {
     );
     expect(find.text('отзыв отклонен'), findsOneWidget);
     expect(find.text('на модерации'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Approved own review hides report but other review permits it',
+      (tester) async {
+    final own = {
+      'id': 'my-approved-review',
+      'name': 'losebreath',
+      'rating': 5,
+      'text': 'Мой опубликованный отзыв',
+      'moderation_status': 'approved',
+      'photos': [],
+    };
+    final other = {
+      'id': 'different-buyer-review',
+      'name': 'Ирина',
+      'rating': 4,
+      'text': 'Отзыв другого пользователя',
+      'moderation_status': 'approved',
+      'photos': [],
+    };
+    await mountReviews(tester, signedIn: true,
+      public: () async => {
+        'count': 2, 'average': 4.5, 'items': [own, other],
+      },
+      mine: () async => {'item': own, 'hidden': false},
+    );
+    await tester.tap(find.byKey(const ValueKey('seller-review-my-approved-review')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('seller-review-detail-dialog')), findsOneWidget);
+    expect(find.text('Мой опубликованный отзыв'), findsOneWidget);
+    expect(find.text('пожаловаться'), findsNothing);
+    expect(find.text('закрыть'), findsOneWidget);
+    await tester.tap(find.text('закрыть'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('seller-review-different-buyer-review')));
+    await tester.pumpAndSettle();
+    expect(find.text('Отзыв другого пользователя'), findsOneWidget);
+    expect(find.text('пожаловаться'), findsOneWidget);
+    await tester.tap(find.text('закрыть'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Review detail modal uses phone viewport inside desktop browser',
+      (tester) async {
+    await mountReviews(tester,
+      frame: true,
+      width: 1440,
+      height: 1000,
+      public: () async => {
+        'count': 1, 'average': 5.0, 'items': [
+          {'id': 'other', 'name': 'Ирина', 'rating': 5,
+            'text': 'Хороший продавец', 'photos': []},
+        ],
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('seller-review-other')));
+    await tester.pumpAndSettle();
+    final dialog = find.byKey(const ValueKey('seller-review-detail-dialog'));
+    expect(dialog, findsOneWidget);
+    expect(MediaQuery.sizeOf(tester.element(dialog)), const Size(402, 874));
+    expect(tester.getSize(dialog).width, lessThanOrEqualTo(402));
+    expect(tester.getSize(dialog).height, lessThanOrEqualTo(874));
+    expect(find.text('закрыть'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Review detail modal fits a compact phone', (tester) async {
+    await mountReviews(tester,
+      width: 320,
+      height: 640,
+      public: () async => {
+        'count': 1, 'average': 3.0, 'items': [
+          {'id': 'other', 'name': 'Ирина', 'rating': 3,
+            'text': 'Отзыв', 'photos': []},
+        ],
+      },
+    );
+    await tester.tap(find.byKey(const ValueKey('seller-review-other')));
+    await tester.pumpAndSettle();
+    final dialog = find.byKey(const ValueKey('seller-review-detail-dialog'));
+    final bounds = tester.getRect(dialog);
+    expect(bounds.left, greaterThanOrEqualTo(0));
+    expect(bounds.right, lessThanOrEqualTo(320));
+    expect(bounds.top, greaterThanOrEqualTo(0));
+    expect(bounds.bottom, lessThanOrEqualTo(640));
+    expect(find.text('закрыть'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
