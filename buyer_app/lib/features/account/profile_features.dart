@@ -474,9 +474,9 @@ class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
       throw const FormatException('Неверный формат юридического документа');
     }
     final body = (json['body'] as String)
-        .replaceAll(RegExp(r'(?m)^#{1,5}\\s*'), '')
+        .replaceAll(RegExp(r'(?m)^#{1,5}\s*'), '')
         .replaceAll('**', '');
-    return '$body\\n\\nРедакция ${json['version']} · действует с ${json['effective_date']}';
+    return '$body\\Редакция ${json['version']} · действует с ${json['effective_date']}';
   }
 
   @override
@@ -488,7 +488,7 @@ class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
       _BuyerPageTop(title),
       Expanded(child: ListView(padding: const EdgeInsets.all(30), children: [
         if (!legal)
-          Text('Садоход · ${SadohodBuild.label}\\n\\nПоиск товаров и павильонов рынка Садовод.',
+          Text('Садоход · ${SadohodBuild.label}\\Поиск товаров и павильонов рынка Садовод.',
             style: const TextStyle(fontSize: 14, height: 1.5))
         else FutureBuilder<String>(
           future: document,
