@@ -19,13 +19,13 @@ from .product_semantics import sync_search_facets
 log = logging.getLogger(__name__)
 PROMPTS = {
     'Верхняя одежда': ('a photo of a winter jacket', 'a photo of a coat', 'a photo of a puffer jacket'),
-    'Сумки': ('a photo of a handbag', 'a photo of a backpack', 'a photo of a purse'),
+    'Сумки': ('a photo of a handbag', 'a photo of a backpack', 'a photo of a purse', 'a product photo of a winter hat'),
     'Обувь': ('a photo of sneakers', 'a photo of boots', 'a photo of shoes'),
     'Платья': ('a photo of a dress', 'a photo of a sundress'),
     'Одежда': ('a photo of a t-shirt', 'a photo of a hoodie', 'a photo of jeans', 'a photo of a skirt', 'a photo of a sweater', 'a photo of a shirt'),
     'Игрушки': ('a product photo of a doll toy', 'a product photo of a plush toy', 'a product photo of building blocks'),
     'Красота и уход': ('a product photo of facial cream', 'a product photo of lipstick', 'a product photo of shampoo'),
-    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel'),
+    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel', 'a product photo of a carpet or rug'),
     'Электроника': ('a product photo of headphones', 'a product photo of a phone charger', 'a product photo of a lamp'),
     'Украшения': ('a product photo of earrings', 'a product photo of a necklace', 'a product photo of a ring'),
     'Детские товары': ('a product photo of a stroller', 'a product photo of baby diapers'),
@@ -337,28 +337,29 @@ def assign_category(db, product, supplied=None):
                 for vector in available:
                     broad, score, confident = photo_vote(vector)
                     leaf = None
-                    if confident:
-                        if broad == 'Игрушки':
+                    try:
+                        if confident and broad == 'Игрушки':
                             leaf = toy_leaf_vote(vector)
                         else:
-                            try:
-                                leaf = visual_leaf_vote(vector)
-                            except (ImportError, RuntimeError):
-                                # Fine-grained ML support is optional; a
-                                # confident broad category is still useful.
-                                log.debug('Fine-grained OpenCLIP unavailable',
-                                          exc_info=True)
-                        if leaf is not None:
-                            inferred_broad = legacy_for_leaf(leaf)
-                            # Do not trust a fine label conflicting with the
-                            # strong broad classification.
-                            compatible = (inferred_broad == broad or
-                                (broad == 'Одежда' and inferred_broad in
-                                 ('Платья', 'Верхняя одежда', 'Одежда')) or
-                                (inferred_broad == 'Одежда' and broad in
-                                 ('Платья', 'Верхняя одежда')))
-                            if not compatible:
-                                leaf = None
+                            # Fine-grained vote has its own conservative
+                            # absolute and runner-up thresholds. It can rescue
+                            # a clear ring/skirt when the broad model abstains.
+                            leaf = visual_leaf_vote(vector)
+                    except (ImportError, RuntimeError):
+                        # Optional fine classifier must not break an otherwise
+                        # valid broad classification or a title assignment.
+                        log.debug('Fine-grained OpenCLIP unavailable',
+                                  exc_info=True)
+                    if leaf is not None and confident:
+                        inferred_broad = legacy_for_leaf(leaf)
+                        compatible = (inferred_broad == broad or
+                            (broad == 'Одежда' and inferred_broad in
+                             ('Платья', 'Верхняя одежда', 'Одежда')) or
+                            (inferred_broad == 'Одежда' and broad in
+                             ('Платья', 'Верхняя одежда')))
+                        if not compatible:
+                            leaf = None
+                    if leaf is not None or confident:
                         votes.append((leaf or LEGACY.get(broad), score))
                 values = [name for name, _ in votes if name]
                 ranked = Counter(values).most_common()
