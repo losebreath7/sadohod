@@ -24,6 +24,28 @@ class ActionsApi extends SellerApi {
 }
 
 void main() {
+  test('save feedback reflects moderation decision, never HTTP success alone', () {
+    expect(productSaveFeedback({
+      'status': 'pending',
+      'note': 'Автопроверка: фотография похожа на запрещённые вещества',
+      'listings': [{'status': 'pending', 'published': false}],
+    }), 'Товар отправлен на проверку модерации. Пока не опубликован.');
+    expect(productSaveFeedback({
+      'status': 'approved',
+      'listings': [{'status': 'approved', 'published': true}],
+    }), 'Товар опубликован');
+    expect(productSaveFeedback({
+      'status': 'rejected', 'listings': [],
+    }), 'Товар отклонён модерацией.');
+    expect(productSaveFeedback({
+      'status': 'approved', 'listings': [],
+    }), 'Товар сохранён');
+    expect(productSaveFeedback({
+      'status': 'approved',
+      'listings': [{'status': 'pending', 'published': false}],
+    }), 'Товар отправлен на проверку модерации. Пока не опубликован.');
+  });
+
   test('retry after lost photo response reuses draft and upload key', () async {
     final api = ActionsApi(); final actions = ProductActions(api);
     final session = ProductSaveSession();
