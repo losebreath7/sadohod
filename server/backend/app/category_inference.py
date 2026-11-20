@@ -288,7 +288,7 @@ def mark_manual(db, product):
     state.assigned = product.category
     state.suggestion = ''
     state.score = 0.0
-    sync_taxonomy(db, product, state)
+    sync_taxonomy(db, product, state, preserve_photo_tags=True)
     return state
 
 
@@ -300,7 +300,7 @@ def assign_category(db, product, supplied=None):
     ):
         return mark_manual(db, product)
     if state is not None and state.source == 'manual' and not is_unassigned(product.category):
-        sync_taxonomy(db, product, state)
+        sync_taxonomy(db, product, state, preserve_photo_tags=True)
         return state
     if state is None:
         state = ProductCategoryState(product_id=product.id)
