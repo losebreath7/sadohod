@@ -80,3 +80,74 @@ def test_pavilion_and_product_moderation_keep_reasons_and_isolate_owner(env):
     inbox = client.get('/api/v1/merchant/notifications', headers=seller).json()
     assert not any(x['event_type'] in ('product', 'listing') for x in inbox['items'])
     assert client.get('/api/v1/merchant/notifications', headers=other).json()['items']==[]
+
+
+def _moderated_product(client, auth, pavilion, title, request_id):
+    from test_merchant_v080 import photo
+    pid = client.post('/api/v1/merchant/products', headers=auth,
+                      json={'title': title}).json()['id']
+    uploaded = client.post(f'/api/v1/merchant/products/{pid}/images',
+                           headers=auth, files={'files': ('sample.jpg', photo(), 'image/jpeg')})
+    assert uploaded.status_code == 201, uploaded.text
+    saved = client.put(f'/api/v1/merchant/products/{pid}/save',
+        headers=auth, json={'request_id': request_id, 'title': title, 'submit': True,
+        'listings': [{'pavilion_id': pavilion, 'price': 700, 'sale_modes':['retail']}]})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()['status'] == 'pending'
+    assert client.get(f'/api/v1/products/{pid}').status_code == 404
+    return pid
+
+
+def test_product_rejection_emits_one_private_notice_with_reason(env, monkeypatch):
+    from test_instant_publication import setup_seller
+    from backend.app import product_screening
+    from test_moderation_release_guard import REAL_ASSESS
+    monkeypatch.setattr(product_screening, 'assess', REAL_ASSESS)
+    client, auth, pavilion = setup_seller(env)
+    other = login(client, env[1], 'other-product-notify@example.com')
+    pid = _moderated_product(client, auth, pavilion, 'Настоящий пистолет',
+                             'notice-reject-01')
+    before = [x for x in client.get('/api/v1/merchant/notifications', headers=auth)
+              .json()['items'] if x['event_type'] == 'product']
+    assert len(before) == 1
+    assert before[0]['status'] == 'pending'
+    assert before[0]['target_id'] == pid
+    assert client.get('/api/v1/merchant/notifications', headers=other).json()['items'] == []
+
+    denied = client.post(f'/api/v1/admin/merchant/products/{pid}/decision',
+                         json={'decision': 'rejected', 'note': 'Запрещённый товар'})
+    assert denied.status_code == 200, denied.text
+    inbox = [x for x in client.get('/api/v1/merchant/notifications', headers=auth)
+             .json()['items'] if x['event_type'] == 'product']
+    assert len(inbox) == 2, inbox
+    assert {x['status'] for x in inbox} == {'pending', 'rejected'}
+    rejected = next(x for x in inbox if x['status'] == 'rejected')
+    assert rejected['note'] == 'Запрещённый товар'
+    assert rejected['target_id'] == pid
+    assert client.put('/api/v1/merchant/notifications/' + rejected['id'] + '/read',
+                      headers=auth).status_code == 200
+    assert client.post(f'/api/v1/admin/merchant/products/{pid}/decision',
+        json={'decision': 'rejected', 'note':'Повторно'}).status_code == 409
+    after = [x for x in client.get('/api/v1/merchant/notifications', headers=auth)
+             .json()['items'] if x['event_type'] == 'product']
+    assert len(after) == 2
+    assert next(x for x in after if x['id'] == rejected['id'])['read'] is True
+
+
+def test_product_moderator_approval_emits_notice_but_no_listing_duplicates(env, monkeypatch):
+    from test_instant_publication import setup_seller
+    from backend.app import product_screening
+    from test_moderation_release_guard import REAL_ASSESS
+    monkeypatch.setattr(product_screening, 'assess', REAL_ASSESS)
+    client, auth, pavilion = setup_seller(env)
+    pid = _moderated_product(client, auth, pavilion, 'Настоящий револьвер',
+                             'notice-approve-01')
+    decided = client.post(f'/api/v1/admin/merchant/products/{pid}/decision',
+                          json={'decision': 'approved', 'category': 'Одежда'})
+    assert decided.status_code == 200, decided.text
+    assert client.get('/api/v1/products/' + pid).status_code == 200
+    inbox = client.get('/api/v1/merchant/notifications', headers=auth).json()['items']
+    product_events = [x for x in inbox if x['event_type'] == 'product' and x['target_id'] == pid]
+    assert len(product_events) == 2, product_events
+    assert {x['status'] for x in product_events} == {'pending', 'approved'}
+    assert not any(x['event_type'] == 'listing' for x in inbox)
