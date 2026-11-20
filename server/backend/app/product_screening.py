@@ -89,6 +89,10 @@ VISUAL_GROUPS = (
     ('запрещённые вещества', (
         'a product photograph of illicit drugs packed for sale',
         'a product photograph of cannabis buds in bags for sale',
+        'a small transparent ziplock bag containing white crystalline powder',
+        'a small clear plastic sachet containing fine white powder photographed for sale',
+        'a small sealed bag containing white powdered narcotics on a plain table',
+        'a close-up photo of suspicious white powder packaged in tiny plastic bags',
     )),
     ('нагота и сексуальный контент', (
         'a photograph of explicit adult nudity',
@@ -159,6 +163,30 @@ def _text_reason(title, description):
     return None
 
 
+def _visual_review_reason(risk_scores, benign):
+    """Triage, not substance identification: route ambiguous bags to staff.
+
+    OpenCLIP similarity is not a probability. Findings never automatically
+    reject the seller or declare a photographed powder to be cocaine.
+    """
+    if not risk_scores or not math.isfinite(benign):
+        return 'Автопроверка: некорректные показатели ML-анализа'
+    if any(not math.isfinite(score) for _, score in risk_scores):
+        return 'Автопроверка: некорректные показатели ML-анализа'
+    category, risk = max(risk_scores, key=lambda item: item[1])
+    # Wider manual-review band for powdered substances in small bags.
+    # Thresholds require calibration with labelled real photographs.
+    drugs = max((value for label, value in risk_scores
+                 if label == 'запрещённые вещества'), default=-1.0)
+    if drugs >= 0.225 and drugs - benign >= -0.045 and drugs >= risk - 0.02:
+        return 'Автопроверка: неоднозначная упаковка или порошок — требуется проверка модератора'
+    if risk >= 0.25 and risk - benign >= 0.025:
+        return f'Автопроверка: фотография похожа на «{category}»'
+    if risk >= 0.235 and risk - benign >= -0.01:
+        return f'Автопроверка: неоднозначное изображение («{category}»)'
+    return None
+
+
 def assess(db, product):
     """Return review reason or None. Every photo is examined in clip mode."""
     reason = _text_reason(product.title or '', product.description or '')
@@ -198,12 +226,9 @@ def assess(db, product):
             benign = max(_dot(vector, prompt) for prompt in benign_prompts)
             if not math.isfinite(risk) or not math.isfinite(benign):
                 return 'Автопроверка: некорректные показатели ML-анализа'
-            # Heuristic similarity thresholds; NOT probabilities, calibrate
-            # by category before shipping to a live marketplace.
-            if risk >= 0.25 and risk - benign >= 0.025:
-                return f'Автопроверка: фотография похожа на «{category}»'
-            if risk >= 0.235 and risk - benign >= -0.01:
-                return f'Автопроверка: неоднозначное изображение («{category}»)'
+            decision = _visual_review_reason(risk_scores, benign)
+            if decision:
+                return decision
     except Exception:
         return 'Автопроверка: ML-анализ временно недоступен'
     return None
