@@ -6,7 +6,7 @@ as the product's subject from its title.
 """
 import re
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from .catalog_taxonomy import BY_ID, path_ids, ACCESSORY_CONTEXT
 from .merchant_models import ProductSearchTag
@@ -121,7 +121,7 @@ def sync_search_facets(db, product, leaf: str | None,
                 wanted[normalize(item)] = 'photo'
     existing = {row.tag: row for row in db.scalars(
         select(ProductSearchTag).where(ProductSearchTag.product_id == product.id))}
-    if preserve_photos and product.images:
+    if preserve_photos and product.images and leaf == 'toys-plush':
         for word, row in existing.items():
             if row.source == 'photo' and word not in wanted:
                 wanted[word] = 'photo'
