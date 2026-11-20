@@ -830,3 +830,67 @@ def classification_audit(product_id: str | None = None,
         'missing_search_tags': missing_tags,
         'examples': examples,
     }
+
+
+@admin_router.get('/catalog/search-audit')
+def semantic_search_audit(q: str, product_ids: str,
+                          db: Session = Depends(get_db)):
+    """Inspect real OpenCLIP scores for up to 20 explicit product IDs.
+
+    Read-only and admin-authenticated. Does not modify indexing, categories,
+    seller content or the public search thresholds. Use this to diagnose
+    missed products rather than blindly lowering similarity thresholds.
+    """
+    import math
+    from .config import SEARCH_BACKEND
+    from .ml_clip import MODEL_ID, embed_text
+    from .models import ImageMLEmbedding
+    from .text_search import visual_prompts
+    from .merchant_models import ProductCategoryAssignment
+
+    if not (1 <= len(q.strip()) <= 80):
+        raise HTTPException(422, 'Укажите поисковую фразу до 80 символов.')
+    ids = list(dict.fromkeys(v.strip() for v in product_ids.split(',')
+                             if v.strip()))
+    if not ids or len(ids) > 20 or any(len(pid) > 32 for pid in ids):
+        raise HTTPException(422, 'Укажите от 1 до 20 ID товаров.')
+    prompts = visual_prompts(q)[:3]
+    result = {'query': q, 'search_backend': SEARCH_BACKEND,
+              'model': MODEL_ID, 'prompts': prompts, 'products': []}
+    if SEARCH_BACKEND != 'clip' or not prompts:
+        return result
+    try:
+        vectors = [embed_text(prompt) for prompt in prompts]
+    except Exception:
+        log = __import__('logging').getLogger(__name__)
+        log.exception('Admin semantic audit model unavailable')
+        raise HTTPException(503, 'Модель OpenCLIP недоступна.')
+    for pid in ids:
+        product = db.get(Product, pid)
+        if product is None:
+            continue
+        scores = []
+        indexed = 0
+        for image in product.images:
+            row = db.get(ImageMLEmbedding, (image.id, MODEL_ID))
+            if row is None:
+                continue
+            indexed += 1
+            stored = row.embedding
+            norm = math.sqrt(sum(v * v for v in stored))
+            if norm < 1e-12:
+                continue
+            for query_vec in vectors:
+                query_norm = math.sqrt(sum(v * v for v in query_vec))
+                if query_norm > 1e-12 and len(stored) == len(query_vec):
+                    scores.append(sum(a * b for a, b in zip(
+                        stored, query_vec)) / (norm * query_norm))
+        category = db.get(ProductCategoryAssignment, pid)
+        best = max(scores) if scores else None
+        result['products'].append({
+            'product_id': pid, 'category_id': category.category_id if category else None,
+            'image_count': len(product.images), 'indexed_count': indexed,
+            'best_score': round(best, 5) if best is not None else None,
+            'above_search_threshold': best is not None and best >= 0.26,
+        })
+    return result

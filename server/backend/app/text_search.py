@@ -7,7 +7,7 @@ import re
 from sqlalchemy import or_, select
 from .catalog_taxonomy import NODES_V1, BY_ID, descendant_ids, resolve_leaf
 from .merchant_models import ProductCategoryAssignment, ProductSearchTag
-from .product_semantics import query_terms
+from .product_semantics import query_terms, LEAF_FACETS, normalize
 from .models import Product
 
 # A minimal and explicit vocabulary for category navigation, not a fake
@@ -21,6 +21,54 @@ _ALIASES = {
     'сумка': 'bags-handbags', 'сумки': 'bags-handbags',
     'косметика': 'beauty',
 }
+
+
+def precise_query_leaves(query: str) -> set[str]:
+    """Identify supported primary product types, never arbitrary attributes.
+
+    Short queries are expanded through taxonomy *labels*, not substring
+    matching against sellers' titles. For example, 'чехол' finds phone cases;
+    'ручка' identifies stationery, not a bag's handles.
+    """
+    terms = query_terms(query)
+    labels = {}
+    for leaf, facets in LEAF_FACETS.items():
+        if leaf not in BY_ID:
+            continue
+        labels[leaf] = {normalize(BY_ID[leaf][2]), *(normalize(v) for v in facets)}
+    exact = {leaf for leaf, words in labels.items() if terms & words}
+    if exact:
+        # Narrow, explicit user terms win over broad partial expansions.
+        # If a word is used in unrelated classes, stay conservative.
+        return exact
+    normalized = normalize(query)
+    if len(normalized.split()) != 1 or len(normalized) < 4:
+        return set()
+    # Expand only the first complete noun of multiword product labels.
+    # This maps 'чехол' -> 'чехол для телефона', but not 'ручка' to
+    # 'сумка с короткими ручками', because seller titles aren't involved.
+    expanded = {leaf for leaf, words in labels.items()
+                if any(label.startswith(normalized + ' ') for label in words)}
+    return expanded
+
+
+def primary_type_conflicts(product, query_leaves: set[str]) -> bool:
+    """Reject a *known different* object, never an unclassified listing.
+
+    An existing assigned category or an explicit product title is stronger
+    evidence than a substring match on an accessory/attribute. We do not
+    reject unclassified objects here: image similarity can still find them.
+    """
+    if not query_leaves:
+        return False
+    assigned = product.category_assignment
+    primary = assigned.category_id if assigned and assigned.category_id in BY_ID else resolve_leaf(product.title)
+    if primary not in BY_ID:
+        return False
+    # A parent/descendant is compatible, not just an identical leaf.
+    def related(a, b):
+        return a in descendant_ids(b) or b in descendant_ids(a)
+    return not any(related(primary, intended) for intended in query_leaves)
 
 
 def matched_category_ids(query: str) -> list[str]:
@@ -41,6 +89,9 @@ def text_filter(query: str):
     # ProductSearchTag is separate from the authoritative taxonomy path.
     clauses = [Product.title.ilike(f'%{q}%'), Product.category.ilike(f'%{q}%')]
     terms = query_terms(q)
+    # Exact known category labels also match their shorter generic noun.
+    for leaf in precise_query_leaves(q):
+        terms.update(normalize(facet) for facet in LEAF_FACETS.get(leaf, ()))
     if terms:
         clauses.append(Product.id.in_(
             select(ProductSearchTag.product_id).where(
@@ -103,6 +154,12 @@ def visual_prompts(query: str) -> tuple[str, ...]:
     from .category_inference import VISUAL_LEAF_PROMPTS, ANIMAL_TOY_PROMPTS
     from .product_semantics import LEAF_FACETS, normalize
     candidates = query_terms(q)
+    # Shared taxonomy expansion lets a general object noun retrieve photos
+    # even when the indexed product has a more specific multi-word label.
+    expanded_leaves = precise_query_leaves(q)
+    if len(expanded_leaves) == 1 and not explicit:
+        only = next(iter(expanded_leaves))
+        return tuple(VISUAL_LEAF_PROMPTS[only]) if only in VISUAL_LEAF_PROMPTS else ()
     for species, prompts in ANIMAL_TOY_PROMPTS.items():
         if species != '_other' and normalize(species) in candidates:
             return tuple(dict.fromkeys(((explicit,) if explicit else ()) + tuple(prompts)))

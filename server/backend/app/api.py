@@ -15,7 +15,8 @@ from .crop import crop_image
 from .ml_clip import MODEL_ID as CLIP_MODEL_ID
 from .merchant_models import ProductCategoryAssignment
 from .catalog_taxonomy import NODES_V1, BY_ID, category_path, descendant_ids
-from .text_search import text_filter, visual_product_ids
+from .text_search import (text_filter, visual_product_ids, precise_query_leaves,
+                          primary_type_conflicts)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -134,9 +135,14 @@ def search_text(q: str = Query(min_length=1, max_length=80),
     query = q.strip()
     if not query:
         return {'items': [], 'ml_enabled': SEARCH_BACKEND == 'clip'}
+    query_leaves = precise_query_leaves(query)
+    # Only one unambiguous primary type can exclude unrelated products.
+    # Multi-type or broad queries remain inclusive.
+    precise_type = query_leaves if len(query_leaves) == 1 else set()
     matched = session.scalars(product_query().where(
-        text_filter(query)).order_by(Product.id).limit(limit)).unique().all()
-    ordered = list(matched)
+        text_filter(query)).order_by(Product.id).limit(limit * 3)).unique().all()
+    ordered = [p for p in matched
+               if not primary_type_conflicts(p, precise_type)][:limit]
     seen = {p.id for p in ordered}
     if SEARCH_BACKEND == 'clip' and len(ordered) < limit:
         # A neural model failure must not erase exact matches.
@@ -149,7 +155,8 @@ def search_text(q: str = Query(min_length=1, max_length=80),
                     Product.id.not_in(seen))).unique().all()
                 by_id = {p.id: p for p in extra}
                 for pid in semantic_ids:
-                    if pid in by_id and pid not in seen:
+                    if (pid in by_id and pid not in seen
+                            and not primary_type_conflicts(by_id[pid], precise_type)):
                         ordered.append(by_id[pid])
                         seen.add(pid)
                         if len(ordered) == limit:

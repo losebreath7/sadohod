@@ -222,3 +222,49 @@ def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
     assert response.status_code == 200, response.text
     ids = [item['id'] for item in response.json()['items']]
     assert ids == [pid], (word, ids)
+
+
+def test_search_does_not_call_bag_handles_a_stationery_pen(env):
+    client, _factory, pid = _published_unnamed(
+        env, title='Сумка с короткими ручками')
+    assert pid in {p['id'] for p in client.get(
+        '/api/v1/search/text', params={'q': 'сумка'}).json()['items']}
+    assert pid not in {p['id'] for p in client.get(
+        '/api/v1/search/text', params={'q': 'ручка'}).json()['items']}
+
+
+def test_short_general_case_query_matches_specific_indexed_case(env, monkeypatch):
+    client, factory, pid = _published_unnamed(env)
+    _reclassify(factory, monkeypatch, 'Электроника', 'electronics-phone')
+    detail = client.get(f'/api/v1/products/{pid}').json()
+    assert 'чехол для телефона' in detail['search_tags']
+    for term in ('чехол', 'чехол для телефона'):
+        result = client.get('/api/v1/search/text', params={'q': term})
+        assert result.status_code == 200, result.text
+        assert pid in {p['id'] for p in result.json()['items']}
+
+
+def test_admin_semantic_audit_reports_missing_ml_vectors_without_mutation(env, monkeypatch):
+    from backend.app import merchant
+    c, factory, pid = _published_unnamed(env)
+    # The common fixture adds a synthetic embedding; remove it to test the
+    # genuinely unindexed state without deleting the published photo.
+    from sqlalchemy import delete
+    with factory() as db:
+        db.execute(delete(ImageMLEmbedding).where(
+            ImageMLEmbedding.image_id.in_(
+                select(ProductImage.id).where(ProductImage.product_id == pid))))
+        db.commit()
+    monkeypatch.setattr(__import__('backend.app.config', fromlist=['SEARCH_BACKEND']),
+                        'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(__import__('backend.app.ml_clip', fromlist=['embed_text']),
+                        'embed_text', lambda prompt: [0.0]*511+[1.0])
+    # This test fixture has no real ML embeddings before reclassification.
+    result = c.get('/api/v1/admin/merchant/catalog/search-audit',
+                   params={'q': 'кольцо', 'product_ids': pid})
+    assert result.status_code == 200, result.text
+    audit = result.json()['products'][0]
+    assert audit['product_id'] == pid
+    assert audit['indexed_count'] == 0
+    assert audit['best_score'] is None
+    assert c.get(f'/api/v1/products/{pid}').json()['category_id'] is None
