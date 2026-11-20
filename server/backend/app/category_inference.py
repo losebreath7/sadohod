@@ -270,6 +270,24 @@ def legacy_for_leaf(leaf):
     return ROOT_TO_LEGACY.get(path_ids(leaf)[0]) if leaf in BY_ID else None
 
 
+
+def consensus_winner(votes):
+    """Decide among actual confident image votes, not all uploaded photos.
+
+    Empty/uncertain images abstain. A tie between distinct recognised objects
+    also abstains; one clear image may win when the others could not be read.
+    """
+    valid = [leaf for leaf, _score in votes if leaf]
+    if not valid:
+        return None
+    ranked = Counter(valid).most_common()
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return None
+    winner, count = ranked[0]
+    return winner if count >= math.ceil(len(valid) / 2) else None
+
+
+
 def sync_taxonomy(db, product, state, photo_leaf=None, photo_objects=(), preserve_photo_tags=False):
     """Refresh the precise category without changing offer publication or review state."""
     leaf = resolve_leaf(product.title)
@@ -404,40 +422,37 @@ def assign_category(db, product, supplied=None):
                             leaf = None
                     if leaf is not None or confident:
                         votes.append((leaf or LEGACY.get(broad), score))
-                values = [name for name, _ in votes if name]
-                ranked = Counter(values).most_common()
+                winner = consensus_winner(votes)
                 state.score = max((score for _, score in votes), default=0.0)
-                if ranked and (len(ranked) == 1 or ranked[0][1] > ranked[1][1]):
-                    winner, count = ranked[0]
-                    if count >= math.ceil(len(available) / 2):
-                        photo_classified = True
-                        photo_leaf = winner if winner in BY_ID else None
-                        candidate_category = legacy_for_leaf(winner) if photo_leaf else winner
-                        state.suggestion = candidate_category or ''
-                        if title_leaf and photo_leaf and path_ids(title_leaf)[0] != path_ids(photo_leaf)[0]:
-                            # Retain the explicit named product instead of
-                            # replacing it with an unrelated predicted item.
-                            state.status = 'conflict'
-                        elif (not is_unassigned(title_category)
-                              and candidate_category != title_category):
-                            state.status = 'conflict'
-                        else:
-                            category = candidate_category or title_category
-                            state.source = 'title_and_photo' if not is_unassigned(title_category) else 'photo'
-                            state.status = 'assigned'
-                            # Species detection only for confidently recognised
-                            # plush toys, never a motif on clothes or bags.
-                            if photo_leaf == 'toys-plush':
-                                try:
-                                    objects = [toy_object_vote(vector) for vector in available]
-                                    valid = [o for o in objects if o]
-                                    if valid and len(set(valid)) == 1:
-                                        photo_objects.add(valid[0])
-                                except Exception:
-                                    # Species is optional; a prompt/encoder
-                                    # failure cannot erase a valid category.
-                                    log.warning('Toy species facet unavailable for %s',
-                                                product.id, exc_info=True)
+                if winner is not None:
+                    photo_classified = True
+                    photo_leaf = winner if winner in BY_ID else None
+                    candidate_category = legacy_for_leaf(winner) if photo_leaf else winner
+                    state.suggestion = candidate_category or ''
+                    if title_leaf and photo_leaf and path_ids(title_leaf)[0] != path_ids(photo_leaf)[0]:
+                        # Retain the explicit named product instead of
+                        # replacing it with an unrelated predicted item.
+                        state.status = 'conflict'
+                    elif (not is_unassigned(title_category)
+                          and candidate_category != title_category):
+                        state.status = 'conflict'
+                    else:
+                        category = candidate_category or title_category
+                        state.source = 'title_and_photo' if not is_unassigned(title_category) else 'photo'
+                        state.status = 'assigned'
+                        # Species detection only for confidently recognised
+                        # plush toys, never a motif on clothes or bags.
+                        if photo_leaf == 'toys-plush':
+                            try:
+                                objects = [toy_object_vote(vector) for vector in available]
+                                valid = [o for o in objects if o]
+                                if valid and len(set(valid)) == 1:
+                                    photo_objects.add(valid[0])
+                            except Exception:
+                                # Species is optional; a prompt/encoder
+                                # failure cannot erase a valid category.
+                                log.warning('Toy species facet unavailable for %s',
+                                            product.id, exc_info=True)
                 else:
                     state.status = 'needs_review'
                 if len(available) < len(product.images):

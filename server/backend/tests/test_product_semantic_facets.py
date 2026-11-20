@@ -130,3 +130,68 @@ def test_category_and_synonym_helpers_are_canonical():
     assert 'toys-plush' in matched_category_ids('мягкая игрушка')
     tags = category_facets('toys-plush')
     assert 'игрушки' in tags and 'мягкая игрушка' in tags
+
+
+def test_multi_image_consensus_ignores_unrecognised_photos():
+    from backend.app.category_inference import consensus_winner
+
+    # One properly recognised photo is sufficient when other images abstain.
+    # The caller does not add an abstaining image to the vote list.
+    assert consensus_winner([('jewelry-rings', .47)]) == 'jewelry-rings'
+    assert consensus_winner([('jewelry-rings', .47), ('jewelry-rings', .40)]) == 'jewelry-rings'
+    assert consensus_winner([('jewelry-rings', .47), ('clothing-skirts', .45)]) is None
+    assert consensus_winner([]) is None
+
+
+def test_ring_and_phone_case_canonical_search_words():
+    from backend.app.product_semantics import category_facets, query_terms
+
+    assert 'кольцо' in category_facets('jewelry-rings')
+    assert 'чехол для телефона' in category_facets('electronics-phone')
+    assert 'кольцо' in query_terms('кольца')
+    assert 'чехол для телефона' in query_terms('чехлы для телефона')
+
+
+def test_admin_can_audit_missing_classification_without_mutation(env):
+    client, factory, pid = _published_unnamed(env)
+    response = client.get('/api/v1/admin/merchant/catalog/classification-audit',
+                          params={'product_id': pid})
+    assert response.status_code == 200, response.text
+    report = response.json()
+    assert report['total'] == 1
+    assert report['missing_categories'] == 1
+    assert report['missing_search_tags'] == 1
+    assert report['examples'][0]['product_id'] == pid
+    # Audit must not change the offer or synthesize a category.
+    detail = client.get(f'/api/v1/products/{pid}').json()
+    assert detail['category_id'] is None
+    assert detail['search_tags'] == []
+
+
+def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
+    """Regression: one clear photo + two weak photos still indexes 'кольцо'."""
+    c, factory, pid = _published_unnamed(env)
+    with factory() as db:
+        first = db.scalar(select(ProductImage).where(ProductImage.product_id == pid))
+        for index in (2, 3):
+            iid = f'weak-{index}-' + pid[:20]
+            db.add(ProductImage(id=iid, product_id=pid,
+                                filename=first.filename, descriptor=first.descriptor))
+            # The embedding's FK requires the new photo row to exist first.
+            db.flush()
+            db.add(ImageMLEmbedding(image_id=iid, model_id=MODEL_ID,
+                                    embedding=[0.0]*511+[float(index)]))
+        db.commit()
+    monkeypatch.setattr(category_inference, 'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(category_inference, 'photo_vote',
+                        lambda vector: ('Украшения', .47, True)
+                        if vector[-1] == 1.0 else ('_other', .12, False))
+    monkeypatch.setattr(category_inference, 'visual_leaf_vote',
+                        lambda vector: 'jewelry-rings' if vector[-1] == 1.0 else None)
+    with factory() as db:
+        category_inference.reclassify_indexed_products(db)
+    detail = c.get(f'/api/v1/products/{pid}').json()
+    assert detail['category_id'] == 'jewelry-rings'
+    assert 'кольцо' in detail['search_tags']
+    found = c.get('/api/v1/search/text', params={'q': 'кольцо'}).json()
+    assert pid in {row['id'] for row in found['items']}
