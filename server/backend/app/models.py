@@ -32,6 +32,8 @@ class Product(Base):
     offers: Mapped[list["Offer"]] = relationship(back_populates="product", cascade="all, delete-orphan")
     category_assignment: Mapped["ProductCategoryAssignment | None"] = relationship(
         uselist=False, cascade="all, delete-orphan")
+    search_tags: Mapped[list["ProductSearchTag"]] = relationship(
+        cascade="all, delete-orphan")
 
 
 class Offer(Base):
