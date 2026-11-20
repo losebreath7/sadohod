@@ -166,3 +166,30 @@ def test_admin_can_audit_missing_classification_without_mutation(env):
     detail = client.get(f'/api/v1/products/{pid}').json()
     assert detail['category_id'] is None
     assert detail['search_tags'] == []
+
+
+def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
+    """Regression: one clear photo + two weak photos still indexes 'кольцо'."""
+    c, factory, pid = _published_unnamed(env)
+    with factory() as db:
+        first = db.scalar(select(ProductImage).where(ProductImage.product_id == pid))
+        for index in (2, 3):
+            iid = f'weak-{index}-' + pid[:20]
+            db.add(ProductImage(id=iid, product_id=pid,
+                                filename=first.filename, descriptor=first.descriptor))
+            db.add(ImageMLEmbedding(image_id=iid, model_id=MODEL_ID,
+                                    embedding=[0.0]*511+[float(index)]))
+        db.commit()
+    monkeypatch.setattr(category_inference, 'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(category_inference, 'photo_vote',
+                        lambda vector: ('Украшения', .47, True)
+                        if vector[-1] == 1.0 else ('_other', .12, False))
+    monkeypatch.setattr(category_inference, 'visual_leaf_vote',
+                        lambda vector: 'jewelry-rings' if vector[-1] == 1.0 else None)
+    with factory() as db:
+        category_inference.reclassify_indexed_products(db)
+    detail = c.get(f'/api/v1/products/{pid}').json()
+    assert detail['category_id'] == 'jewelry-rings'
+    assert 'кольцо' in detail['search_tags']
+    found = c.get('/api/v1/search/text', params={'q': 'кольцо'}).json()
+    assert pid in {row['id'] for row in found['items']}
