@@ -144,5 +144,5 @@ class ProductSearchTag(Base):
     __tablename__ = 'product_search_tags'
     product_id: Mapped[str] = mapped_column(
         ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
-    tag: Mapped[str] = mapped_column(String(80), primary_key=True)
+    tag: Mapped[str] = mapped_column(String(80), primary_key=True, index=True)
     source: Mapped[str] = mapped_column(String(24), nullable=False)
