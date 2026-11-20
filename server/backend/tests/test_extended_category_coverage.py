@@ -181,3 +181,20 @@ def test_motif_queries_do_not_fetch_the_motif_as_standalone_product():
     assert visual_prompts('футболка с принтом обезьяны') == ()
     assert visual_prompts('чехол с рисунком кольца') == ()
     assert visual_prompts('обезьяна')
+
+
+@pytest.mark.parametrize('declined,canonical', [
+    ('кольцами', 'кольцо'),
+    ('кроссовками', 'кроссовки'),
+    ('юбками', 'юбка'),
+    ('браслетами', 'браслет'),
+    ('чашками', 'чашка'),
+    ('светильниками', 'светильник'),
+])
+def test_validated_category_words_support_russian_inflections(declined, canonical):
+    # The same generic normalizer works across taxonomy branches.
+    assert canonical in query_terms(declined)
+
+
+def test_unknown_inflections_do_not_create_product_labels():
+    assert query_terms('неизвестностям') == {'неизвестностям'}
