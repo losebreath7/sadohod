@@ -4,6 +4,7 @@ Model votes are mocked so these tests validate indexing/search/legacy
 compatibility. A separate labelled real-photo benchmark is required for the
 OpenCLIP checkpoint before claiming production recognition precision.
 """
+import pytest
 from sqlalchemy import select
 from backend.app import category_inference
 from backend.app.models import ProductImage, ImageMLEmbedding, Product
@@ -195,3 +196,29 @@ def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
     assert 'кольцо' in detail['search_tags']
     found = c.get('/api/v1/search/text', params={'q': 'кольцо'}).json()
     assert pid in {row['id'] for row in found['items']}
+
+
+@pytest.mark.parametrize('word', [
+    'кольцо', 'браслет', 'чехол для телефона', 'настольная игра', 'парфюм',
+])
+def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
+    env, monkeypatch, word
+):
+    """Public API fallback must work even if the category vote abstained."""
+    from backend.app import api, ml_clip, search
+
+    client, factory, pid = _published_unnamed(env)
+    with factory() as db:
+        image_id = db.scalar(select(ProductImage.id).where(
+            ProductImage.product_id == pid))
+    # Exercise the real HTTP search merge and the multi-prompt retrieval;
+    # only ML text encoding and pgvector scoring are mocked.
+    monkeypatch.setattr(api, 'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(ml_clip, 'embed_text', lambda prompt: [1.0] * 512)
+    monkeypatch.setattr(search, 'ranked_images',
+                        lambda session, query, limit, model_id:
+                        [(image_id, .32)])
+    response = client.get('/api/v1/search/text', params={'q': word})
+    assert response.status_code == 200, response.text
+    ids = [item['id'] for item in response.json()['items']]
+    assert ids == [pid], (word, ids)
