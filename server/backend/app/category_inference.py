@@ -341,7 +341,13 @@ def assign_category(db, product, supplied=None):
                         if broad == 'Игрушки':
                             leaf = toy_leaf_vote(vector)
                         else:
-                            leaf = visual_leaf_vote(vector)
+                            try:
+                                leaf = visual_leaf_vote(vector)
+                            except (ImportError, RuntimeError):
+                                # Fine-grained ML support is optional; a
+                                # confident broad category is still useful.
+                                log.debug('Fine-grained OpenCLIP unavailable',
+                                          exc_info=True)
                         if leaf is not None:
                             inferred_broad = legacy_for_leaf(leaf)
                             # Do not trust a fine label conflicting with the
@@ -457,7 +463,10 @@ def reclassify_indexed_products(db):
             # words populated without revisiting the category.
             sync_taxonomy(db, product, state, preserve_photo_tags=True)
             continue
-        before = product.category_assignment.category_id if product.category_assignment else None
+        # Read the actual identity-map/DB row. A previously loaded
+        # relationship may still cache None after the first insertion.
+        previous = db.get(ProductCategoryAssignment, product.id)
+        before = previous.category_id if previous else None
         assign_category(db, product)
         db.flush()
         assigned = db.get(ProductCategoryAssignment, product.id)
