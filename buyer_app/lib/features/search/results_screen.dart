@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -5,6 +6,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/design.dart';
 import '../../core/widgets/filters.dart';
 import '../../data/api.dart';
+import '../../data/account.dart';
 import '../../data/catalog.dart';
 
 /// Both image and text search use the same approved Figma grid.
@@ -30,10 +32,28 @@ class _ResultsScreenState extends State<ResultsScreen> {
     _load();
   }
 
+  Future<List<DemoProduct>> _searchAndRecord(String query) async {
+    final results = await CatalogApi.instance.searchText(query);
+    if (results.isNotEmpty && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
+      unawaited(_recordSearch(query));
+    }
+    return results;
+  }
+
+  Future<void> _recordSearch(String query) async {
+    try {
+      final response = await AccountStore.instance.request(
+        '/account/interests/search', body: {'query': query});
+      if (response['tracked'] == true) AccountStore.instance.interestViewed();
+    } catch (_) {
+      // Tracking failures never interrupt search results.
+    }
+  }
+
   void _load() {
     _imageSearch = widget.query == null ? null : CatalogApi.instance.searchImage(widget.query!.bytes, crop: widget.query!.crop);
     _allProducts = widget.query == null && widget.textQuery.trim().isNotEmpty
-      ? CatalogApi.instance.searchText(widget.textQuery)
+      ? _searchAndRecord(widget.textQuery)
       : CatalogApi.instance.products();
   }
 
