@@ -30,6 +30,7 @@ DEFAULT_TAGS = ('clothing-trousers', 'clothing-outerwear', 'bags-hats',
 
 class ViewEvent(BaseModel):
     product_id: str = Field(min_length=1, max_length=32)
+    engaged: bool = False
 
 
 class SearchEvent(BaseModel):
@@ -153,7 +154,7 @@ def record_view(body: ViewEvent, buyer: Buyer = Depends(current_buyer),
     category = category_for(db, product)
     if not category:
         return {'tracked': False}
-    add_interest(db, buyer.id, category, 1)
+    add_interest(db, buyer.id, category, 2 if body.engaged else 1)
     return {'tracked': True}
 
 
