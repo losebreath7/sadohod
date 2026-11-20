@@ -177,6 +177,8 @@ def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
             iid = f'weak-{index}-' + pid[:20]
             db.add(ProductImage(id=iid, product_id=pid,
                                 filename=first.filename, descriptor=first.descriptor))
+            # The embedding's FK requires the new photo row to exist first.
+            db.flush()
             db.add(ImageMLEmbedding(image_id=iid, model_id=MODEL_ID,
                                     embedding=[0.0]*511+[float(index)]))
         db.commit()
