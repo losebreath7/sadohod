@@ -124,8 +124,13 @@ def _capture_merchant_decisions(db, flush_context, instances):
         and _status_transition(db, obj, obj.status)
         and obj.status in ('pending', 'approved', 'rejected')
     }
+    # publish_listing() may flush more than once inside the same product
+    # decision. Suppress its placement notices for the *whole transaction*,
+    # not just a single before_flush pass.
+    covered_products = db.info.setdefault('_seller_notified_product_ids', set())
+    covered_products.update(changed_products)
     for obj in list(db.new) + list(db.dirty):
-        if isinstance(obj, MerchantListing) and obj.product_id in changed_products:
+        if isinstance(obj, MerchantListing) and obj.product_id in covered_products:
             continue
         if not isinstance(obj, (ShopApplication, PavilionRequest,
                                 MerchantProduct, MerchantListing)):
@@ -157,6 +162,14 @@ def _capture_merchant_decisions(db, flush_context, instances):
             _record(db, _recipient(db, obj.seller_id), 'listing',
                     obj.id, status, subject, obj.note,
                     previous_status=previous_status)
+
+
+@event.listens_for(Session, 'after_commit')
+@event.listens_for(Session, 'after_rollback')
+def _clear_notification_decisions(db):
+    # Session can be reused; decisions from a prior transaction cannot hide
+    # future independent listing updates.
+    db.info.pop('_seller_notified_product_ids', None)
 
 
 def _owned(notification_id: str, buyer: Buyer, db: Session) -> SellerNotification:
