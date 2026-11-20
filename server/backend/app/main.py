@@ -120,7 +120,8 @@ app.include_router(buyer_interests_router)
 @app.get("/health")
 def health():
     return {"status": "ok", **BUILD_INFO, "server_patch": BUILD_INFO['build_number'], "photo_categories": SEARCH_BACKEND == "clip", "demo": DEMO_SEED, "search_backend": SEARCH_BACKEND,
-            "search_model": MODEL_ID if SEARCH_BACKEND == 'classic' else CLIP_MODEL_ID}
+            "search_model": MODEL_ID if SEARCH_BACKEND == 'classic' else CLIP_MODEL_ID,
+            "catalog_search_pipeline": "r3-taxonomy-multiprompt"}
 
 
 @app.middleware("http")
