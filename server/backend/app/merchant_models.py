@@ -132,3 +132,17 @@ class ProductCategoryAssignment(Base):
     category_id: Mapped[str] = mapped_column(
         ForeignKey('catalog_categories.id'), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(24), nullable=False)
+
+
+class ProductSearchTag(Base):
+    """A verified/searchable facet; not another category or seller-supplied claim.
+
+    Tags remain independent from the single primary taxonomy path, allowing
+    multiple search terms for an item without changing category filters.
+    Reclassification replaces only model-derived tags for this product.
+    """
+    __tablename__ = 'product_search_tags'
+    product_id: Mapped[str] = mapped_column(
+        ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
+    tag: Mapped[str] = mapped_column(String(80), primary_key=True)
+    source: Mapped[str] = mapped_column(String(24), nullable=False)
