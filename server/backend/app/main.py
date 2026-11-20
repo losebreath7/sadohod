@@ -54,6 +54,12 @@ async def lifespan(app: FastAPI):
         with SessionLocal() as session:
             reclassify_indexed_products(session)
         # Health becomes available only after indexing and classification.
+    else:
+        # Backfill deterministic title/taxonomy search facets even in classic
+        # local development. No claim of neural photo recognition in this mode.
+        from .category_inference import reclassify_indexed_products
+        with SessionLocal() as session:
+            reclassify_indexed_products(session)
     bridge_task = asyncio.create_task(run_bridge()) if telegram_configured() else None
     mail_task = asyncio.create_task(_moderation_mail_loop())
     try:
