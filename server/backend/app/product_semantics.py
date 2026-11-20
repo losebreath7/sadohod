@@ -198,10 +198,10 @@ _INFLECTION_ENDINGS = (
 
 def _stem_label(value: str) -> str:
     def stem(word):
-        if len(word) <= 4:
+        if len(word) < 4:
             return word
         for suffix in _INFLECTION_ENDINGS:
-            if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+            if word.endswith(suffix) and len(word) - len(suffix) >= 3:
                 return word[:-len(suffix)]
         return word
     return ' '.join(stem(token) for token in value.split())
