@@ -238,8 +238,6 @@ def sync_taxonomy(db, product, state, photo_leaf=None, photo_objects=(), preserv
     # Keep explicit seller categories authoritative when a known legacy mapping exists.
     if state.source == 'manual':
         leaf = legacy
-    elif state.status == 'conflict':
-        leaf = None
     elif legacy and (leaf is None or path_ids(legacy)[0] != path_ids(leaf)[0]):
         leaf = legacy
 
@@ -343,9 +341,12 @@ def assign_category(db, product, supplied=None):
                             inferred_broad = legacy_for_leaf(leaf)
                             # Do not trust a fine label conflicting with the
                             # strong broad classification.
-                            if inferred_broad not in (broad, 'Одежда') or (
-                                inferred_broad == 'Одежда' and broad not in ('Одежда', 'Платья', 'Верхняя одежда')
-                            ):
+                            compatible = (inferred_broad == broad or
+                                (broad == 'Одежда' and inferred_broad in
+                                 ('Платья', 'Верхняя одежда', 'Одежда')) or
+                                (inferred_broad == 'Одежда' and broad in
+                                 ('Платья', 'Верхняя одежда')))
+                            if not compatible:
                                 leaf = None
                         votes.append((leaf or LEGACY.get(broad), score))
                 values = [name for name, _ in votes if name]
@@ -372,10 +373,16 @@ def assign_category(db, product, supplied=None):
                             # Species detection only for confidently recognised
                             # plush toys, never a motif on clothes or bags.
                             if photo_leaf == 'toys-plush':
-                                objects = [toy_object_vote(vector) for vector in available]
-                                valid = [o for o in objects if o]
-                                if valid and len(set(valid)) == 1:
-                                    photo_objects.add(valid[0])
+                                try:
+                                    objects = [toy_object_vote(vector) for vector in available]
+                                    valid = [o for o in objects if o]
+                                    if valid and len(set(valid)) == 1:
+                                        photo_objects.add(valid[0])
+                                except Exception:
+                                    # Species is optional; a prompt/encoder
+                                    # failure cannot erase a valid category.
+                                    log.warning('Toy species facet unavailable for %s',
+                                                product.id, exc_info=True)
                 else:
                     state.status = 'needs_review'
                 if len(available) < len(product.images):
@@ -388,6 +395,14 @@ def assign_category(db, product, supplied=None):
         preserve_photo_tags = True
         if is_unassigned(category):
             state.status = 'photo_model_disabled'
+
+    # Keep a previous automatic photo classification during an index outage.
+    # A model restart must not remove products from their old category/search.
+    if (preserve_photo_tags and product.images and not title_leaf
+        and is_unassigned(category) and product.category_assignment is not None):
+        photo_leaf = product.category_assignment.category_id
+        category = product.category
+        state.source = state.source if state.source not in ('unknown', 'title') else 'photo'
 
     # Never delete a confident title category because a weaker photo was
     # uncertain or ML temporarily failed.
