@@ -86,6 +86,12 @@ def visual_prompts(query: str) -> tuple[str, ...]:
     Ambiguous/broad classes must not pretend to be a precise product.
     """
     q = query.casefold().replace('ё', 'е')
+    # A search mentioning a printed motif is not a search for that object.
+    # Literal product titles are still handled by the SQL text filter.
+    from .catalog_taxonomy import ACCESSORY_CONTEXT
+    if ACCESSORY_CONTEXT.search(q) and re.search(
+            r'\\b(принт\\w*|рисунк\\w*|изображени\\w*|наклейк\\w*)\\b', q):
+        return ()
     for pattern, prompt in _TEXT_PROMPTS:
         if pattern.search(q):
             # Special phrases still work; enrich them with the shared class
@@ -118,7 +124,7 @@ def visual_prompts(query: str) -> tuple[str, ...]:
         return tuple(dict.fromkeys(((explicit,) if explicit else ()) + prompts))
     if explicit:
         return (explicit,)
-    if re.fullmatch(r'[a-z0-9 \\-]{2,80}', q):
+    if re.fullmatch(r'[a-z0-9 -]{2,80}', q):
         return (f'a product photo of {q}',)
     return ()
 
