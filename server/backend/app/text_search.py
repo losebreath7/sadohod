@@ -73,15 +73,24 @@ def visual_prompt(query: str) -> str:
     # Canonical searches for known product types have grounded English photo
     # prompts, even if the Russian title or category tag is missing.
     # Do not map generic group words (e.g. "одежда") to a random leaf.
-    from .category_inference import VISUAL_LEAF_PROMPTS
+    from .category_inference import VISUAL_LEAF_PROMPTS, ANIMAL_TOY_PROMPTS
     from .product_semantics import LEAF_FACETS, normalize
     candidates = query_terms(q)
+    # Distinct objects on toys are searchable, never new taxonomy categories.
+    for species, prompts in ANIMAL_TOY_PROMPTS.items():
+        if normalize(species) in candidates:
+            return prompts[0]
+    generic = {
+        'одежда', 'обувь', 'игрушка', 'украшение', 'аксессуар',
+        'косметика', 'электроника', 'товары для дома',
+        'верхняя одежда', 'детские товары', 'подарок',
+    }
     for leaf, prompts in VISUAL_LEAF_PROMPTS.items():
         if leaf not in BY_ID:
             continue
         exact_labels = {normalize(BY_ID[leaf][2])}
-        exact_labels.update(normalize(label) for label in LEAF_FACETS.get(leaf, ())[:1])
-        if candidates & exact_labels:
+        exact_labels.update(normalize(label) for label in LEAF_FACETS.get(leaf, ()))
+        if candidates & (exact_labels - generic):
             return prompts[0]
     # No invented translation for an unknown object. English query is supported.
     if re.fullmatch(r'[a-z0-9 \-]{2,80}', q):
