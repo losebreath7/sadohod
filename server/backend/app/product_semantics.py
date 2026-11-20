@@ -5,6 +5,7 @@ terms are facets, not fabricated taxonomy nodes. Never infer printed motifs
 as the product's subject from its title.
 """
 import re
+from functools import lru_cache
 
 from sqlalchemy import select
 
@@ -184,11 +185,51 @@ def normalize(value: str) -> str:
 ALIASES = {normalize(k): normalize(v) for k, v in QUERY_ALIASES.items()}
 
 
+# Stem only validated taxonomy labels. This is not fuzzy substring matching:
+# unknown words never acquire an invented product category.
+_INFLECTION_ENDINGS = (
+    'иями', 'ями', 'ами', 'ого', 'ему', 'ыми', 'ими',
+    'ях', 'ах', 'ой', 'ей', 'ом', 'ем', 'ам', 'ям',
+    'ов', 'ев', 'ое', 'ее', 'ый', 'ий', 'ая', 'яя',
+    'ые', 'ие', 'ою', 'ею', 'а', 'я', 'ы', 'и',
+    'е', 'у', 'ю', 'о',
+)
+
+
+def _stem_label(value: str) -> str:
+    def stem(word):
+        if len(word) <= 4:
+            return word
+        for suffix in _INFLECTION_ENDINGS:
+            if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+                return word[:-len(suffix)]
+        return word
+    return ' '.join(stem(token) for token in value.split())
+
+
+@lru_cache(maxsize=1)
+def _known_label_stems() -> dict[str, frozenset[str]]:
+    labels = {normalize(name) for _, _, name in BY_ID.values()}
+    labels.update(normalize(label) for words in LEAF_FACETS.values()
+                  for label in words)
+    labels.update(ALIASES.values())
+    labels.discard('')
+    stems = {}
+    for label in labels:
+        stems.setdefault(_stem_label(label), set()).add(label)
+    return {stem: frozenset(terms) for stem, terms in stems.items()}
+
+
 def query_terms(query: str) -> set[str]:
     value = normalize(query)
     if not value:
         return set()
-    return {value, ALIASES.get(value, value)}
+    exact = ALIASES.get(value, value)
+    words = {value, exact}
+    # When a declined noun matches a known product label, add canonical
+    # indexed terms for all supported product groups without custom aliases.
+    words.update(_known_label_stems().get(_stem_label(exact), ()))
+    return words
 
 
 def category_facets(leaf: str | None) -> dict[str, str]:
