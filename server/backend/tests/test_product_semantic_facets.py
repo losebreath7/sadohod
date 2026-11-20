@@ -242,3 +242,21 @@ def test_short_general_case_query_matches_specific_indexed_case(env, monkeypatch
         result = client.get('/api/v1/search/text', params={'q': term})
         assert result.status_code == 200, result.text
         assert pid in {p['id'] for p in result.json()['items']}
+
+
+def test_admin_semantic_audit_reports_missing_ml_vectors_without_mutation(env, monkeypatch):
+    from backend.app import merchant
+    c, factory, pid = _published_unnamed(env)
+    monkeypatch.setattr(__import__('backend.app.config', fromlist=['SEARCH_BACKEND']),
+                        'SEARCH_BACKEND', 'clip')
+    monkeypatch.setattr(__import__('backend.app.ml_clip', fromlist=['embed_text']),
+                        'embed_text', lambda prompt: [0.0]*511+[1.0])
+    # This test fixture has no real ML embeddings before reclassification.
+    result = c.get('/api/v1/admin/merchant/catalog/search-audit',
+                   params={'q': 'кольцо', 'product_ids': pid})
+    assert result.status_code == 200, result.text
+    audit = result.json()['products'][0]
+    assert audit['product_id'] == pid
+    assert audit['indexed_count'] == 0
+    assert audit['best_score'] is None
+    assert c.get(f'/api/v1/products/{pid}').json()['category_id'] is None
