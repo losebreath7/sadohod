@@ -90,7 +90,7 @@ def visual_prompts(query: str) -> tuple[str, ...]:
     # Literal product titles are still handled by the SQL text filter.
     from .catalog_taxonomy import ACCESSORY_CONTEXT
     if ACCESSORY_CONTEXT.search(q) and re.search(
-            r'\\b(принт\\w*|рисунк\\w*|изображени\\w*|наклейк\\w*)\\b', q):
+            r'\b(принт\w*|рисунк\w*|изображени\w*|наклейк\w*)\b', q):
         return ()
     for pattern, prompt in _TEXT_PROMPTS:
         if pattern.search(q):
