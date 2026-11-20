@@ -6,7 +6,8 @@ image embeddings and explicit search similarity, without writing guessed names.
 import re
 from sqlalchemy import or_, select
 from .catalog_taxonomy import NODES_V1, BY_ID, descendant_ids, resolve_leaf
-from .merchant_models import ProductCategoryAssignment
+from .merchant_models import ProductCategoryAssignment, ProductSearchTag
+from .product_semantics import query_terms
 from .models import Product
 
 # A minimal and explicit vocabulary for category navigation, not a fake
@@ -36,7 +37,14 @@ def matched_category_ids(query: str) -> list[str]:
 def text_filter(query: str):
     q = query.strip()[:80]
     matched = matched_category_ids(q)
+    # Search verified tags and spelling aliases as well as the original title.
+    # ProductSearchTag is separate from the authoritative taxonomy path.
     clauses = [Product.title.ilike(f'%{q}%'), Product.category.ilike(f'%{q}%')]
+    terms = query_terms(q)
+    if terms:
+        clauses.append(Product.id.in_(
+            select(ProductSearchTag.product_id).where(
+                ProductSearchTag.tag.in_(terms))))
     if matched:
         clauses.append(Product.id.in_(
             select(ProductCategoryAssignment.product_id).where(
@@ -47,7 +55,7 @@ def text_filter(query: str):
 # English prompts because this OpenCLIP checkpoint is English-oriented.
 # No silent claim that arbitrary Russian nouns can be understood reliably.
 _TEXT_PROMPTS = (
-    (re.compile(r'\b(обезьян\w*|мартышк\w*)\b'), 'a photo of a plush monkey toy'),
+    (re.compile(r'\b(обезьян\w*|обезян\w*|мартышк\w*)\b'), 'a photo of a plush monkey toy'),
     (re.compile(r'\b(мягк\w*|плюшев\w*)\s+игрушк\w*\b'), 'a photo of a plush stuffed animal toy'),
     (re.compile(r'\bигрушк\w*\b'), 'a photo of a toy'),
 )
