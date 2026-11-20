@@ -65,3 +65,62 @@ def test_daily_view_count_is_capped(env):
         rows = db.scalars(select(BuyerCategoryInterest)).all()
         assert len(rows) == 1
         assert rows[0].views == 12
+
+
+def test_skirts_search_and_favorites_rank_above_generic_clothing(env):
+    """Reported journey: search skirts, open product, save it, return home."""
+    from test_merchant_v080 import login, admin_client, applicant, approve, make_published
+    from backend.app.models import Product
+    from backend.app.buyer_interests import category_for
+    c, codes, factory, _ = env
+    seller = login(c, codes, 'skirt-seller@example.com')
+    buyer = login(c, codes, 'skirt-buyer@example.com')
+    admin_client(c)
+    approve(c, f'applications/{applicant(c, "77", seller)}/decision')
+    pavilion = c.get('/api/v1/merchant/pavilions', headers=seller).json()['items'][0]['id']
+    pid = make_published(c, seller, pavilion, title='Юбка миди')
+    with factory() as db:
+        item = db.get(Product, pid)
+        assert category_for(db, item) == 'clothing-skirts'
+
+    search = c.get('/api/v1/search/text?q=%D1%8E%D0%B1%D0%BA%D0%B8')
+    assert search.status_code == 200 and pid in [p['id'] for p in search.json()['items']]
+    endpoint = '/api/v1/account/interests/search'
+    assert c.post(endpoint, json={'query': 'юбки'}).status_code == 401
+    for _ in range(3):
+        response = c.post(endpoint, headers=buyer, json={'query': 'юбки'})
+        assert response.status_code == 200 and response.json()['tracked'] is True
+    for _ in range(2):
+        assert c.post('/api/v1/account/interests/view', headers=buyer,
+                      json={'product_id': pid}).status_code == 200
+    assert c.post('/api/v1/account/interests/view', headers=buyer,
+                  json={'product_id': pid, 'engaged': True}).status_code == 200
+    fav = c.post('/api/v1/account/favorite', headers=buyer,
+                 json={'kind':'product','id':pid,'saved':True})
+    assert fav.status_code == 200, fav.text
+    tags = c.get('/api/v1/account/interests/tags', headers=buyer)
+    assert tags.status_code == 200, tags.text
+    assert tags.json()['items'][0]['name'] == 'Юбки', tags.json()
+    assert any(x['id'] != 'clothing-skirts' for x in tags.json()['items'][1:])
+
+
+def test_search_ignores_unrecognized_and_unavailable_categories(env):
+    from test_merchant_v080 import login
+    c, codes, factory, _ = env
+    buyer = login(c, codes, 'search-limited@example.com')
+    url = '/api/v1/account/interests/search'
+    assert c.post(url, headers=buyer, json={'query':'несуществующая категория'}).json() == {'tracked':False}
+    assert c.post(url, headers=buyer, json={'query':'юбки'}).json() == {'tracked':False}
+    with factory() as db:
+        assert db.query(BuyerCategoryInterest).count() == 0
+
+
+def test_generic_parent_must_not_displace_direct_skirts_interest():
+    available = Counter({'clothing':20, 'clothing-women':15, 'clothing-skirts':7,
+                         'clothing-dresses':8, 'home':4,'beauty':3,'shoes':6})
+    inherited = {'clothing':15,'clothing-women':15,'clothing-skirts':15}
+    direct = {'clothing-skirts':15}
+    result = selected_tags(available, inherited, 'skirt-buyer', day=21000,
+                           direct_scores=direct)
+    assert result[0] == {'id':'clothing-skirts','name':'Юбки'}
+    assert len(result) == 5

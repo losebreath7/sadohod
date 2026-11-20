@@ -49,6 +49,19 @@ def text_filter(query: str):
         clauses.append(Product.id.in_(
             select(ProductCategoryAssignment.product_id).where(
                 ProductCategoryAssignment.category_id.in_(matched))))
+        # A validated leaf query may differ from the title only by a Russian
+        # noun ending: 'юбки' vs 'Юбка миди', 'платья' vs 'Платье'.
+        # Never apply stemming to arbitrary free-form phrases or unknown words.
+        normalized = q.casefold().replace('ё', 'е')
+        leaf = resolve_leaf(normalized)
+        if leaf in BY_ID and len(normalized) >= 4 and normalized.endswith(
+                ('а', 'я', 'ы', 'и', 'е')):
+            stem = normalized[:-1]
+            if len(stem) >= 3:
+                # SQLite LIKE is case-insensitive only for ASCII. Include
+                # Cyrillic casing explicitly so local QA matches PostgreSQL.
+                for variant in {stem, stem.capitalize(), stem.upper()}:
+                    clauses.append(Product.title.like(f'%{variant}%'))
     return or_(*clauses)
 
 
