@@ -150,3 +150,19 @@ def test_ring_and_phone_case_canonical_search_words():
     assert 'чехол для телефона' in category_facets('electronics-phone')
     assert 'кольцо' in query_terms('кольца')
     assert 'чехол для телефона' in query_terms('чехлы для телефона')
+
+
+def test_admin_can_audit_missing_classification_without_mutation(env):
+    client, factory, pid = _published_unnamed(env)
+    response = client.get('/api/v1/admin/merchant/catalog/classification-audit',
+                          params={'product_id': pid})
+    assert response.status_code == 200, response.text
+    report = response.json()
+    assert report['total'] == 1
+    assert report['missing_categories'] == 1
+    assert report['missing_search_tags'] == 1
+    assert report['examples'][0]['product_id'] == pid
+    # Audit must not change the offer or synthesize a category.
+    detail = client.get(f'/api/v1/products/{pid}').json()
+    assert detail['category_id'] is None
+    assert detail['search_tags'] == []
