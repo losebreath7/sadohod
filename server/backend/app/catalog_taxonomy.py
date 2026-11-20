@@ -179,7 +179,7 @@ RULES = (
     ('jewelry-necklaces', r'\b(цепочк\w*|ожерель\w*|колье)\b'),
     ('jewelry-bracelets', r'\bбраслет\w*\b'),
 )
-ACCESSORY_CONTEXT = re.compile(r'\b(чехол\w*|брелок\w*|принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*|для\s+куклы|для\s+кроссовок)\b')
+ACCESSORY_CONTEXT = re.compile(r'\b(чехол\w*|брелок\w*|принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*|для\s+куклы|для\s+кроссовок|для\s+часов|для\s+сумки|для\s+рюкзака)\b')
 FEMALE = re.compile(r'\b(женск\w*|для\s+женщин)\b')
 MALE = re.compile(r'\b(мужск\w*|для\s+мужчин)\b')
 CHILD = re.compile(r'\b(детск\w*|для\s+детей)\b')
