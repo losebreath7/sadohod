@@ -58,6 +58,10 @@ _TEXT_PROMPTS = (
     (re.compile(r'\b(обезьян\w*|обезян\w*|мартышк\w*)\b'), 'a photo of a plush monkey toy'),
     (re.compile(r'\b(мягк\w*|плюшев\w*)\s+игрушк\w*\b'), 'a photo of a plush stuffed animal toy'),
     (re.compile(r'\bигрушк\w*\b'), 'a photo of a toy'),
+    (re.compile(r'\bкольц\w*\b|\bколечк\w*\b'), 'a product photo of a finger ring'),
+    (re.compile(r'\bюбк\w*\b|\bюбочк\w*\b'), 'a product photo of a skirt'),
+    (re.compile(r'\b(ламп\w*|светильник\w*)\b'), 'a product photo of a lamp'),
+    (re.compile(r'\b(ковр\w*|ковер\w*)\b'), 'a product photo of a floor rug'),
 )
 
 
