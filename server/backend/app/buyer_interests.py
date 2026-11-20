@@ -169,8 +169,10 @@ def record_search(body: SearchEvent, buyer: Buyer = Depends(current_buyer),
     eligible = [category for category in matches if category in available]
     if not eligible:
         return {'tracked': False}
-    # Queries such as 'юбки' must count for the exact leaf, not just 'одежда'.
-    category = max(eligible, key=lambda value: (len(path_ids(value)), available[value]))
+    # matched_category_ids includes descendants. For broad queries such as
+    # 'обувь' count the category asked for, not an arbitrary deepest child.
+    # 'юбки' matches a leaf and therefore stays specific.
+    category = min(eligible, key=lambda value: (len(path_ids(value)), -available[value], value))
     add_interest(db, buyer.id, category, 3)
     return {'tracked': True}
 
