@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from .account import Buyer, Favorite, current_buyer
 from .buyer_interests_models import BuyerCategoryInterest
-from .catalog_taxonomy import BY_ID, LEGACY, path_ids
+from .catalog_taxonomy import BY_ID, LEGACY, path_ids, resolve_leaf
+from .text_search import matched_category_ids
 from .database import get_db
 from .merchant_models import ProductCategoryAssignment
 from .models import Offer, Product, ProductDetails
@@ -31,19 +32,25 @@ class ViewEvent(BaseModel):
     product_id: str = Field(min_length=1, max_length=32)
 
 
+class SearchEvent(BaseModel):
+    query: str = Field(min_length=1, max_length=80)
+
+
 def category_for(db: Session, product: Product):
+    """Use a proven leaf from the title when old taxonomy is only generic."""
     assigned = db.get(ProductCategoryAssignment, product.id)
-    if assigned and assigned.category_id in BY_ID:
-        return assigned.category_id
-    return LEGACY.get(product.category)
+    category = assigned.category_id if assigned and assigned.category_id in BY_ID else LEGACY.get(product.category)
+    leaf = resolve_leaf(product.title)
+    if leaf and (not category or category in path_ids(leaf)):
+        return leaf
+    return category
 
 
 def available_categories(db: Session):
     """Count visible products that actually have live offers."""
-    products = db.scalars(select(Product).join(Offer).outerjoin(
-        ProductDetails, ProductDetails.product_id == Product.id
-    ).where((ProductDetails.active.is_(True)) | (ProductDetails.product_id.is_(None)))
-     .distinct()).all()
+    from .api import visible_products
+    products = db.scalars(select(Product).join(Offer).where(visible_products())
+                          .distinct()).all()
     counts = Counter()
     for product in products:
         category = category_for(db, product)
@@ -53,10 +60,10 @@ def available_categories(db: Session):
     return counts
 
 
-def selected_tags(available, interest_scores, buyer_id, *, day):
+def selected_tags(available, interest_scores, buyer_id, *, day, direct_scores=None):
+    """Three personal tags, one related category, one rotating discovery."""
     candidates = set(available)
-    # Category names are not unique (e.g. several "Куртки").
-    # A single tag name is shown once, and only for categories with inventory.
+    direct_scores = direct_scores or {}
     used_names = set()
     result = []
 
@@ -70,25 +77,35 @@ def selected_tags(available, interest_scores, buyer_id, *, day):
         used_names.add(title.casefold())
         return True
 
-    scored = sorted(candidates, key=lambda c: (-interest_scores.get(c, 0), -available[c], c))
-    personally_scored = [c for c in scored if interest_scores.get(c, 0) > 0]
-    if personally_scored:
-        for category in personally_scored:
+    def rank(category):
+        # A specifically searched/viewed skirt beats broad 'Clothing'
+        # even when parent categories aggregate more generic interactions.
+        specificity = len(path_ids(category))
+        return (-direct_scores.get(category, 0), -interest_scores.get(category, 0),
+                -specificity, -available[category], category)
+
+    scored = sorted(candidates, key=rank)
+    personal = [c for c in scored if direct_scores.get(c, 0) > 0]
+    if not personal:
+        personal = [c for c in scored if interest_scores.get(c, 0) > 0]
+
+    if personal:
+        for category in personal:
             if len(result) >= 3:
                 break
             append(category)
-        # One adjacent category; same taxonomy parent/ancestor, not arbitrary
-        # unrelated products. Parent/child categories count as related too.
-        anchors = list(result)
-        related = [c for c in scored if c not in {x['id'] for x in result}
-                   and any(set(path_ids(c)) & set(path_ids(a['id'])) for a in anchors)]
+
+        anchors = [row['id'] for row in result]
+        # Prefer another leaf in the same subtree over its generic parent.
+        related = sorted((c for c in candidates if c not in anchors and
+            any(set(path_ids(c)) & set(path_ids(anchor)) for anchor in anchors)),
+            key=lambda c: (-len(path_ids(c)), -available[c], c))
         for category in related:
             if append(category):
                 break
-        # One exploration slot, rotate every seven days and avoid repeating
-        # the same category against current personal picks.
-        unknown = [c for c in sorted(candidates) if c not in {x['id'] for x in result}
-                   and interest_scores.get(c, 0) <= 0]
+
+        unknown = [c for c in sorted(candidates) if
+                   direct_scores.get(c, 0) == 0 and interest_scores.get(c, 0) == 0]
         if unknown and len(result) < 5:
             seed = hashlib.sha256(f'{buyer_id}:{day // 7}'.encode()).digest()
             start = int.from_bytes(seed[:8], 'big') % len(unknown)
@@ -96,13 +113,31 @@ def selected_tags(available, interest_scores, buyer_id, *, day):
                 if append(unknown[(start + index) % len(unknown)]):
                     break
     else:
-        for c in DEFAULT_TAGS:
-            append(c)
+        for category in DEFAULT_TAGS:
+            append(category)
     for category in scored:
         append(category)
-        if len(result) >= 5:
+        if len(result) == 5:
             break
     return result
+
+
+def add_interest(db, buyer_id, category_id, increment):
+    if category_id not in BY_ID:
+        return
+    now = time.time()
+    day = int(now // 86400)
+    record = db.get(BuyerCategoryInterest, (buyer_id, category_id, day))
+    if record is None:
+        record = BuyerCategoryInterest(buyer_id=buyer_id, category_id=category_id,
+                                       day=day, views=0, updated_at=now)
+        db.add(record)
+    record.views = min(MAX_DAILY_VIEWS, record.views + increment)
+    record.updated_at = now
+    db.execute(delete(BuyerCategoryInterest).where(
+        BuyerCategoryInterest.buyer_id == buyer_id,
+        BuyerCategoryInterest.day < day - WINDOW_DAYS))
+    db.commit()
 
 
 @router.post('/view')
@@ -118,20 +153,24 @@ def record_view(body: ViewEvent, buyer: Buyer = Depends(current_buyer),
     category = category_for(db, product)
     if not category:
         return {'tracked': False}
-    now = time.time()
-    day = int(now // 86400)
-    record = db.get(BuyerCategoryInterest, (buyer.id, category, day))
-    if record is None:
-        record = BuyerCategoryInterest(buyer_id=buyer.id, category_id=category,
-                                       day=day, views=0, updated_at=now)
-        db.add(record)
-    record.views = min(MAX_DAILY_VIEWS, record.views + 1)
-    record.updated_at = now
-    # Old rows are no longer needed; do not keep user browsing data indefinitely.
-    db.execute(delete(BuyerCategoryInterest).where(
-        BuyerCategoryInterest.buyer_id == buyer.id,
-        BuyerCategoryInterest.day < day - WINDOW_DAYS))
-    db.commit()
+    add_interest(db, buyer.id, category, 1)
+    return {'tracked': True}
+
+
+@router.post('/search')
+def record_search(body: SearchEvent, buyer: Buyer = Depends(current_buyer),
+                  db: Session = Depends(get_db)):
+    query = body.query.strip()
+    matches = matched_category_ids(query)
+    if not matches:
+        return {'tracked': False}
+    available = available_categories(db)
+    eligible = [category for category in matches if category in available]
+    if not eligible:
+        return {'tracked': False}
+    # Queries such as 'юбки' must count for the exact leaf, not just 'одежда'.
+    category = max(eligible, key=lambda value: (len(path_ids(value)), available[value]))
+    add_interest(db, buyer.id, category, 3)
     return {'tracked': True}
 
 
@@ -140,6 +179,7 @@ def tags(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     now_day = int(time.time() // 86400)
     available = available_categories(db)
     scores = defaultdict(float)
+    direct = defaultdict(float)
     # Global TTL pruning also runs on reads, including users who never browse again.
     db.execute(delete(BuyerCategoryInterest).where(
         BuyerCategoryInterest.day < now_day - WINDOW_DAYS))
@@ -152,6 +192,7 @@ def tags(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
             continue
         age = max(0, now_day - item.day)
         weight = max(0.10, 1 - age / 36)
+        direct[item.category_id] += item.views * weight
         for category in path_ids(item.category_id):
             scores[category] += item.views * weight
     favorite_ids = db.scalars(select(Favorite.item).where(
@@ -161,6 +202,7 @@ def tags(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
         for product in products:
             category = category_for(db, product)
             if category and category in available:
+                direct[category] += 5
                 for ancestor in path_ids(category):
                     scores[ancestor] += 5
-    return {'items': selected_tags(available, scores, buyer.id, day=now_day)}
+    return {'items': selected_tags(available, scores, buyer.id, day=now_day, direct_scores=direct)}
