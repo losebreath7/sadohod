@@ -222,3 +222,23 @@ def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
     assert response.status_code == 200, response.text
     ids = [item['id'] for item in response.json()['items']]
     assert ids == [pid], (word, ids)
+
+
+def test_search_does_not_call_bag_handles_a_stationery_pen(env):
+    client, _factory, pid = _published_unnamed(
+        env, title='Сумка с короткими ручками')
+    assert pid in {p['id'] for p in client.get(
+        '/api/v1/search/text', params={'q': 'сумка'}).json()['items']}
+    assert pid not in {p['id'] for p in client.get(
+        '/api/v1/search/text', params={'q': 'ручка'}).json()['items']}
+
+
+def test_short_general_case_query_matches_specific_indexed_case(env, monkeypatch):
+    client, factory, pid = _published_unnamed(env)
+    _reclassify(factory, monkeypatch, 'Электроника', 'electronics-phone')
+    detail = client.get(f'/api/v1/products/{pid}').json()
+    assert 'чехол для телефона' in detail['search_tags']
+    for term in ('чехол', 'чехол для телефона'):
+        result = client.get('/api/v1/search/text', params={'q': term})
+        assert result.status_code == 200, result.text
+        assert pid in {p['id'] for p in result.json()['items']}
