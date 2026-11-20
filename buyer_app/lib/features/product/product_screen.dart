@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
@@ -128,21 +128,34 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  Timer? _engagedTimer;
   late Future<DemoProduct?> _product = _loadProduct();
+
+  @override
+  void dispose() {
+    _engagedTimer?.cancel();
+    super.dispose();
+  }
 
   Future<DemoProduct?> _loadProduct() async {
     final product = await CatalogApi.instance.product(widget.id);
     if (product != null && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
       // Fire-and-forget: the card must open immediately even when tracking fails.
       unawaited(_recordInterest(product.id));
+      _engagedTimer?.cancel();
+      _engagedTimer = Timer(const Duration(seconds: 8), () {
+        if (mounted && AccountStore.instance.signedIn) {
+          unawaited(_recordInterest(product.id, engaged: true));
+        }
+      });
     }
     return product;
   }
 
-  Future<void> _recordInterest(String id) async {
+  Future<void> _recordInterest(String id, {bool engaged = false}) async {
     try {
       final result = await AccountStore.instance.request('/account/interests/view',
-          body: {'product_id': id});
+          body: {'product_id': id, 'engaged': engaged});
       if (result['tracked'] == true) AccountStore.instance.interestViewed();
     } catch (_) {
       // Recommendation errors must not affect shopping.
