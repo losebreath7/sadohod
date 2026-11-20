@@ -50,7 +50,10 @@ def text_filter(query: str):
                 ('а', 'я', 'ы', 'и', 'е')):
             stem = normalized[:-1]
             if len(stem) >= 3:
-                clauses.append(Product.title.ilike(f'%{stem}%'))
+                # SQLite LIKE is case-insensitive only for ASCII. Include
+                # Cyrillic casing explicitly so local QA matches PostgreSQL.
+                for variant in {stem, stem.capitalize(), stem.upper()}:
+                    clauses.append(Product.title.like(f'%{variant}%'))
     return or_(*clauses)
 
 
