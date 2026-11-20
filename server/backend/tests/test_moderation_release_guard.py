@@ -96,3 +96,41 @@ def test_text_context_exceptions_and_explicit_risk():
     assert screening._text_reason("Настоящий пистолет", "футболка с принтом") is not None
     assert screening._text_reason("Наркотик", "это косметика") is not None
     assert screening._text_reason("Кокаин", "футболка с принтом") is not None
+
+
+def test_visual_triage_for_gun_cannabis_nudity_and_ambiguous_white_powder():
+    """Synthetic cosine scores exercise the decision path, not photo accuracy."""
+    decide = screening._visual_review_reason
+    assert 'оружие' in decide([('оружие', .32), ('запрещённые вещества', .14)], .20)
+    assert 'порошок' in decide([('запрещённые вещества', .236), ('оружие', .1)], .27)
+    assert 'порошок' in decide([('запрещённые вещества', .29)], .31)
+    assert 'нагота' in decide([('нагота', .30)], .22)
+    assert decide([('запрещённые вещества', .19)], .30) is None
+    assert decide([('запрещённые вещества', .27), ('оружие', .34)], .30) is None or (
+        'оружие' in decide([('запрещённые вещества', .27), ('оружие', .34)], .30)
+    )
+    assert 'некорректные' in decide([('запрещённые вещества', float('nan'))], .20)
+
+
+def test_drug_photographic_prompts_cover_sachets_and_powders():
+    prompts = dict(screening.VISUAL_GROUPS)['запрещённые вещества']
+    assert any('white' in prompt and 'powder' in prompt for prompt in prompts)
+    assert any('sachet' in prompt or 'ziplock' in prompt for prompt in prompts)
+
+
+def test_cocaine_text_is_queued_not_public(env, monkeypatch):
+    monkeypatch.setattr(screening, 'assess', REAL_ASSESS)
+    client, auth, pavilion = setup_seller(env)
+    pid = client.post('/api/v1/merchant/products', headers=auth,
+        json={'title': 'Пакет кокаина'}).json()['id']
+    uploaded = client.post(f'/api/v1/merchant/products/{pid}/images',
+        headers=auth, files={'files': ('packet.jpg', photo(), 'image/jpeg')})
+    assert uploaded.status_code == 201, uploaded.text
+    saved = client.put(f'/api/v1/merchant/products/{pid}/save',
+        headers=auth, json={'request_id': 'screen-powder-1', 'title': 'Пакет кокаина',
+           'submit': True, 'listings': [{'pavilion_id': pavilion,
+            'price': 500, 'sale_modes': ['retail']}]})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()['status'] == 'pending'
+    assert all(not row['published'] for row in saved.json()['listings'])
+    assert client.get(f'/api/v1/products/{pid}').status_code == 404

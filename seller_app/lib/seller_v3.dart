@@ -1606,6 +1606,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             'sale_modes': saleModes.toList(),
           },
     };
+    var saveNotice = 'Товар сохранён';
     if (testPreview) {
       final id =
           product['id'] ?? 'preview-${DateTime.now().microsecondsSinceEpoch}';
@@ -1637,6 +1638,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         checkpoint: checkpointDraft,
       );
       product = saved;
+      saveNotice = productSaveFeedback(saved);
     }
     draftCompleted = true;
     await checkpointDraft();
@@ -1650,7 +1652,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photoReplacements.clear();
     draftId = null;
     saveSession = ProductSaveSession();
-    await finishAction('Товар опубликован');
+    await finishAction(testPreview ? 'Товар опубликован' : saveNotice);
   });
   List<RowData> get shown => products.where((p) {
     final ls = rows(p['listings']);
