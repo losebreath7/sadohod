@@ -19,14 +19,14 @@ from .product_semantics import sync_search_facets
 log = logging.getLogger(__name__)
 PROMPTS = {
     'Верхняя одежда': ('a photo of a winter jacket', 'a photo of a coat', 'a photo of a puffer jacket'),
-    'Сумки': ('a photo of a handbag', 'a photo of a backpack', 'a photo of a purse', 'a product photo of a winter hat'),
+    'Сумки': ('a photo of a handbag', 'a photo of a backpack', 'a photo of a purse', 'a product photo of a winter hat', 'a leather wallet for sale', 'a leather belt for sale'),
     'Обувь': ('a photo of sneakers', 'a photo of boots', 'a photo of shoes'),
     'Платья': ('a photo of a dress', 'a photo of a sundress'),
     'Одежда': ('a photo of a t-shirt', 'a photo of a hoodie', 'a photo of jeans', 'a photo of a skirt', 'a photo of a sweater', 'a photo of a shirt'),
     'Игрушки': ('a product photo of a doll toy', 'a product photo of a plush toy', 'a product photo of building blocks', 'a tabletop board game for sale'),
     'Красота и уход': ('a product photo of facial cream', 'a product photo of lipstick', 'a product photo of shampoo', 'a product photo of perfume', 'a tube of mascara'),
-    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel', 'a product photo of a carpet or rug'),
-    'Электроника': ('a product photo of headphones', 'a product photo of a phone charger', 'a product photo of a lamp'),
+    'Товары для дома': ('a product photo of a saucepan', 'a product photo of bedding', 'a product photo of a towel', 'a product photo of a carpet or rug', 'a ceramic mug', 'a plastic household organizer', 'a decorative vase'),
+    'Электроника': ('a product photo of headphones', 'a product photo of a phone charger', 'a product photo of a lamp', 'a mobile phone case for sale'),
     'Украшения': ('a product photo of earrings', 'a product photo of a necklace', 'a product photo of a ring'),
     'Детские товары': ('a product photo of a stroller', 'a product photo of baby diapers', 'a feeding bottle for a baby'),
     'Спорт и отдых': ('a product photo of a soccer ball', 'a product photo of camping equipment', 'a product photo of dumbbells'),
@@ -80,6 +80,7 @@ TOY_LEAF_PROMPTS = {
     'toys-dolls': ('a product photo of a plastic fashion doll toy',),
     'toys-cars': ('a product photo of a toy car',),
     'toys-construction': ('a product photo of plastic building blocks toy',),
+    'toys-board': ('a tabletop board game with cards and playing pieces',),
     '_other': ('a product photo of a sweatshirt', 'a product photo of shoes'),
 }
 
@@ -194,6 +195,16 @@ ANIMAL_TOY_PROMPTS = {
     'медведь': ('a stuffed teddy bear toy', 'a plush bear soft toy'),
     'кот': ('a plush cat toy', 'a stuffed kitten toy'),
     'собака': ('a plush dog toy', 'a stuffed puppy toy'),
+    'лиса': ('a plush orange fox toy', 'a stuffed fox soft toy'),
+    'слон': ('a plush elephant toy with a long trunk', 'a stuffed elephant animal toy'),
+    'жираф': ('a yellow plush giraffe with a long neck', 'a stuffed giraffe toy'),
+    'лев': ('a plush lion toy with a mane', 'a stuffed lion cub soft toy'),
+    'тигр': ('a plush tiger toy with striped fur', 'a stuffed tiger soft toy'),
+    'панда': ('a black and white plush panda bear', 'a stuffed panda soft toy'),
+    'единорог': ('a plush unicorn toy with a horn', 'a stuffed unicorn soft toy'),
+    'динозавр': ('a plush dinosaur toy', 'a stuffed dinosaur soft toy'),
+    'пингвин': ('a black and white plush penguin toy', 'a stuffed penguin soft toy'),
+    'лягушка': ('a green plush frog toy', 'a stuffed frog soft toy'),
     '_other': ('a toy car', 'a shirt with an animal print', 'a human portrait'),
 }
 
@@ -370,6 +381,8 @@ def assign_category(db, product, supplied=None):
                     try:
                         if confident and broad == 'Игрушки':
                             leaf = toy_leaf_vote(vector)
+                            if leaf is None:
+                                leaf = visual_leaf_vote(vector)
                         else:
                             # Fine-grained vote has its own conservative
                             # absolute and runner-up thresholds. It can rescue
