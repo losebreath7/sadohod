@@ -142,6 +142,8 @@ def test_product_moderator_approval_emits_notice_but_no_listing_duplicates(env, 
     client, auth, pavilion = setup_seller(env)
     pid = _moderated_product(client, auth, pavilion, 'Настоящий револьвер',
                              'notice-approve-01')
+    before = client.get('/api/v1/merchant/notifications', headers=auth).json()['items']
+    prior_listing_ids = {x['id'] for x in before if x['event_type'] == 'listing'}
     decided = client.post(f'/api/v1/admin/merchant/products/{pid}/decision',
                           json={'decision': 'approved', 'category': 'Одежда'})
     assert decided.status_code == 200, decided.text
@@ -150,4 +152,4 @@ def test_product_moderator_approval_emits_notice_but_no_listing_duplicates(env, 
     product_events = [x for x in inbox if x['event_type'] == 'product' and x['target_id'] == pid]
     assert len(product_events) == 2, product_events
     assert {x['status'] for x in product_events} == {'pending', 'approved'}
-    assert not any(x['event_type'] == 'listing' for x in inbox)
+    assert {x['id'] for x in inbox if x['event_type'] == 'listing'} == prior_listing_ids
