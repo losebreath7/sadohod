@@ -409,7 +409,9 @@ def assign_category(db, product, supplied=None):
                 state.score = max((score for _, score in votes), default=0.0)
                 if ranked and (len(ranked) == 1 or ranked[0][1] > ranked[1][1]):
                     winner, count = ranked[0]
-                    if count >= math.ceil(len(available) / 2):
+                    # Only meaningful votes count; blurry/unrecognised photos
+                    # must not veto one clear, correctly recognised image.
+                    if count >= math.ceil(len(votes) / 2):
                         photo_classified = True
                         photo_leaf = winner if winner in BY_ID else None
                         candidate_category = legacy_for_leaf(winner) if photo_leaf else winner
