@@ -775,7 +775,7 @@ def classification_audit(product_id: str | None = None,
     from sqlalchemy.orm import selectinload
     from .config import SEARCH_BACKEND
     from .ml_clip import MODEL_ID
-    from .models import ImageMLEmbedding, ProductImage
+    from .models import ImageMLEmbedding
     from .merchant_models import (ProductCategoryState,
                                   ProductCategoryAssignment, ProductSearchTag)
 
@@ -783,8 +783,7 @@ def classification_audit(product_id: str | None = None,
     if product_id:
         statement = statement.where(Product.id == product_id)
     products = db.scalars(statement).all()
-    ids = [product.id for product in products]
-    if not ids:
+    if not products:
         return {'total': 0, 'search_backend': SEARCH_BACKEND,
                 'ml_model': MODEL_ID if SEARCH_BACKEND == 'clip' else None,
                 'status_counts': {}, 'missing_image_vectors': 0,
