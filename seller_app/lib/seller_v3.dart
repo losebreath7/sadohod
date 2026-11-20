@@ -4033,10 +4033,10 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               top: item.$2,
               height: 43,
               child: tap(
-                Padding(
-                  padding: const EdgeInsets.only(left: 9, top: 10),
+                Center(
                   child: Text(
                     item.$1,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: SadohodFont.family,
                       fontSize: 14,
