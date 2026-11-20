@@ -130,3 +130,23 @@ def test_category_and_synonym_helpers_are_canonical():
     assert 'toys-plush' in matched_category_ids('мягкая игрушка')
     tags = category_facets('toys-plush')
     assert 'игрушки' in tags and 'мягкая игрушка' in tags
+
+
+def test_multi_image_consensus_ignores_unrecognised_photos():
+    from backend.app.category_inference import consensus_winner
+
+    # One properly recognised photo is sufficient when other images abstain.
+    # The caller does not add an abstaining image to the vote list.
+    assert consensus_winner([('jewelry-rings', .47)]) == 'jewelry-rings'
+    assert consensus_winner([('jewelry-rings', .47), ('jewelry-rings', .40)]) == 'jewelry-rings'
+    assert consensus_winner([('jewelry-rings', .47), ('clothing-skirts', .45)]) is None
+    assert consensus_winner([]) is None
+
+
+def test_ring_and_phone_case_canonical_search_words():
+    from backend.app.product_semantics import category_facets, query_terms
+
+    assert 'кольцо' in category_facets('jewelry-rings')
+    assert 'чехол для телефона' in category_facets('electronics-phone')
+    assert 'кольцо' in query_terms('кольца')
+    assert 'чехол для телефона' in query_terms('чехлы для телефона')
