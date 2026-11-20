@@ -146,3 +146,38 @@ def test_nameless_published_product_searchable_by_new_image_type(
         result = client.get(url, params={'q': word})
         assert result.status_code == 200, result.text
         assert product_id in {p['id'] for p in result.json()['items']}
+
+
+def test_all_known_visual_types_have_generic_query_prompt_ensembles():
+    from backend.app.text_search import visual_prompts
+    from backend.app.product_semantics import LEAF_FACETS
+    from backend.app.category_inference import VISUAL_LEAF_PROMPTS
+
+    # Do not couple search coverage to a few manually listed examples.
+    for leaf, words in LEAF_FACETS.items():
+        if leaf not in VISUAL_LEAF_PROMPTS:
+            continue
+        # The first canonical term must resolve to a visual prompt; shared
+        # broad labels can be ambiguous and are excluded by the query parser.
+        options = visual_prompts(words[0])
+        assert options, (leaf, words[0])
+        assert all(isinstance(prompt, str) for prompt in options)
+        assert len(options) <= 4
+
+
+def test_multi_prompt_search_deduplicates_and_ranks_image_hits():
+    from backend.app.text_search import combine_visual_hits
+
+    hits = combine_visual_hits([
+        [('image1', .29), ('image2', .22)],
+        [('image1', .31), ('image3', .30)],
+        [('image3', .27)],
+    ], min_score=.26, limit=10)
+    assert hits == [('image1', .31), ('image3', .30)]
+
+
+def test_motif_queries_do_not_fetch_the_motif_as_standalone_product():
+    from backend.app.text_search import visual_prompts
+    assert visual_prompts('футболка с принтом обезьяны') == ()
+    assert visual_prompts('чехол с рисунком кольца') == ()
+    assert visual_prompts('обезьяна')
