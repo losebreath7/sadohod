@@ -93,6 +93,8 @@ def test_skirts_search_and_favorites_rank_above_generic_clothing(env):
     for _ in range(2):
         assert c.post('/api/v1/account/interests/view', headers=buyer,
                       json={'product_id': pid}).status_code == 200
+    assert c.post('/api/v1/account/interests/view', headers=buyer,
+                  json={'product_id': pid, 'engaged': True}).status_code == 200
     fav = c.post('/api/v1/account/favorite', headers=buyer,
                  json={'kind':'product','id':pid,'saved':True})
     assert fav.status_code == 200, fav.text
