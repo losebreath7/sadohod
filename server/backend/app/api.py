@@ -40,6 +40,7 @@ def serialize_product(product: Product) -> dict:
         "id": product.id, "title": product.title, "category": product.category,
         "category_id": assigned.category_id if assigned else None,
         "category_path": category_path(assigned.category_id) if assigned else [],
+        "search_tags": sorted({tag.tag for tag in product.search_tags}),
         "description": product.description, "colors": product.colors,
         "sizes": product.details.sizes if product.details else [],
         "active": product.details.active if product.details else True,
@@ -67,6 +68,7 @@ def product_query(include_hidden=False):
     return statement.options(
         selectinload(Product.details),
         selectinload(Product.category_assignment),
+        selectinload(Product.search_tags),
         selectinload(Product.images).selectinload(ProductImage.ordering),
         selectinload(Product.offers).joinedload(Offer.seller).joinedload(Seller.pavilion),
         selectinload(Product.offers).selectinload(Offer.modes),
