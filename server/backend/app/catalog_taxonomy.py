@@ -155,8 +155,31 @@ RULES = (
     ('sport-balls', r'\bмяч\w*\b'),
     ('office-notebooks', r'\bтетрад\w*\b|\bблокнот\w*\b'),
     ('office-pens', r'\bкарандаш\w*\b|\bручк\w*\b'),
+    # Additional explicitly named products in the existing taxonomy.
+    ('clothing-underwear', r'\bнижн\w*\s+бель\w*\b|\bбюстгальтер\w*\b|\bтрус\w*\b'),
+    ('bags-belts', r'\bреме?н\w*\b|\bпояс\w*\b'),
+    ('bags-hats', r'\b(шапк\w*|панам\w*|кепк\w*|бейсболк\w*)\b'),
+    ('toys-board', r'\bнастольн\w*\s+игр\w*\b|\bнастолк\w*\b'),
+    ('beauty-fragrance', r'\b(парфюм\w*|духи|одеколон\w*)\b|\bтуалетн\w*\s+вод\w*\b'),
+    ('home-cups', r'\b(кружк\w*|чашк\w*)\b'),
+    ('home-decor', r'\b(ваз\w*|статуэтк\w*)\b'),
+    ('home-storage', r'\bорганайзер\w*\b|\bконтейнер\w*\s+для\s+хранен\w*\b'),
+    ('home-textile', r'\b(ковр\w*|ковер\w*)\b'),
+    ('electronics-lighting', r'\b(светильник\w*|ламп\w*)\b'),
+    ('kids-feeding', r'\bпоильник\w*\b|\bбутылочк\w*\s+для\s+кормлен\w*\b'),
+    ('sport-fitness', r'\b(гантел\w*|эспандер\w*)\b|\bковрик\s+для\s+йог\w*\b'),
+    ('sport-camping', r'\bпалатк\w*\b|\bспальн\w*\s+меш\w*\b'),
+    ('pets-collars', r'\bошейник\w*\b'),
+    ('pets-beds', r'\bлежанк\w*\b'),
+    ('office-notebooks', r'\b(ежедневник\w*|скетчбук\w*)\b'),
+    ('tools-hand', r'\b(молоток\w*|молотк\w*|отвертк\w*|плоскогубц\w*)\b'),
+    ('tools-electric', r'\b(шуруповерт\w*|дрел\w*|перфоратор\w*)\b'),
+    ('seasonal-christmas', r'\b(новогодн\w*|елочн\w*)\s+(игрушк\w*|украшен\w*|гирлянд\w*)\b'),
+    ('seasonal-gifts', r'\bподарочн\w*\s+(набор\w*|коробк\w*)\b'),
+    ('jewelry-necklaces', r'\b(цепочк\w*|ожерель\w*|колье)\b'),
+    ('jewelry-bracelets', r'\bбраслет\w*\b'),
 )
-ACCESSORY_CONTEXT = re.compile(r'\b(чехол\w*|брелок\w*|принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*|для\s+куклы|для\s+кроссовок)\b')
+ACCESSORY_CONTEXT = re.compile(r'\b(чехол\w*|брелок\w*|принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*|для\s+куклы|для\s+кроссовок|для\s+часов|для\s+сумки|для\s+рюкзака)\b')
 FEMALE = re.compile(r'\b(женск\w*|для\s+женщин)\b')
 MALE = re.compile(r'\b(мужск\w*|для\s+мужчин)\b')
 CHILD = re.compile(r'\b(детск\w*|для\s+детей)\b')
@@ -184,8 +207,17 @@ def category_path(category_id):
 
 def resolve_leaf(title):
     value = ' '.join((title or '').casefold().replace('ё', 'е').split())
-    if not value or ACCESSORY_CONTEXT.search(value):
+    if not value:
         return None
+    if ACCESSORY_CONTEXT.search(value):
+        # A phone case is the product itself, unlike a print, fabric or a
+        # protective case made for another kind of merchandise.
+        phone_case = (
+            re.search(r'\bчехол\w*\b', value) and
+            re.search(r'\b(телефон\w*|смартфон\w*|айфон\w*|iphone\w*)\b', value) and
+            not re.search(r'\b(принт\w*|рисунк\w*|наклейк\w*|выкройк\w*|материал\w*|ткан\w*)\b', value)
+        )
+        return 'electronics-phone' if phone_case else None
     matched = [category_id for category_id, expression in RULES if re.search(expression, value)]
     # A title naming two different products is ambiguous, not a multi-category offer.
     if len(set(matched)) != 1:
