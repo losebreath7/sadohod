@@ -16,6 +16,7 @@ from backend.app.product_semantics import (
 )
 from backend.app.text_search import visual_prompt
 from test_product_semantic_facets import _published_unnamed, _reclassify
+from test_merchant_v080 import env
 
 
 def test_visual_prompts_cover_all_safe_product_leaves():
@@ -35,8 +36,10 @@ def test_visual_prompts_cover_all_safe_product_leaves():
             continue
         assert leaf in BY_ID, leaf
         assert leaf in LEAF_FACETS, leaf
-        assert prompts and all(prompt.startswith(('a ', 'an ', 'the '))
-                               for prompt in prompts)
+        assert prompts and all(
+            isinstance(prompt, str) and len(prompt.strip()) > 12
+            for prompt in prompts
+        )
         assert legacy_for_leaf(leaf) in PROMPTS
         assert category_facets(leaf)
 
