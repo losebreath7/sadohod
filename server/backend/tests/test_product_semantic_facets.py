@@ -247,6 +247,14 @@ def test_short_general_case_query_matches_specific_indexed_case(env, monkeypatch
 def test_admin_semantic_audit_reports_missing_ml_vectors_without_mutation(env, monkeypatch):
     from backend.app import merchant
     c, factory, pid = _published_unnamed(env)
+    # The common fixture adds a synthetic embedding; remove it to test the
+    # genuinely unindexed state without deleting the published photo.
+    from sqlalchemy import delete
+    with factory() as db:
+        db.execute(delete(ImageMLEmbedding).where(
+            ImageMLEmbedding.image_id.in_(
+                select(ProductImage.id).where(ProductImage.product_id == pid))))
+        db.commit()
     monkeypatch.setattr(__import__('backend.app.config', fromlist=['SEARCH_BACKEND']),
                         'SEARCH_BACKEND', 'clip')
     monkeypatch.setattr(__import__('backend.app.ml_clip', fromlist=['embed_text']),
