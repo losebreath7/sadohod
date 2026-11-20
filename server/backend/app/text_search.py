@@ -78,52 +78,86 @@ _TEXT_PROMPTS = (
 )
 
 
-def visual_prompt(query: str) -> str:
+def visual_prompts(query: str) -> tuple[str, ...]:
+    """Resolve every supported product type through one shared taxonomy.
+
+    Keep a small set of English OpenCLIP phrasings per class instead of
+    depending on a single handcrafted query phrase for a few examples.
+    Ambiguous/broad classes must not pretend to be a precise product.
+    """
     q = query.casefold().replace('ё', 'е')
     for pattern, prompt in _TEXT_PROMPTS:
         if pattern.search(q):
-            return prompt
-    # Canonical searches for known product types have grounded English photo
-    # prompts, even if the Russian title or category tag is missing.
-    # Do not map generic group words (e.g. "одежда") to a random leaf.
+            # Special phrases still work; enrich them with the shared class
+            # prompts when the query resolves unambiguously below.
+            explicit = prompt
+            break
+    else:
+        explicit = None
     from .category_inference import VISUAL_LEAF_PROMPTS, ANIMAL_TOY_PROMPTS
     from .product_semantics import LEAF_FACETS, normalize
     candidates = query_terms(q)
-    # Distinct objects on toys are searchable, never new taxonomy categories.
     for species, prompts in ANIMAL_TOY_PROMPTS.items():
-        if normalize(species) in candidates:
-            return prompts[0]
+        if species != '_other' and normalize(species) in candidates:
+            return tuple(dict.fromkeys(((explicit,) if explicit else ()) + tuple(prompts)))
     generic = {
         'одежда', 'обувь', 'игрушка', 'украшение', 'аксессуар',
         'косметика', 'электроника', 'товары для дома',
         'верхняя одежда', 'детские товары', 'подарок',
     }
+    matched = []
     for leaf, prompts in VISUAL_LEAF_PROMPTS.items():
         if leaf not in BY_ID:
             continue
-        exact_labels = {normalize(BY_ID[leaf][2])}
-        exact_labels.update(normalize(label) for label in LEAF_FACETS.get(leaf, ()))
-        if candidates & (exact_labels - generic):
-            return prompts[0]
-    # No invented translation for an unknown object. English query is supported.
-    if re.fullmatch(r'[a-z0-9 \-]{2,80}', q):
-        return f'a product photo of {q}'
-    return ''
+        labels = {normalize(BY_ID[leaf][2])}
+        labels.update(normalize(label) for label in LEAF_FACETS.get(leaf, ()))
+        if candidates & (labels - generic):
+            matched.append(leaf)
+    if len(matched) == 1:
+        prompts = tuple(VISUAL_LEAF_PROMPTS[matched[0]])
+        return tuple(dict.fromkeys(((explicit,) if explicit else ()) + prompts))
+    if explicit:
+        return (explicit,)
+    if re.fullmatch(r'[a-z0-9 \\-]{2,80}', q):
+        return (f'a product photo of {q}',)
+    return ()
+
+
+def visual_prompt(query: str) -> str:
+    """Compatibility helper; search uses the full prompt ensemble."""
+    prompts = visual_prompts(query)
+    return prompts[0] if prompts else ''
+
+
+def combine_visual_hits(prompt_hits, min_score: float, limit: int):
+    """Combine image matches from alternate prompts by best cosine score."""
+    scores = {}
+    for hits in prompt_hits:
+        for image_id, score in hits:
+            if score >= min_score:
+                scores[image_id] = max(float(score), scores.get(image_id, -1.0))
+    return sorted(scores.items(), key=lambda item: (-item[1], item[0]))[:limit]
 
 
 def visual_product_ids(session, query: str, limit: int = 30,
-                       min_score: float = 0.28) -> list[str]:
-    prompt = visual_prompt(query)
-    if not prompt:
+                       min_score: float = 0.26) -> list[str]:
+    prompts = visual_prompts(query)
+    if not prompts:
         return []
     from .ml_clip import embed_text, MODEL_ID
     from .search import ranked_images
     from .models import ProductImage
-    vector = embed_text(prompt)
-    hits = ranked_images(session, vector, limit=limit * 2, model_id=MODEL_ID)
-    image_ids = [image_id for image_id, score in hits if score >= min_score]
-    if not image_ids:
+
+    # Search at most three descriptions of one product class. The text model
+    # and the index are identical; no extra classifier or DB migration.
+    hits = combine_visual_hits(
+        [ranked_images(session, embed_text(prompt), limit=limit * 3,
+                       model_id=MODEL_ID) for prompt in prompts[:3]],
+        min_score, limit * 3,
+    )
+    if not hits:
         return []
+    image_ids = [image_id for image_id, _score in hits]
     products = dict(session.execute(
         select(ProductImage.id, ProductImage.product_id).where(
             ProductImage.id.in_(image_ids))).all())
@@ -131,7 +165,7 @@ def visual_product_ids(session, query: str, limit: int = 30,
     out = []
     for image_id, score in hits:
         pid = products.get(image_id)
-        if score >= min_score and pid and pid not in seen:
+        if pid and pid not in seen:
             seen.add(pid)
             out.append(pid)
         if len(out) == limit:
