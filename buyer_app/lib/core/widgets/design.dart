@@ -231,7 +231,7 @@ class _PhotoGalleryState extends State<PhotoGallery> {
   );
 }
 
-class SearchCapsule extends StatelessWidget {
+class SearchCapsule extends StatefulWidget {
   const SearchCapsule({
     super.key,
     this.onChanged,
@@ -246,45 +246,108 @@ class SearchCapsule extends StatelessWidget {
   final TextEditingController? controller;
   final VoidCallback? onPhotoTap;
   final double height;
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: height,
-    child: TextField(
-      controller: controller,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      onTap: onTap,
-      readOnly: onTap != null,
-      textInputAction: TextInputAction.search,
-      style: const TextStyle(fontSize: 12),
-      decoration: InputDecoration(
-        hintText: 'поиск',
-        hintStyle: const TextStyle(color: Color(0xffa5a5a5)),
-        isDense: true,
-        prefixIconConstraints: const BoxConstraints(minWidth: 33, minHeight: 20),
-        prefixIcon: const SizedBox(width: 33, child: Center(child: SizedBox(
-          width: 10, height: 10, child: DesignIcon('v082_search_mini')))),
-        suffixIcon: onPhotoTap == null ? null : IconButton(
-          tooltip: 'Поиск по фотографии',
-          onPressed: onPhotoTap,
-          constraints: const BoxConstraints(minHeight: 40, minWidth: 40),
-          padding: EdgeInsets.zero,
-          icon: const Icon(Icons.camera_alt_outlined, size: 20),
-        ),
-        filled: true,
-        fillColor: const Color(0xffeaeaea),
-        contentPadding: const EdgeInsets.only(left: 10, right: 10),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide.none,
+  State<SearchCapsule> createState() => _SearchCapsuleState();
+}
+
+class _SearchCapsuleState extends State<SearchCapsule> {
+  TextEditingController? _ownedController;
+  TextEditingController get _controller =>
+      widget.controller ?? (_ownedController ??= TextEditingController());
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(covariant SearchCapsule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      (oldWidget.controller ?? _ownedController)?.removeListener(_refresh);
+      _controller.addListener(_refresh);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_refresh);
+    _ownedController?.dispose();
+    super.dispose();
+  }
+
+  void _clear() {
+    _controller.clear();
+    widget.onChanged?.call('');
+    // Do not unfocus: the keyboard and typing cursor stay available.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = _controller.text.isNotEmpty;
+    return SizedBox(
+      height: widget.height,
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+        onTap: widget.onTap,
+        readOnly: widget.onTap != null,
+        textInputAction: TextInputAction.search,
+        style: const TextStyle(fontSize: 12),
+        decoration: InputDecoration(
+          hintText: 'поиск',
+          hintStyle: const TextStyle(color: Color(0xffa5a5a5)),
+          isDense: true,
+          prefixIconConstraints: const BoxConstraints(minWidth: 33, minHeight: 20),
+          prefixIcon: const SizedBox(width: 33, child: Center(child: SizedBox(
+            width: 10, height: 10, child: DesignIcon('v082_search_mini')))),
+          suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 24),
+          suffixIcon: !hasText && widget.onPhotoTap == null ? null : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasText)
+                InkWell(
+                  key: const ValueKey('search-clear'),
+                  onTap: _clear,
+                  borderRadius: BorderRadius.circular(20),
+                  child: const SizedBox(
+                    width: 32, height: 32,
+                    child: Center(child: Icon(Icons.close, size: 14,
+                        color: Color(0xffa5a5a5))),
+                  ),
+                ),
+              if (widget.onPhotoTap != null)
+                IconButton(
+                  tooltip: 'Поиск по фотографии',
+                  onPressed: widget.onPhotoTap,
+                  constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                ),
+            ],
+          ),
+          filled: true,
+          fillColor: const Color(0xffeaeaea),
+          contentPadding: const EdgeInsets.only(left: 10, right: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class RoundBack extends StatelessWidget {
