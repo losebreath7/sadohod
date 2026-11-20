@@ -197,8 +197,11 @@ def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
     assert pid in {row['id'] for row in found['items']}
 
 
+@__import__('pytest').mark.parametrize('word', [
+    'кольцо', 'браслет', 'чехол для телефона', 'настольная игра', 'парфюм',
+])
 def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
-    env, monkeypatch
+    env, monkeypatch, word
 ):
     """Public API fallback must work even if the category vote abstained."""
     from backend.app import api, ml_clip, search
@@ -214,8 +217,7 @@ def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
     monkeypatch.setattr(search, 'ranked_images',
                         lambda session, query, limit, model_id:
                         [(image_id, .32)])
-    for word in ('кольцо', 'браслет', 'чехол для телефона'):
-        response = client.get('/api/v1/search/text', params={'q': word})
-        assert response.status_code == 200, response.text
-        ids = [item['id'] for item in response.json()['items']]
-        assert ids == [pid], (word, ids)
+    response = client.get('/api/v1/search/text', params={'q': word})
+    assert response.status_code == 200, response.text
+    ids = [item['id'] for item in response.json()['items']]
+    assert ids == [pid], (word, ids)
