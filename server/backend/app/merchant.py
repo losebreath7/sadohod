@@ -761,3 +761,73 @@ def decide_listing(lid: str, body: DecisionInput, db: Session = Depends(get_db))
         row.status = 'rejected'; row.note = body.note
     safe_commit(db)
     return as_listing(db, row)
+
+
+@admin_router.get('/catalog/classification-audit')
+def classification_audit(product_id: str | None = None,
+                         db: Session = Depends(get_db)):
+    """Protected, read-only diagnostic for real deployed category/search data.
+
+    Product IDs, not seller accounts, are exposed to the authenticated admin.
+    This endpoint never runs inference or changes publication state.
+    """
+    from collections import Counter
+    from sqlalchemy.orm import selectinload
+    from .config import SEARCH_BACKEND
+    from .ml_clip import MODEL_ID
+    from .models import ImageMLEmbedding, ProductImage
+    from .merchant_models import (ProductCategoryState,
+                                  ProductCategoryAssignment, ProductSearchTag)
+
+    statement = select(Product).options(selectinload(Product.images))
+    if product_id:
+        statement = statement.where(Product.id == product_id)
+    products = db.scalars(statement).all()
+    ids = [product.id for product in products]
+    if not ids:
+        return {'total': 0, 'search_backend': SEARCH_BACKEND,
+                'ml_model': MODEL_ID if SEARCH_BACKEND == 'clip' else None,
+                'status_counts': {}, 'missing_image_vectors': 0,
+                'missing_categories': 0, 'missing_search_tags': 0,
+                'examples': []}
+
+    status_counts = Counter()
+    missing_vectors = missing_categories = missing_tags = 0
+    examples = []
+    for product in products:
+        state = db.get(ProductCategoryState, product.id)
+        assignment = db.get(ProductCategoryAssignment, product.id)
+        status = state.status if state else 'state_missing'
+        status_counts[status] += 1
+        indexed = sum(db.get(ImageMLEmbedding, (image.id, MODEL_ID)) is not None
+                      for image in product.images)
+        missing_vectors += len(product.images) - indexed
+        tags = [row.tag for row in db.scalars(select(ProductSearchTag).where(
+            ProductSearchTag.product_id == product.id))]
+        if assignment is None:
+            missing_categories += 1
+        if not tags:
+            missing_tags += 1
+        if len(examples) < 50 and (
+                indexed != len(product.images) or assignment is None or not tags
+                or status not in ('assigned',)):
+            examples.append({
+                'product_id': product.id,
+                'category': product.category,
+                'category_id': assignment.category_id if assignment else None,
+                'status': status,
+                'source': state.source if state else None,
+                'photos': len(product.images),
+                'indexed_photos': indexed,
+                'search_tags': sorted(tags),
+            })
+    return {
+        'total': len(products),
+        'search_backend': SEARCH_BACKEND,
+        'ml_model': MODEL_ID if SEARCH_BACKEND == 'clip' else None,
+        'status_counts': dict(status_counts),
+        'missing_image_vectors': missing_vectors,
+        'missing_categories': missing_categories,
+        'missing_search_tags': missing_tags,
+        'examples': examples,
+    }
