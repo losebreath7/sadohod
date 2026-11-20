@@ -42,6 +42,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _toggle(String zone) => setState(() => _zones.contains(zone) ? _zones.remove(zone) : _zones.add(zone));
 
+  void _onSearchChanged(String value) {
+    if (value.isEmpty && widget.query == null) {
+      setState(() {
+        _zones.clear();
+        _filters = false;
+        _allProducts = CatalogApi.instance.products();
+      });
+    }
+  }
+
+  String get _resultHeading => widget.query != null ? 'похожие товары'
+      : _text.text.trim().isEmpty ? 'результат поиска' : widget.textQuery;
+
+
   Widget _listing(List<DemoProduct> products) {
     final list = products.where((p) => productInZones(p, _zones)).toList();
     if (list.isEmpty) return const Padding(
@@ -57,6 +71,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       BuyerTopBar(
         controller: _text,
         onBack: () => context.canPop() ? context.pop() : context.go('/home'),
+        onChanged: _onSearchChanged,
         onSubmitted: (value) { if (value.trim().isNotEmpty) context.push('/results?q=${Uri.encodeQueryComponent(value.trim())}'); },
       ),
       Expanded(child: ListView(
@@ -64,15 +79,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
         children: [
           if (_filters)
             MarketFilters(
-              title: widget.query != null ? 'похожие товары' : (widget.textQuery.isEmpty ? 'результат поиска' : widget.textQuery),
+              title: _resultHeading,
               selectedZones: _zones,
               onToggleZone: _toggle,
               onClose: () => setState(() => _filters = false),
             )
           else
             Row(children: [
-              Expanded(child: Text(widget.query != null ? 'похожие товары'
-                : widget.textQuery.isEmpty ? 'результат поиска' : widget.textQuery,
+              Expanded(child: Text(_resultHeading,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -.44))),
               IconButton(
