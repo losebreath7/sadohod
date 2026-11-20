@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/seller_notifications.dart';
 import 'package:sadohod_seller/seller_v3.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 
 class FakeNotificationApi extends SellerApi {
   FakeNotificationApi() { token = 'test-only-session'; }
@@ -38,6 +39,28 @@ class FakeNotificationApi extends SellerApi {
 }
 
 void main() {
+  test('semantic notification circles follow existing seller palette', () {
+    expect(sellerNotificationTone('approved'), SellerColors.blue);
+    expect(sellerNotificationTone('pending'), SellerColors.blue);
+    expect(sellerNotificationTone('rejected'), SellerColors.danger);
+    expect(sellerNotificationTone('removed'), SellerColors.danger);
+    expect(sellerNotificationTone('unknown'), SellerColors.blue);
+  });
+
+  testWidgets('approved and rejected notifications use colored circles',
+      (tester) async {
+    final api = FakeNotificationApi();
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body:
+      SellerNotificationsPage(api: api, onOpenPavilions: () {},
+        onOpenProduct: (_) {}))));
+    await tester.pumpAndSettle();
+    final circles = tester.widgetList<CircleAvatar>(
+      find.byType(CircleAvatar)).toList();
+    expect(circles.length, 2);
+    expect(circles[0].backgroundColor, SellerColors.danger);
+    expect(circles[1].backgroundColor, SellerColors.blue);
+  });
+
   testWidgets('seller moderation inbox shows reasons and navigates to product',
       (tester) async {
     final api = FakeNotificationApi();

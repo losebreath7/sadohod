@@ -718,6 +718,10 @@ def decide_product(pid: str, body: ProductDecisionInput, db: Session = Depends(g
     db.scalar(select(Seller).where(Seller.id == owner.seller_id).with_for_update(of=Seller))
     db.refresh(owner)
     if owner.status != 'pending': raise HTTPException(409, 'Товар не ожидает модерации.')
+    # publish_listing() has an intermediate flush before owner.status changes.
+    # This moderator decision owns all placement transitions in the transaction;
+    # one product notification must replace duplicate placement notices.
+    db.info.setdefault('_seller_notified_product_ids', set()).add(pid)
     p = db.get(Product, pid)
     if body.decision == 'approved':
         category = body.category.strip() if body.category is not None else p.category
