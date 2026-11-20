@@ -6,6 +6,13 @@ import 'package:sadohod_shared_core/design_tokens.dart';
 import 'api.dart';
 import 'seller_features.dart';
 
+/// Existing seller palette: blue for neutral/positive decisions, firm red for
+/// negative decisions. Read/unread state is independent from this semantic tone.
+Color sellerNotificationTone(String status) =>
+    status == 'rejected' || status == 'removed'
+        ? SellerColors.danger
+        : SellerColors.blue;
+
 /// Seller moderation history. The shell/nav remain owned by SellerV3.
 /// Only the existing seller API is used; local UI state is never treated
 /// as authoritative notification history.
@@ -182,9 +189,10 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 32,
-                child: Icon(statusIcon, size: 23, color: sellerBrown),
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: sellerNotificationTone(moderationStatus),
+                child: Icon(statusIcon, size: 20, color: Colors.white),
               ),
               const SizedBox(width: 13),
               Expanded(child: Column(
