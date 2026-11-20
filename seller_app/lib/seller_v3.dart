@@ -2925,7 +2925,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
           child: TextField(
             controller: c('search'),
             onChanged: (_) => setState(() {
-              searching = true;
+              searching = c('search').text.trim().isNotEmpty;
               selected.clear();
             }),
             style: type(12, color: Colors.white),
@@ -2943,18 +2943,26 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             ),
           ),
         ),
-        if (searching)
-          tap(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: label('×', 20),
-            ),
-            () {
-              setState(() {
-                searching = false;
+        if (c('search').text.isNotEmpty)
+          Semantics(
+            label: 'Очистить поиск',
+            button: true,
+            child: InkWell(
+              key: const ValueKey('seller-search-clear'),
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => setState(() {
                 c('search').clear();
-              });
-            },
+                searching = false;
+                selected.clear();
+              }),
+              child: const SizedBox(
+                width: 36, height: 32,
+                child: Center(
+                  child: Icon(Icons.close, size: 14,
+                    color: Color(0xFFA5A5A5)),
+                ),
+              ),
+            ),
           ),
       ],
     ),
