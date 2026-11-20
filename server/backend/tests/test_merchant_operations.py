@@ -156,7 +156,9 @@ def test_photo_classification_http_and_conflict(env, monkeypatch):
     assert r.json()['category_inference']['source'] == 'photo'
     r = c.put(f'/api/v1/merchant/products/{pid}', headers=auth,
                json={'title': 'Сумка', 'category': 'Обувь'})
-    assert r.json()['category'] == 'Без категории'
+    # Keep the strongly named product category. A conflicting photo
+    # remains a diagnostic suggestion instead of erasing the title.
+    assert r.json()['category'] == 'Сумки'
     assert r.json()['category_inference']['status'] == 'conflict'
     monkeypatch.setattr(ci, 'photo_vote', lambda vector: (_ for _ in ()).throw(RuntimeError('offline')))
     r = c.post(url, headers=auth)
