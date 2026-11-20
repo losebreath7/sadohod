@@ -24,6 +24,23 @@ class ProductSaveSession {
       requestKeys.putIfAbsent(jsonEncode(body), operationId);
 }
 
+
+/// A successful save request does not necessarily mean a public listing.
+/// Always use the *returned server status*, never the HTTP 200 alone.
+String productSaveFeedback(ProductData saved) {
+  final status = '${saved['status'] ?? ''}'.toLowerCase();
+  final listings = dataRows(saved['listings']);
+  if (status == 'pending' || listings.any((row) => row['status'] == 'pending')) {
+    return 'Товар отправлен на проверку модерации. Пока не опубликован.';
+  }
+  if (status == 'rejected') return 'Товар отклонён модерацией.';
+  if (status == 'approved' && listings.any((row) =>
+      row['published'] == true || row['status'] == 'approved')) {
+    return 'Товар опубликован';
+  }
+  return 'Товар сохранён';
+}
+
 class ProductActions {
   ProductActions(this.api);
   final SellerApi api;
