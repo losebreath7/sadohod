@@ -237,7 +237,12 @@ def sync_taxonomy(db, product, state, photo_leaf=None, photo_objects=(), preserv
     legacy = LEGACY.get(product.category)
     # Keep explicit seller categories authoritative when a known legacy mapping exists.
     if state.source == 'manual':
-        leaf = legacy
+        # Preserve a precise existing descendant when its manually selected
+        # legacy category is only a broad parent (e.g. "Верхняя одежда").
+        previous = db.get(ProductCategoryAssignment, product.id)
+        previous_leaf = previous.category_id if previous else None
+        leaf = (previous_leaf if previous_leaf in BY_ID and legacy
+                and legacy in path_ids(previous_leaf) else legacy)
     elif legacy and (leaf is None or path_ids(legacy)[0] != path_ids(leaf)[0]):
         leaf = legacy
 
@@ -412,6 +417,11 @@ def assign_category(db, product, supplied=None):
     if title_leaf and photo_leaf and path_ids(title_leaf)[0] == path_ids(photo_leaf)[0]:
         # An explicit, precise product name outranks a generic photo label.
         photo_leaf = title_leaf
+    if state.status == 'conflict':
+        # The photo may suggest a useful alternate classification but is not
+        # strong enough to replace the title or its category path.
+        photo_leaf = None
+        photo_objects.clear()
     product.category = category
     state.assigned = category
     sync_taxonomy(db, product, state, photo_leaf=photo_leaf,
