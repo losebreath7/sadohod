@@ -3,6 +3,7 @@
 Cosine thresholds are conservative heuristics, NOT calibrated probabilities.
 Photo inference is available only with the existing SEARCH_BACKEND=clip stack.
 """
+from collections import Counter
 from functools import lru_cache
 import logging
 import math
@@ -13,6 +14,7 @@ from .models import ImageMLEmbedding
 from .ml_clip import MODEL_ID, DIM, _model_bundle, MODEL_ARCH
 from .product_categories import resolve_category, is_unassigned, UNASSIGNED
 from .catalog_taxonomy import NODES_V1, LEGACY, BY_ID, path_ids, resolve_leaf
+from .product_semantics import sync_search_facets
 
 log = logging.getLogger(__name__)
 PROMPTS = {
@@ -113,7 +115,121 @@ def toy_leaf_vote(vector):
 
 
 
-def sync_taxonomy(db, product, state, photo_leaf=None):
+# English-language OpenCLIP prompts for more precise, non-invented leaves.
+# Conservative comparisons: no ML result is treated as a calibrated certainty.
+VISUAL_LEAF_PROMPTS = {
+    'clothing-skirts': ('a product photo of a skirt', 'a short plaid mini skirt on a plain background'),
+    'clothing-trousers': ('a product photo of trousers', 'a pair of pants for sale'),
+    'clothing-jeans': ('a product photo of denim jeans',),
+    'clothing-shirts': ('a product photo of a button-up shirt',),
+    'clothing-tshirts': ('a product photo of a t-shirt',),
+    'clothing-hoodies': ('a product photo of a hoodie',),
+    'clothing-dresses': ('a product photo of a dress',),
+    'clothing-jackets': ('a product photo of a winter jacket',),
+    'clothing-coats': ('a product photo of a wool coat',),
+    'shoes-sneakers': ('a product photo of sneakers',),
+    'shoes-boots': ('a product photo of boots',),
+    'shoes-sandals': ('a product photo of sandals',),
+    'bags-handbags': ('a product photo of a handbag',),
+    'bags-backpacks': ('a product photo of a backpack',),
+    'bags-hats': ('a product photo of a warm winter hat', 'a knitted beanie hat'),
+    'toys-plush': ('a product photo of a soft stuffed toy monkey',
+                   'a plush toy rabbit on a white background',
+                   'a cuddly stuffed animal soft toy'),
+    'toys-dolls': ('a product photo of a fashion doll toy',),
+    'toys-construction': ('a product photo of a toy building block set',),
+    'toys-cars': ('a product photo of a toy car',),
+    'jewelry-rings': ('a product photo of a silver ring',
+                       'a product photo of a gemstone finger ring'),
+    'jewelry-earrings': ('a product photo of earrings',),
+    'jewelry-necklaces': ('a product photo of a necklace',),
+    'jewelry-bracelets': ('a product photo of a bracelet',),
+    'home-textile': ('a product photo of a rug or floor carpet',
+                     'a product photo of home textile',),
+    'home-bedding': ('a product photo of bed sheets',),
+    'home-pots': ('a product photo of a cooking pot',),
+    'home-pans': ('a product photo of a frying pan',),
+    'electronics-lighting': ('a product photo of a table lamp',
+                             'a product photo of a desk lamp',),
+    'electronics-headphones': ('a product photo of headphones',),
+    'beauty-lipstick': ('a product photo of a lipstick',),
+    'beauty-shampoo': ('a product photo of shampoo',),
+    '_other': ('a photograph of a person', 'an abstract picture',
+               'a building exterior', 'a printed image on a shirt'),
+}
+
+ANIMAL_TOY_PROMPTS = {
+    'обезьяна': ('a plush monkey toy with round ears', 'a stuffed monkey soft toy'),
+    'заяц': ('a plush rabbit toy with long ears', 'a stuffed bunny soft toy'),
+    'медведь': ('a stuffed teddy bear toy', 'a plush bear soft toy'),
+    'кот': ('a plush cat toy', 'a stuffed kitten toy'),
+    'собака': ('a plush dog toy', 'a stuffed puppy toy'),
+    '_other': ('a toy car', 'a shirt with an animal print', 'a human portrait'),
+}
+
+
+@lru_cache(maxsize=2)
+def _candidate_vectors(group):
+    import open_clip
+    prompts = VISUAL_LEAF_PROMPTS if group == 'leaf' else ANIMAL_TOY_PROMPTS
+    model, _, torch = _model_bundle()
+    entries = [(kind, prompt) for kind, texts in prompts.items() for prompt in texts]
+    encoded = open_clip.get_tokenizer(MODEL_ARCH)([p for _, p in entries])
+    with torch.inference_mode():
+        vectors = model.encode_text(encoded).float()
+        vectors = vectors / vectors.norm(dim=-1, keepdim=True).clamp(min=1e-12)
+    return [(entry[0], vector) for entry, vector in zip(entries, vectors.cpu().tolist())]
+
+
+def _candidate_vote(vector, group, min_score, margin):
+    if len(vector) != DIM or not all(math.isfinite(x) for x in vector):
+        return None
+    norm = math.sqrt(sum(x*x for x in vector))
+    if norm < 1e-12:
+        return None
+    scores = {}
+    for name, candidate in _candidate_vectors(group):
+        score = sum(a*b for a, b in zip(vector, candidate)) / norm
+        scores[name] = max(score, scores.get(name, -1.0))
+    ranked = sorted(scores.items(), key=lambda row: row[1], reverse=True)
+    if len(ranked) < 2 or ranked[0][0] == '_other':
+        return None
+    winner, strength = ranked[0]
+    if strength < min_score or strength - ranked[1][1] < margin:
+        return None
+    return winner
+
+
+def visual_leaf_vote(vector):
+    """Conservative fine-grained category; abstains on ambiguous photos."""
+    return _candidate_vote(vector, 'leaf', .28, .035)
+
+
+def toy_object_vote(vector):
+    """Specific toy species only, never a category for animal-pattern clothing."""
+    return _candidate_vote(vector, 'animal', .29, .04)
+
+
+ROOT_TO_LEGACY = {
+    'clothing': 'Одежда', 'shoes': 'Обувь', 'bags': 'Сумки',
+    'toys': 'Игрушки', 'jewelry': 'Украшения',
+    'beauty': 'Красота и уход', 'home': 'Товары для дома',
+    'electronics': 'Электроника', 'kids': 'Детские товары',
+    'sport': 'Спорт и отдых', 'pets': 'Зоотовары',
+    'office': 'Канцтовары', 'tools': 'Инструменты и ремонт',
+    'seasonal': 'Сезонные товары',
+}
+
+
+def legacy_for_leaf(leaf):
+    if leaf == 'clothing-dresses':
+        return 'Платья'
+    if leaf in ('clothing-jackets', 'clothing-coats', 'clothing-kids-jackets'):
+        return 'Верхняя одежда'
+    return ROOT_TO_LEGACY.get(path_ids(leaf)[0]) if leaf in BY_ID else None
+
+
+def sync_taxonomy(db, product, state, photo_leaf=None, photo_objects=(), preserve_photo_tags=False):
     """Refresh the precise category without changing offer publication or review state."""
     leaf = resolve_leaf(product.title)
     if leaf is None and photo_leaf in BY_ID:
@@ -141,6 +257,7 @@ def sync_taxonomy(db, product, state, photo_leaf=None):
     if not leaf:
         if assignment:
             db.delete(assignment)
+        sync_search_facets(db, product, None, preserve_photos=preserve_photo_tags)
         return
     if assignment is None:
         assignment = ProductCategoryAssignment(product_id=product.id,
@@ -150,16 +267,17 @@ def sync_taxonomy(db, product, state, photo_leaf=None):
     else:
         assignment.category_id = leaf
         assignment.source = state.source
-    # Preserve existing legacy categories for old clients. New groups get a
-    # meaningful root label instead of showing "Без категории" forever.
+    # Preserve manual/legacy labels; an inferred leaf provides the correct
+    # broad label for older buyer clients without inventing a product title.
     if is_unassigned(product.category):
-        root = path_ids(leaf)[0]
-        product.category = BY_ID[root][2]
+        product.category = legacy_for_leaf(leaf) or BY_ID[path_ids(leaf)[0]][2]
         state.assigned = product.category
         if state.status in ('needs_review', 'photo_model_disabled', 'photo_index_missing'):
-            state.source = 'title'
+            state.source = 'photo' if photo_leaf else 'title'
             state.status = 'assigned'
         assignment.source = state.source
+    sync_search_facets(db, product, leaf, photo_objects=photo_objects,
+                       preserve_photos=preserve_photo_tags)
 
 
 def mark_manual(db, product):
@@ -178,9 +296,9 @@ def mark_manual(db, product):
 
 def assign_category(db, product, supplied=None):
     state = db.get(ProductCategoryState, product.id)
-    # Pre-existing explicit categories and externally edited categories are manual.
     if (state is None and not is_unassigned(product.category)) or (
-        state is not None and product.category != state.assigned and not is_unassigned(product.category)
+        state is not None and product.category != state.assigned
+        and not is_unassigned(product.category)
     ):
         return mark_manual(db, product)
     if state is not None and state.source == 'manual' and not is_unassigned(product.category):
@@ -189,46 +307,100 @@ def assign_category(db, product, supplied=None):
     if state is None:
         state = ProductCategoryState(product_id=product.id)
         db.add(state)
+
     state.score, state.suggestion = 0.0, ''
-    photo_leaf = None
+    title_leaf = resolve_leaf(product.title)
     title_category = resolve_category(product.title)
     category = title_category
-    state.source = 'title' if not is_unassigned(category) else 'unknown'
-    state.status = 'assigned' if not is_unassigned(category) else 'needs_review'
+    photo_leaf = None
+    photo_objects = set()
+    photo_classified = False
+    preserve_photo_tags = False
+    state.source = 'title' if not is_unassigned(title_category) else 'unknown'
+    state.status = 'assigned' if not is_unassigned(title_category) else 'needs_review'
+
     if product.images and SEARCH_BACKEND == 'clip':
         try:
-            vectors = [db.get(ImageMLEmbedding, (img.id, MODEL_ID)) for img in product.images]
-            if any(row is None for row in vectors):
+            embeddings = [db.get(ImageMLEmbedding, (im.id, MODEL_ID))
+                          for im in product.images]
+            available = [row.embedding for row in embeddings if row is not None]
+            if not available:
                 state.status = 'photo_index_missing'
-                category = UNASSIGNED
+                preserve_photo_tags = True
             else:
-                votes = [photo_vote(row.embedding) for row in vectors]
-                state.score = min(vote[1] for vote in votes)
-                categories = {vote[0] for vote in votes}
-                if len(categories) == 1 and all(vote[2] for vote in votes):
-                    photo_category = votes[0][0]
-                    if photo_category == 'Игрушки':
-                        leaves = [toy_leaf_vote(row.embedding) for row in vectors]
-                        if leaves and leaves[0] is not None and len(set(leaves)) == 1:
-                            photo_leaf = leaves[0]
-                    state.suggestion = photo_category
-                    if is_unassigned(title_category) or title_category == photo_category:
-                        category = photo_category
-                        state.source = 'photo' if is_unassigned(title_category) else 'title_and_photo'
-                        state.status = 'assigned'
-                    else:
-                        category, state.status = UNASSIGNED, 'conflict'
+                # Weak/out-of-frame photos do not cancel a confident first
+                # image. Competing confident classes still cause abstention.
+                votes = []
+                for vector in available:
+                    broad, score, confident = photo_vote(vector)
+                    leaf = None
+                    if confident:
+                        if broad == 'Игрушки':
+                            leaf = toy_leaf_vote(vector)
+                        else:
+                            leaf = visual_leaf_vote(vector)
+                        if leaf is not None:
+                            inferred_broad = legacy_for_leaf(leaf)
+                            # Do not trust a fine label conflicting with the
+                            # strong broad classification.
+                            if inferred_broad not in (broad, 'Одежда') or (
+                                inferred_broad == 'Одежда' and broad not in ('Одежда', 'Платья', 'Верхняя одежда')
+                            ):
+                                leaf = None
+                        votes.append((leaf or LEGACY.get(broad), score))
+                values = [name for name, _ in votes if name]
+                ranked = Counter(values).most_common()
+                state.score = max((score for _, score in votes), default=0.0)
+                if ranked and (len(ranked) == 1 or ranked[0][1] > ranked[1][1]):
+                    winner, count = ranked[0]
+                    if count >= math.ceil(len(available) / 2):
+                        photo_classified = True
+                        photo_leaf = winner if winner in BY_ID else None
+                        candidate_category = legacy_for_leaf(winner) if photo_leaf else winner
+                        state.suggestion = candidate_category or ''
+                        if title_leaf and photo_leaf and path_ids(title_leaf)[0] != path_ids(photo_leaf)[0]:
+                            # Retain the explicit named product instead of
+                            # replacing it with an unrelated predicted item.
+                            state.status = 'conflict'
+                        elif (not is_unassigned(title_category)
+                              and candidate_category != title_category):
+                            state.status = 'conflict'
+                        else:
+                            category = candidate_category or title_category
+                            state.source = 'title_and_photo' if not is_unassigned(title_category) else 'photo'
+                            state.status = 'assigned'
+                            # Species detection only for confidently recognised
+                            # plush toys, never a motif on clothes or bags.
+                            if photo_leaf == 'toys-plush':
+                                objects = [toy_object_vote(vector) for vector in available]
+                                valid = [o for o in objects if o]
+                                if valid and len(set(valid)) == 1:
+                                    photo_objects.add(valid[0])
                 else:
-                    category, state.status = UNASSIGNED, 'needs_review'
+                    state.status = 'needs_review'
+                if len(available) < len(product.images):
+                    preserve_photo_tags = True
         except Exception:
-            # Upload remains saved. The category API truthfully reports unavailable.
             log.exception('Category inference unavailable for product %s', product.id)
-            category, state.status = UNASSIGNED, 'model_unavailable'
-    elif product.images and is_unassigned(category):
-        state.status = 'photo_model_disabled'
+            state.status = 'model_unavailable'
+            preserve_photo_tags = True
+    elif product.images:
+        preserve_photo_tags = True
+        if is_unassigned(category):
+            state.status = 'photo_model_disabled'
+
+    # Never delete a confident title category because a weaker photo was
+    # uncertain or ML temporarily failed.
+    if not photo_classified and title_leaf:
+        category = title_category if not is_unassigned(title_category) else (
+            legacy_for_leaf(title_leaf) or UNASSIGNED)
+    if title_leaf and photo_leaf and path_ids(title_leaf)[0] == path_ids(photo_leaf)[0]:
+        # An explicit, precise product name outranks a generic photo label.
+        photo_leaf = title_leaf
     product.category = category
     state.assigned = category
-    sync_taxonomy(db, product, state, photo_leaf=photo_leaf)
+    sync_taxonomy(db, product, state, photo_leaf=photo_leaf,
+                  photo_objects=photo_objects, preserve_photo_tags=preserve_photo_tags)
     return state
 
 
@@ -256,6 +428,9 @@ def reclassify_indexed_products(db):
     for product in products:
         state = db.get(ProductCategoryState, product.id)
         if state is not None and state.source == 'manual':
+            # Manual taxonomy stays authoritative; keep auxiliary search
+            # words populated without revisiting the category.
+            sync_taxonomy(db, product, state, preserve_photo_tags=True)
             continue
         before = product.category_assignment.category_id if product.category_assignment else None
         assign_category(db, product)
