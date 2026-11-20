@@ -198,3 +198,36 @@ def test_validated_category_words_support_russian_inflections(declined, canonica
 
 def test_unknown_inflections_do_not_create_product_labels():
     assert query_terms('неизвестностям') == {'неизвестностям'}
+
+
+def test_generic_object_words_expand_through_all_known_taxonomy_labels():
+    from backend.app.text_search import precise_query_leaves, visual_prompts
+    from backend.app.product_semantics import query_terms
+
+    assert precise_query_leaves('чехол') == {'electronics-phone'}
+    assert 'чехол для телефона' in query_terms('чехол') or visual_prompts('чехол')
+    assert visual_prompts('чехол')
+    assert precise_query_leaves('ручка') == {'office-pens'}
+    assert precise_query_leaves('кольцо') == {'jewelry-rings'}
+    assert not precise_query_leaves('несуществующий предмет')
+
+
+def test_primary_object_not_an_accessory_or_part():
+    from types import SimpleNamespace
+    from backend.app.text_search import primary_type_conflicts, precise_query_leaves
+
+    pen = precise_query_leaves('ручка')
+    bag = SimpleNamespace(
+        title='Сумка с короткими ручками',
+        category_assignment=SimpleNamespace(category_id='bags-handbags'),
+    )
+    actual_pen = SimpleNamespace(
+        title='Без названия',
+        category_assignment=SimpleNamespace(category_id='office-pens'),
+    )
+    unknown = SimpleNamespace(title='Без названия', category_assignment=None)
+
+    assert primary_type_conflicts(bag, pen)
+    assert not primary_type_conflicts(actual_pen, pen)
+    assert not primary_type_conflicts(unknown, pen)
+    assert not primary_type_conflicts(bag, set())
