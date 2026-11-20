@@ -105,6 +105,7 @@ def test_skirts_search_and_favorites_rank_above_generic_clothing(env):
 
 
 def test_search_ignores_unrecognized_and_unavailable_categories(env):
+    from test_merchant_v080 import login
     c, codes, factory, _ = env
     buyer = login(c, codes, 'search-limited@example.com')
     url = '/api/v1/account/interests/search'
