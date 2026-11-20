@@ -4,6 +4,7 @@ Model votes are mocked so these tests validate indexing/search/legacy
 compatibility. A separate labelled real-photo benchmark is required for the
 OpenCLIP checkpoint before claiming production recognition precision.
 """
+import pytest
 from sqlalchemy import select
 from backend.app import category_inference
 from backend.app.models import ProductImage, ImageMLEmbedding, Product
@@ -197,7 +198,7 @@ def test_real_published_search_survives_two_abstaining_images(env, monkeypatch):
     assert pid in {row['id'] for row in found['items']}
 
 
-@__import__('pytest').mark.parametrize('word', [
+@pytest.mark.parametrize('word', [
     'кольцо', 'браслет', 'чехол для телефона', 'настольная игра', 'парфюм',
 ])
 def test_buyer_search_finds_unnamed_unclassified_item_via_visual_index(
