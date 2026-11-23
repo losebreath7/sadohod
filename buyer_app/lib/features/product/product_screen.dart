@@ -14,6 +14,18 @@ import '../../data/api.dart';
 import '../../data/account.dart';
 import '../../data/catalog.dart';
 
+/// Number of actual offers from the catalogue, without demo-only UI labels.
+String pavilionCountLabel(int count) {
+  final remainder100 = count % 100;
+  final remainder10 = count % 10;
+  final ending = remainder100 >= 11 && remainder100 <= 14
+      ? 'павильонов'
+      : remainder10 == 1 ? 'павильон'
+      : remainder10 >= 2 && remainder10 <= 4 ? 'павильона'
+      : 'павильонов';
+  return '$count $ending';
+}
+
 /// Match the modal to the actual phone (or the simulated phone Navigator),
 /// not the surrounding desktop browser viewport.
 BoxConstraints _reportDialogConstraints(BuildContext context) {
@@ -227,7 +239,7 @@ class _ProductScreenState extends State<ProductScreen> {
               const Expanded(child: Text('Где найти товар', style: TextStyle(fontFamily: SadohodFont.family, fontSize: 22, fontWeight: FontWeight.bold))),
               IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ]),
-            Text('${offers.length} ${offers.length == 1 ? 'павильон' : 'павильона'} · демонстрационные данные',
+            Text(pavilionCountLabel(offers.length),
               style: const TextStyle(fontFamily: SadohodFont.family, color: Color(0xffa5a5a5), fontSize: 12)),
             const SizedBox(height: 14),
             Text('Как расшифровывается адрес', style: const TextStyle(
