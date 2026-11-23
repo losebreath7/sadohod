@@ -177,7 +177,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     final statusIcon = moderationStatus == 'rejected' || moderationStatus == 'removed'
         ? Icons.error_outline
         : moderationStatus == 'approved'
-            ? Icons.check_circle_outline
+            ? Icons.check
             : Icons.schedule_outlined;
     return Semantics(
       button: true,
