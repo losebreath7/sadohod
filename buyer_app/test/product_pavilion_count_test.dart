@@ -56,6 +56,9 @@ void main() {
     expect(product.availableOffers.length, 2);
     expect(product.availableOffers.map((o) => o.pavilion).toList(),
         ['2В-99', '0-00-77']);
+    expect(product.availableOffers.map((o) => o.seller.zone).toList(),
+        ['корпус А', 'птичий рынок']);
+    expect(product.availableOffers.last.seller.pavilion, '0-00-77');
     expect(pavilionCountLabel(product.availableOffers.length), '2 павильона');
   });
 }
