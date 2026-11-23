@@ -53,11 +53,13 @@ def _recipient(db: Session, seller_id: str) -> str | None:
 
 
 def _record(db: Session, buyer_id: str | None, kind: str, target: str,
-            status: str, subject: str, note: str = ''):
+            status: str, subject: str, note: str = '', previous_status: str | None = None):
     if buyer_id is None or status not in ('pending', 'approved', 'rejected'):
         return
-    # Product and listing publication is immediate: no moderation notices.
-    if kind in ('product', 'listing'):
+    # Publishing a normal draft immediately is NOT a moderator decision.
+    # Emit a positive product/listing notice only after a real pending review.
+    # Pending and rejected transitions are always meaningful to the seller.
+    if kind in ('product', 'listing') and status == 'approved' and previous_status != 'pending':
         return
     subject = (subject or 'Без названия').strip()
     titles = {
@@ -122,8 +124,13 @@ def _capture_merchant_decisions(db, flush_context, instances):
         and _status_transition(db, obj, obj.status)
         and obj.status in ('pending', 'approved', 'rejected')
     }
+    # publish_listing() may flush more than once inside the same product
+    # decision. Suppress its placement notices for the *whole transaction*,
+    # not just a single before_flush pass.
+    covered_products = db.info.setdefault('_seller_notified_product_ids', set())
+    covered_products.update(changed_products)
     for obj in list(db.new) + list(db.dirty):
-        if isinstance(obj, MerchantListing) and obj.product_id in changed_products:
+        if isinstance(obj, MerchantListing) and obj.product_id in covered_products:
             continue
         if not isinstance(obj, (ShopApplication, PavilionRequest,
                                 MerchantProduct, MerchantListing)):
@@ -133,6 +140,8 @@ def _capture_merchant_decisions(db, flush_context, instances):
             continue
         if status is None:
             status = 'pending'
+        history = inspect(obj).attrs.status.history
+        previous_status = history.deleted[0] if history.deleted else None
         if isinstance(obj, ShopApplication):
             _record(db, obj.buyer_id, 'application', obj.id, status,
                     f'{obj.zone}-{obj.code}', obj.note)
@@ -142,7 +151,8 @@ def _capture_merchant_decisions(db, flush_context, instances):
         elif isinstance(obj, MerchantProduct):
             p = db.get(Product, obj.product_id)
             _record(db, _recipient(db, obj.seller_id), 'product',
-                    obj.product_id, status, p.title if p else 'Товар', obj.note)
+                    obj.product_id, status, p.title if p else 'Товар', obj.note,
+                    previous_status=previous_status)
         elif isinstance(obj, MerchantListing):
             product = db.get(Product, obj.product_id)
             pavilion = db.get(Pavilion, obj.pavilion_id)
@@ -150,7 +160,16 @@ def _capture_merchant_decisions(db, flush_context, instances):
             if pavilion:
                 subject += f' · {pavilion.zone}-{pavilion.code}'
             _record(db, _recipient(db, obj.seller_id), 'listing',
-                    obj.id, status, subject, obj.note)
+                    obj.id, status, subject, obj.note,
+                    previous_status=previous_status)
+
+
+@event.listens_for(Session, 'after_commit')
+@event.listens_for(Session, 'after_rollback')
+def _clear_notification_decisions(db):
+    # Session can be reused; decisions from a prior transaction cannot hide
+    # future independent listing updates.
+    db.info.pop('_seller_notified_product_ids', None)
 
 
 def _owned(notification_id: str, buyer: Buyer, db: Session) -> SellerNotification:
