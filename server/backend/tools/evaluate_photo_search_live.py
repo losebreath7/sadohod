@@ -26,21 +26,56 @@ from pathlib import Path
 
 
 def summarize(samples):
+    """Aggregate retrieval metrics over positive and negative queries separately.
+
+    Recall assumes expected_ids is an exhaustive relevance judgement set.
+    When it is incomplete, hit@K remains useful but recall/precision are biased.
+    """
+    if not samples:
+        raise ValueError("At least one evaluation sample is required")
     positives = [s for s in samples if not s["expect_empty"]]
     negatives = [s for s in samples if s["expect_empty"]]
     latencies = sorted(s["duration"] for s in samples)
     p95 = latencies[min(len(latencies) - 1, math.ceil(.95 * len(latencies)) - 1)]
-    return {
+    result = {
         "queries": len(samples),
         "positive_queries": len(positives),
         "negative_queries": len(negatives),
         "hit_at_5": (sum(s["hit5"] for s in positives) / len(positives)) if positives else None,
         "negative_rejection_rate": (
             sum(s["empty"] for s in negatives) / len(negatives)) if negatives else None,
+        "positive_zero_result_rate": (
+            sum(s["empty"] for s in positives) / len(positives)) if positives else None,
+        "positive_no_relevant_at_5_rate": (
+            sum(not s["hit5"] for s in positives) / len(positives)) if positives else None,
+        "false_positive_negative_rate": (
+            sum(not s["empty"] for s in negatives) / len(negatives)) if negatives else None,
         "latency_median_seconds": round(statistics.median(latencies), 3),
         "latency_p95_seconds": round(p95, 3),
     }
-
+    for k in (1, 5, 10, 20):
+        if not positives:
+            result[f"hit_at_{k}"] = None
+            result[f"recall_at_{k}"] = None
+            result[f"precision_at_{k}"] = None
+            continue
+        hit, recall, precision = [], [], []
+        for sample in positives:
+            actual = sample.get("returned_ids", [])
+            expected = set(sample.get("expected_ids", []))
+            if not expected:
+                # Legacy unit tests may supply hit5 only; don't fabricate
+                # relevance labels or an apparent precision/recall value.
+                continue
+            top = actual[:k]
+            relevant_count = len(set(top) & expected)
+            hit.append(relevant_count > 0)
+            recall.append(relevant_count / len(expected))
+            precision.append(relevant_count / k)
+        result[f"hit_at_{k}"] = (sum(hit) / len(hit)) if hit else (result["hit_at_5"] if k == 5 else None)
+        result[f"recall_at_{k}"] = (sum(recall) / len(recall)) if recall else None
+        result[f"precision_at_{k}"] = (sum(precision) / len(precision)) if precision else None
+    return result
 
 def send_photo(endpoint, image_path, timeout):
     boundary = "sadohod-" + uuid.uuid4().hex
@@ -94,23 +129,28 @@ def main():
     for i, entry in enumerate(manifest):
         expect_empty = entry.get("expect_empty") is True
         expected = entry.get("expected_ids", [])
-        if not isinstance(expected, list) or (not expected and not expect_empty):
+        if (not isinstance(expected, list) or (not expected and not expect_empty)
+                or (expect_empty and expected) or any(not isinstance(pid, str) or not pid for pid in expected)
+                or len(set(expected)) != len(expected)):
             parser.error(f"Manifest item {i} must specify expected_ids or expect_empty.")
         image = Path(entry["image"])
         if not image.is_absolute():
             image = args.manifest.parent / image
-        payload, elapsed = send_photo(base + "/api/v1/search/image", image, args.timeout)
+        payload, elapsed = send_photo(base + "/api/v1/search/image?limit=20", image, args.timeout)
         if payload.get("method") != "openclip_image_embedding":
             raise RuntimeError("Server is not using OpenCLIP; evaluation aborted.")
-        ids = [m["product"]["id"] for m in payload.get("items", [])[:5]]
+        ids = [m["product"]["id"] for m in payload.get("items", [])[:20]]
         rows.append({
             "image": str(image), "expect_empty": expect_empty,
-            "hit5": bool(set(ids) & set(expected)),
+            "hit5": bool(set(ids[:5]) & set(expected)),
+            "expected_ids": expected,
             "empty": not ids, "duration": elapsed, "returned_ids": ids,
         })
         print(f"{i + 1}/{len(manifest)}  {elapsed:.2f}s  top5={ids[:5]}")
     stats = summarize(rows)
     stats["engine"] = "openclip_image_embedding"
+    stats["ranking_limit"] = 20
+    stats["relevance_labels_exhaustive"] = "must be verified by dataset curator"
     stats["source"] = "independent labelled query photos supplied by evaluator"
     stats["passed"] = (stats["positive_queries"] > 0 and
                        stats["hit_at_5"] >= args.min_hit5 and
