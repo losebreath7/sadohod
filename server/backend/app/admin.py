@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .admin_auth import require_admin
 from .api import product_query, serialize_product, serialize_seller
-from .config import MEDIA, MAX_UPLOAD_BYTES, SEARCH_BACKEND
+from .config import MEDIA, MAX_UPLOAD_BYTES, SEARCH_BACKEND, SADOHOD_ENV
 from .database import get_db
 from .build_info import BUILD_INFO
 from .image_features import descriptor_from_bytes
@@ -66,6 +66,38 @@ def get_seller(session, sid):
     if seller is None:
         raise HTTPException(404, 'Продавец не найден')
     return seller
+
+def _lock_merchant_owner(session: Session, product: Product):
+    """Serialize admin edits with seller save/submit and moderation decisions."""
+    from .merchant_models import MerchantProduct
+    owner = session.get(MerchantProduct, product.id)
+    if owner is not None:
+        session.scalar(select(Seller).where(Seller.id == owner.seller_id)
+                       .with_for_update(of=Seller))
+        session.refresh(owner)
+    return owner
+
+
+def _screening_required() -> bool:
+    # Keep the classic local editor usable in development. Production always
+    # uses OpenCLIP and MUST enforce triage on every visibility/content change.
+    return SEARCH_BACKEND == 'clip' or SADOHOD_ENV == 'production'
+
+
+def _screen_visible_admin_change(session: Session, product: Product, owner) -> None:
+    """Fail closed on admin modifications of an already visible product."""
+    if not (product.details and product.details.active and _screening_required()):
+        return
+    from .product_screening import assess, hold_for_review
+    reason = assess(session, product)
+    if not reason:
+        return
+    if owner is not None and owner.status == 'approved':
+        # Remove public offers and send seller-controlled products to staff.
+        hold_for_review(session, owner, product, reason)
+    else:
+        # Legacy admin catalog has no MerchantProduct review workflow.
+        product.details.active = False
 
 
 @router.get('/status')
@@ -125,6 +157,7 @@ def create_product(data: ProductInput, session: Session = Depends(get_db)):
 @router.put('/products/{pid}')
 def edit_product(pid: str, data: ProductInput, session: Session = Depends(get_db)):
     product=get_product(session,pid)
+    owner=_lock_merchant_owner(session,product)
     seller=get_seller(session,data.seller_id)
     # Existing multi-seller offers must not be silently replaced by this single-offer editor.
     if len(product.offers)>1:
@@ -147,6 +180,7 @@ def edit_product(pid: str, data: ProductInput, session: Session = Depends(get_db
         if data.sale_modes is not None:
             offer.modes=OfferSaleModes(wholesale='wholesale' in data.sale_modes,retail='retail' in data.sale_modes)
         product.offers=[offer]
+    _screen_visible_admin_change(session, product, owner)
     session.commit()
     session.expire_all()
     return serialize_product(get_product(session,pid))
@@ -158,6 +192,9 @@ def visibility(pid: str, data: VisibilityInput, session: Session = Depends(get_d
     if data.active:
         require_publishable(session, pid)
     product=get_product(session,pid)
+    owner=_lock_merchant_owner(session,product)
+    if data.active and owner is not None and owner.status != 'approved':
+        raise HTTPException(409, 'Товар на модерации. Публикация через панель каталога запрещена.')
     if data.active and (not product.images or not product.offers):
         raise HTTPException(409,'Перед публикацией добавьте фотографию и предложение продавца.')
     if data.active and not product.is_demo and any(
@@ -168,6 +205,11 @@ def visibility(pid: str, data: VisibilityInput, session: Session = Depends(get_d
         for img in product.images:
             if session.get(ImageMLEmbedding,(img.id,MODEL_ID)) is None:
                 raise HTTPException(409,'Фотография ещё не подготовлена для OpenCLIP. Перезапустите ML-режим.')
+    if data.active and _screening_required():
+        from .product_screening import assess
+        reason=assess(session, product)
+        if reason:
+            raise HTTPException(409, 'Товар требует проверки модератора: ' + reason)
     if product.details is None:
         product.details=ProductDetails(active=data.active,sizes=[])
     else:
@@ -194,6 +236,7 @@ def normalize_image(raw):
 @router.post('/products/{pid}/images', status_code=201)
 def upload_images(pid: str, files: list[UploadFile] = File(...), session: Session = Depends(get_db)):
     product=get_product(session,pid)
+    owner=_lock_merchant_owner(session,product)
     if not 1<=len(files)<=6 or len(product.images)+len(files)>12:
         raise HTTPException(422,'За раз можно добавить до 6 фотографий; всего — до 12 на товар.')
     prepared=[]; written=[]
@@ -225,6 +268,12 @@ def upload_images(pid: str, files: list[UploadFile] = File(...), session: Sessio
                 if session.bind.dialect.name=='postgresql':
                     literal='['+','.join(str(v) for v in vector)+']'
                     session.execute(text('INSERT INTO product_image_ml_vectors(image_id,model_id,embedding) VALUES (:id,:model,CAST(:v AS vector))'),{'id':iid,'model':MODEL_ID,'v':literal})
+        # Photo vectors and the visibility decision commit atomically: no
+        # public window in which new unreviewed images are already visible.
+        if product.details and product.details.active and _screening_required():
+            session.flush()
+            session.expire(product, ['images'])
+            _screen_visible_admin_change(session, product, owner)
         session.commit()
     except Exception as exc:
         session.rollback()
