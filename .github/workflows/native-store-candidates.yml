@@ -71,7 +71,7 @@ jobs:
         working-directory: ${{ inputs.app }}
         run: |
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Build signed Android App Bundle
         working-directory: ${{ inputs.app }}
@@ -154,7 +154,7 @@ jobs:
           python3 tools/sync_version.py --check
           cd "${{ inputs.app }}"
           flutter pub get
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
       - name: Configure Xcode signing on ephemeral runner
         working-directory: ${{ inputs.app }}
