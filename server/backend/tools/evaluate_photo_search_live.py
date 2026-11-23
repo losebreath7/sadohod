@@ -109,6 +109,8 @@ def main():
     parser.add_argument("--max-p95", type=float, default=3.0)
     parser.add_argument("--min-negative-rejection", type=float, default=.8)
     parser.add_argument("--timeout", type=float, default=40)
+    parser.add_argument("--request-interval", type=float, default=3.1,
+                        help="Seconds between requests (default respects 20/minute per-IP limit)")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     base = args.api.rstrip("/")
@@ -116,7 +118,8 @@ def main():
     if parsed.scheme != "https" and not (
         parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1")):
         parser.error("Use HTTPS for remote photo uploads; HTTP is local-only.")
-    if not (0 <= args.min_hit5 <= 1 and 0 <= args.min_negative_rejection <= 1 and args.max_p95 > 0):
+    if not (0 <= args.min_hit5 <= 1 and 0 <= args.min_negative_rejection <= 1
+            and args.max_p95 > 0 and args.request_interval >= 0):
         parser.error("Invalid acceptance targets.")
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     if not isinstance(manifest, list) or not manifest:
@@ -126,7 +129,12 @@ def main():
     if not any(entry.get("expect_empty") is not True for entry in manifest):
         parser.error("Manifest requires positive queries with expected_ids.")
     rows = []
+    next_request_at = time.monotonic()
     for i, entry in enumerate(manifest):
+        remaining = next_request_at - time.monotonic()
+        if remaining > 0:
+            time.sleep(remaining)
+        next_request_at = time.monotonic() + args.request_interval
         expect_empty = entry.get("expect_empty") is True
         expected = entry.get("expected_ids", [])
         if (not isinstance(expected, list) or (not expected and not expect_empty)
