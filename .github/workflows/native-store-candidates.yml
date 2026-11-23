@@ -1,0 +1,217 @@
+name: Native store release candidates
+
+# Manual only. Requires a protected environment and scoped signing credentials.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Flutter application
+        type: choice
+        required: true
+        options: [buyer_app, seller_app]
+      platform:
+        description: Store artifact
+        type: choice
+        required: true
+        options: [android, ios]
+      api_origin:
+        description: Confirm production API origin
+        type: choice
+        required: true
+        options: ['https://api.sadohod.ru']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-release-${{ github.ref }}-${{ inputs.app }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    if: inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    environment: mobile-release
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Validate release prerequisites
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ inputs.app == 'buyer_app' && secrets.BUYER_ANDROID_KEYSTORE_BASE64 || secrets.SELLER_ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ inputs.app == 'buyer_app' && secrets.BUYER_ANDROID_KEY_ALIAS || secrets.SELLER_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ inputs.app == 'buyer_app' && secrets.BUYER_ANDROID_KEY_PASSWORD || secrets.SELLER_ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ inputs.app == 'buyer_app' && secrets.BUYER_ANDROID_STORE_PASSWORD || secrets.SELLER_ANDROID_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for key in KEYSTORE_B64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD; do
+            if [[ -z "${!key}" ]]; then echo "::error::Missing protected Android signing configuration: $key"; exit 1; fi
+          done
+          if [[ "${{ inputs.api_origin }}" != "https://api.sadohod.ru" ]]; then exit 1; fi
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "${{ inputs.app }}/android/app/upload-keystore.jks"
+          chmod 600 "${{ inputs.app }}/android/app/upload-keystore.jks"
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "storePassword=$STORE_PASSWORD"
+          } > "${{ inputs.app }}/android/key.properties"
+          chmod 600 "${{ inputs.app }}/android/key.properties"
+      - name: Check synchronized versions
+        run: python3 tools/sync_version.py --check
+      - name: Resolve dependencies and verify
+        working-directory: ${{ inputs.app }}
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Build signed Android App Bundle
+        working-directory: ${{ inputs.app }}
+        env:
+          SADOHOD_REQUIRE_RELEASE_SIGNING: 'true'
+        run: |
+          flutter build appbundle --release --dart-define=API_BASE_URL=https://api.sadohod.ru --dart-define=USE_LOCAL_DEMO=false --dart-define=FIGMA_PREVIEW=false
+          test -s build/app/outputs/bundle/release/app-release.aab
+          jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab > "$RUNNER_TEMP/aab-verify.txt"
+          grep -q 'jar verified.' "$RUNNER_TEMP/aab-verify.txt" || { echo "::error::AAB signature verification failed"; exit 1; }
+      - name: Upload AAB candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-signed-aab-${{ github.run_number }}
+          path: ${{ inputs.app }}/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove ephemeral signing files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${{ inputs.app }}/android/key.properties" "${{ inputs.app }}/android/app/upload-keystore.jks"
+
+  ios:
+    if: inputs.platform == 'ios'
+    runs-on: macos-15
+    environment: mobile-release
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Verify protected Apple signing inputs
+        shell: bash
+        env:
+          IOS_P12_B64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROFILE_B64: ${{ inputs.app == 'buyer_app' && secrets.BUYER_IOS_PROFILE_BASE64 || secrets.SELLER_IOS_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for key in IOS_P12_B64 IOS_P12_PASSWORD IOS_PROFILE_B64 IOS_TEAM_ID; do
+            if [[ -z "${!key}" ]]; then echo "::error::Missing protected Apple signing configuration: $key"; exit 1; fi
+          done
+      - name: Install Apple distribution identity and provisioning profile
+        shell: bash
+        env:
+          IOS_P12_B64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROFILE_B64: ${{ inputs.app == 'buyer_app' && secrets.BUYER_IOS_PROFILE_BASE64 || secrets.SELLER_IOS_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          echo "KEYCHAIN_PATH=$RUNNER_TEMP/release-signing.keychain-db" >> "$GITHUB_ENV"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release-signing.keychain-db"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/release-signing.keychain-db"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release-signing.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/release-signing.keychain-db" login.keychain-db
+          printf '%s' "$IOS_P12_B64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
+          security import "$RUNNER_TEMP/distribution.p12" -k "$RUNNER_TEMP/release-signing.keychain-db" -P "$IOS_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release-signing.keychain-db"
+          printf '%s' "$IOS_PROFILE_B64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" "$RUNNER_TEMP/profile.plist")
+          PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c "Print TeamIdentifier:0" "$RUNNER_TEMP/profile.plist")
+          [[ "$PROFILE_TEAM" == "$IOS_TEAM_ID" ]] || { echo "::error::Profile team mismatch"; exit 1; }
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "IOS_PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          EXPECTED_BUNDLE="${{ inputs.app == 'buyer_app' && 'ru.sadohod.sadohod' || 'ru.sadohod.seller' }}"
+          PROFILE_APPLICATION_ID=$(/usr/libexec/PlistBuddy -c "Print Entitlements:application-identifier" "$RUNNER_TEMP/profile.plist")
+          [[ "$PROFILE_APPLICATION_ID" == "$IOS_TEAM_ID.$EXPECTED_BUNDLE" ]] || { echo "::error::Provisioning profile does not match app bundle"; exit 1; }
+      - name: Check versions and Flutter project
+        run: |
+          python3 tools/sync_version.py --check
+          cd "${{ inputs.app }}"
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Configure Xcode signing on ephemeral runner
+        working-directory: ${{ inputs.app }}
+        env:
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export APP_BUNDLE_ID="${{ inputs.app == 'buyer_app' && 'ru.sadohod.sadohod' || 'ru.sadohod.seller' }}"
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+          target = project.targets.find { |t| t.name == 'Runner' } or abort('Runner target not found')
+          target.build_configurations.each do |config|
+            config.build_settings['DEVELOPMENT_TEAM'] = ENV.fetch('IOS_TEAM_ID')
+            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV.fetch('IOS_PROFILE_NAME')
+            config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = ENV.fetch('APP_BUNDLE_ID')
+          end
+          project.save
+          RUBY
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store-connect</string>
+          <key>signingStyle</key><string>manual</string>
+          <key>teamID</key><string>$IOS_TEAM_ID</string>
+          <key>provisioningProfiles</key><dict>
+          <key>$APP_BUNDLE_ID</key><string>$IOS_PROFILE_NAME</string>
+          </dict>
+          </dict></plist>
+          EOF
+      - name: Build signed IPA
+        working-directory: ${{ inputs.app }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build ipa --release --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define=API_BASE_URL=https://api.sadohod.ru --dart-define=USE_LOCAL_DEMO=false --dart-define=FIGMA_PREVIEW=false
+          find build/ios/ipa -name '*.ipa' -size +0c | grep -q .
+          IPA="$(find build/ios/ipa -name '*.ipa' -print -quit)"
+          mkdir -p "$RUNNER_TEMP/ipa-check"
+          unzip -q "$IPA" -d "$RUNNER_TEMP/ipa-check"
+          APP_PATH="$(find "$RUNNER_TEMP/ipa-check/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+      - name: Upload IPA candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-signed-ipa-${{ github.run_number }}
+          path: ${{ inputs.app }}/build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+      - name: Clean temporary signing materials
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release-signing.keychain-db" 2>/dev/null || true
+          if [[ -n "${IOS_PROFILE_UUID:-}" ]]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"; fi
+          rm -f "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP/ExportOptions.plist"

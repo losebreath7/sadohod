@@ -13,6 +13,21 @@ if (releasePropsFile.exists()) {
     FileInputStream(releasePropsFile).use(releaseProps::load)
 }
 
+// CI release jobs must never silently produce an unsigned bundle.
+val requireReleaseSigning = providers.environmentVariable("SADOHOD_REQUIRE_RELEASE_SIGNING")
+    .orElse("false").get().equals("true", ignoreCase = true)
+if (requireReleaseSigning) {
+    val requiredKeys = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")
+    val missing = requiredKeys.filter { releaseProps.getProperty(it).isNullOrBlank() }
+    require(missing.isEmpty()) {
+        "Android release signing is not configured: ${missing.joinToString(", ")}"
+    }
+    require(file(releaseProps.getProperty("storeFile")).isFile) {
+        "Android release keystore file is missing"
+    }
+}
+
+
 android {
     namespace = "ru.sadohod.sadohod"
     compileSdk = flutter.compileSdkVersion
