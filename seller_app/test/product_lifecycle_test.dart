@@ -5,12 +5,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/product_actions.dart';
+import 'package:sadohod_seller/seller_product.dart';
 import 'package:sadohod_seller/draft_form.dart';
 import 'package:sadohod_seller/seller_v3.dart';
 
 import 'product_actions_test.dart' show ActionsApi;
 
 void main() {
+  test('pavilion, sale mode, publication and price come from one offer', () {
+    final data = <String, dynamic>{
+      'status': 'approved',
+      'listings': [
+        {'pavilion_id': 'A', 'status': 'approved', 'published': true,
+          'sale_modes': ['retail'], 'price': 0},
+        {'pavilion_id': 'B', 'status': 'pending', 'published': false,
+          'sale_modes': ['wholesale'], 'price': null},
+        {'pavilion_id': 'C', 'status': 'paused', 'published': false,
+          'sale_modes': ['wholesale'], 'price': 300},
+      ],
+    };
+    final product = SellerProduct(data);
+    expect(product.catalogListing(pavilionId: 'A')?.price, 0);
+    expect(product.forPavilion('B')?.status, SellerStatus.pending);
+    expect(product.priceFor('B', 900), isNull);
+    expect(product.priceFor('D', 900), 900);
+    expect(product.catalogListing(pavilionId: 'B'), isNull);
+    expect(product.catalogListing(saleMode: 'wholesale'), isNull);
+    expect(product.catalogListing(hidden: true, saleMode: 'wholesale')?.price, 300);
+    expect(product.awaitingReview, isTrue);
+    expect(productSaveFeedback(data), contains('в части павильонов'));
+  });
+
+  test('explicit publication flag and moderation override obsolete fields', () {
+    SellerListing? listing(Map<String,dynamic> row, {String owner = 'approved'}) =>
+        SellerProduct({'status':owner, 'listings':[row]}).catalogListing();
+    expect(listing({'status':'approved', 'published':false}), isNull);
+    expect(listing({'status':'pending', 'published':true}), isNull);
+    expect(listing({'status':'approved'}, owner:'rejected'), isNull);
+    expect(listing({'status':'approved'}), isNotNull);
+    expect(listing({'published':true}), isNotNull);
+  });
+
   test(
     'empty price and wholesale reach the API without becoming zero',
     () async {

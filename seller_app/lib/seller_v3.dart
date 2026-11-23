@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'api.dart';
 import 'seller_cabinet.dart';
 import 'product_actions.dart';
+import 'seller_product.dart';
 import 'draft_store.dart';
 import 'draft_form.dart';
 import 'seller_telegram_chat.dart';
@@ -363,16 +364,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     });
   }
 
-  bool get currentProductVisible => rows(product['listings']).any(
-    (listing) => listing['published'] == true ||
-        listing['status'] == 'approved',
-  );
+  bool get currentProductVisible => SellerProduct(product).catalogListing() != null;
 
   Future<void> toggleProductVisibility() async {
     if (busy || product['id'] == null) return;
     final wasVisible = currentProductVisible;
-    if (!wasVisible &&
-        rows(product['listings']).any((l) => l['status'] == 'pending')) {
+    if (SellerProduct(product).awaitingReview) {
       failure(Exception('Товар на проверке. Дождитесь решения модератора.'));
       return;
     }
@@ -518,6 +515,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       replacements: Map.of(photoReplacements),
       session: session,
       saleModes: saleModes.toList(),
+      initialSaleModes: initialSaleModes.toList(),
       listingEdits: {
         for (final id in listingModes.keys)
           id: {
@@ -580,9 +578,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       initialPrice = restored.initialPrice;
       initialSaleModes
         ..clear()
-        ..addAll(rows(originalProduct['listings']).isEmpty
-            ? ['retail']
-            : List<String>.from(rows(originalProduct['listings']).first['sale_modes'] ?? ['retail']));
+        ..addAll(restored.initialSaleModes ??
+            SellerProduct(originalProduct).listings.firstOrNull?.saleModes ?? ['retail']);
       saleModes
         ..clear()
         ..addAll(restored.saleModes);
@@ -623,8 +620,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
 
   Future<void> openEditProduct(RowData value) async {
     if (busy) return;
-    if (value['status'] == 'pending' ||
-        rows(value['listings']).any((l) => l['status'] == 'pending')) {
+    if (SellerProduct(value).awaitingReview) {
       failure(
         Exception(
           'Товар на проверке. Изменения будут доступны после решения модератора.',
@@ -1206,15 +1202,12 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     photoReplacements.clear();
     photos.clear();
     c('title').text = '${p['title'] ?? ''}';
-    final ls = rows(p['listings']);
-    c('price').text = ls.isEmpty ? '' : '${ls.first['price'] ?? ''}';
+    final model = SellerProduct(p);
+    final listing = catalogListing(model) ?? model.listings.firstOrNull;
+    c('price').text = listing?.price?.toString() ?? '';
     saleModes
       ..clear()
-      ..addAll(
-        ls.isEmpty
-            ? ['retail']
-            : List<String>.from(ls.first['sale_modes'] ?? ['retail']),
-      );
+      ..addAll(listing?.saleModes ?? ['retail']);
     initializeListingFields();
     initialSaleModes
       ..clear()
@@ -1222,25 +1215,21 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     initialPrice = c('price').text;
     destinations
       ..clear()
-      ..addAll(ls.map((l) => '${l['pavilion_id']}'));
+      ..addAll(model.listings.map((l) => l.pavilionId));
     initialFormSnapshot = formSnapshot;
   }
 
   void initializeListingFields() {
     listingModes.clear();
-    for (final l in rows(originalProduct['listings'])) {
-      final id = '${l['pavilion_id']}';
-      c('price:$id').text = '${l['price'] ?? ''}';
-      listingModes[id] = Set<String>.from(l['sale_modes'] ?? ['retail']);
+    for (final listing in SellerProduct(originalProduct).listings) {
+      final id = listing.pavilionId;
+      c('price:$id').text = listing.price?.toString() ?? '';
+      listingModes[id] = listing.saleModes.toSet();
     }
   }
 
-  int? originalPavilionPrice(String id, int? fallback) {
-    final existing = rows(originalProduct['listings'])
-        .where((listing) => '${listing['pavilion_id']}' == id)
-        .firstOrNull;
-    return existing == null ? fallback : existing['price'] as int?;
-  }
+  int? originalPavilionPrice(String id, int? fallback) =>
+      SellerProduct(originalProduct).priceFor(id, fallback);
 
   int? parsePrice(String text) {
     if (text.trim().isEmpty) return null;
@@ -1634,37 +1623,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     saveSession = ProductSaveSession();
     await finishAction(testPreview ? 'Товар опубликован' : saveNotice);
   });
+  SellerListing? catalogListing(SellerProduct product) => product.catalogListing(
+    pavilionId: screen == 'shop' ? pavilion['id'] as String? : null,
+    saleMode: saleFilter,
+    hidden: hidden,
+  );
+
   List<RowData> get shown => products.where((p) {
-    final ls = rows(p['listings']);
-    final local = screen == 'shop'
-        ? ls.where((l) => l['pavilion_id'] == pavilion['id']).toList()
-        : ls;
-    if (screen == 'shop' && local.isEmpty) return false;
-    if (hidden) {
-      if (!local.any((l) => l['status'] == 'paused')) return false;
-    } else if (screen != 'shop' &&
-        (p['status'] != 'approved' ||
-         !local.any((l) =>
-             l['published'] == true || l['status'] == 'approved'))) {
-      return false;
-    }
-    if (screen == 'shop' &&
-        !hidden &&
-        !(p['status'] == 'approved' &&
-            local.any(
-              (l) => l['published'] == true || l['status'] == 'approved',
-            )))
-      return false;
-    if (saleFilter != null &&
-        !local.any(
-          (l) => (l['sale_modes'] as List? ?? []).contains(saleFilter),
-        ))
-      return false;
-    if (screen == 'shop' &&
-        !hidden &&
-        local.isNotEmpty &&
-        local.every((l) => l['status'] == 'paused'))
-      return false;
+    if (catalogListing(SellerProduct(p)) == null) return false;
     return !searching ||
         '${p['title']}'.toLowerCase().contains(c('search').text.toLowerCase());
   }).toList();
@@ -3281,31 +3247,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     );
   }
 
-  String productStatus(RowData p, List<RowData> listings) {
-    if (p['status'] == 'pending') return 'на проверке';
-    if (p['status'] == 'rejected') return 'отклонён';
-    if (p['status'] == 'draft') return 'не отправлен';
-    if (listings.any(
-      (l) => l['published'] == true || l['status'] == 'approved',
-    ))
-      return 'опубликован';
-    if (listings.any((l) => l['status'] == 'pending')) return 'на проверке';
-    if (listings.any((l) => l['status'] == 'rejected')) return 'отклонён';
-    return 'скрыт';
-  }
-
   Widget productCard(RowData p, double width) {
     final images = (p['images'] as List? ?? []).cast<String>();
-    final scoped = rows(p['listings'])
-        .where((l) => screen != 'shop' || l['pavilion_id'] == pavilion['id'])
-        .toList();
-    final matches = scoped.where((l) => hidden
-        ? l['status'] == 'paused'
-        : l['published'] == true || l['status'] == 'approved').toList();
-    final listing = matches.firstOrNull;
-    final location = sellerListingAddress(listing, pavilions);
-    final rawPrice = listing?['price'];
-    final price = rawPrice is num ? rawPrice.toInt() : null;
+    final listing = catalogListing(SellerProduct(p));
+    final location = sellerListingAddress(listing?.data, pavilions);
+    final price = listing?.price;
     return tap(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3351,7 +3297,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                if (hidden && matches.any((l) => l['status'] == 'paused'))
+                if (hidden && listing != null)
                   Positioned.fill(
                     child: ColoredBox(
                       color: Colors.white.withValues(alpha: .38),

@@ -12,6 +12,7 @@ class DraftForm {
     required this.product,
     required this.original,
     required this.destinations,
+    this.initialSaleModes,
     this.saleModes = const ['retail'],
     this.listingEdits = const {},
     required this.deleted,
@@ -21,6 +22,7 @@ class DraftForm {
   });
   final String title, price, initialPrice;
   final ProductData product, original;
+  final List<String>? initialSaleModes;
   final List<String> saleModes;
   final Map<String, ProductData> listingEdits;
   final Set<String> destinations, deleted;
@@ -53,6 +55,7 @@ class DraftForm {
       'price': price,
       'initialPrice': initialPrice,
       'saleModes': saleModes,
+      'initialSaleModes': initialSaleModes,
       'listingEdits': listingEdits,
       'product': product,
       'original': original,
@@ -104,6 +107,7 @@ class DraftForm {
     return DraftForm(
       title: data['title'] as String,
       price: data['price'] as String,
+      initialSaleModes: (data['initialSaleModes'] as List?)?.cast<String>(),
       saleModes: List<String>.from(data['saleModes'] ?? ['retail']),
       listingEdits: (data['listingEdits'] as Map? ?? {}).map(
         (k, v) => MapEntry('$k', Map<String, dynamic>.from(v as Map)),
