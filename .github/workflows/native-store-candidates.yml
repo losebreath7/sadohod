@@ -80,6 +80,7 @@ jobs:
         run: |
           flutter build appbundle --release --dart-define=API_BASE_URL=https://api.sadohod.ru --dart-define=USE_LOCAL_DEMO=false --dart-define=FIGMA_PREVIEW=false
           test -s build/app/outputs/bundle/release/app-release.aab
+          jarsigner -verify -strict build/app/outputs/bundle/release/app-release.aab
       - name: Upload AAB candidate
         uses: actions/upload-artifact@v4
         with:
@@ -131,10 +132,10 @@ jobs:
           security set-keychain-settings -lut 21600 "$RUNNER_TEMP/release-signing.keychain-db"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release-signing.keychain-db"
           security list-keychains -d user -s "$RUNNER_TEMP/release-signing.keychain-db" login.keychain-db
-          printf '%s' "$IOS_P12_B64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
+          printf '%s' "$IOS_P12_B64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
           security import "$RUNNER_TEMP/distribution.p12" -k "$RUNNER_TEMP/release-signing.keychain-db" -P "$IOS_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/release-signing.keychain-db"
-          printf '%s' "$IOS_PROFILE_B64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          printf '%s' "$IOS_PROFILE_B64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" "$RUNNER_TEMP/profile.plist")
@@ -144,6 +145,9 @@ jobs:
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "IOS_PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          EXPECTED_BUNDLE="${{ inputs.app == 'buyer_app' && 'ru.sadohod.sadohod' || 'ru.sadohod.seller' }}"
+          PROFILE_APPLICATION_ID=$(/usr/libexec/PlistBuddy -c "Print Entitlements:application-identifier" "$RUNNER_TEMP/profile.plist")
+          [[ "$PROFILE_APPLICATION_ID" == "$IOS_TEAM_ID.$EXPECTED_BUNDLE" ]] || { echo "::error::Provisioning profile does not match app bundle"; exit 1; }
       - name: Check versions and Flutter project
         run: |
           python3 tools/sync_version.py --check
@@ -190,6 +194,12 @@ jobs:
           set -euo pipefail
           flutter build ipa --release --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define=API_BASE_URL=https://api.sadohod.ru --dart-define=USE_LOCAL_DEMO=false --dart-define=FIGMA_PREVIEW=false
           find build/ios/ipa -name '*.ipa' -size +0c | grep -q .
+          IPA="$(find build/ios/ipa -name '*.ipa' -print -quit)"
+          mkdir -p "$RUNNER_TEMP/ipa-check"
+          unzip -q "$IPA" 'Payload/*.app/*' -d "$RUNNER_TEMP/ipa-check"
+          APP_PATH="$(find "$RUNNER_TEMP/ipa-check/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
       - name: Upload IPA candidate
         uses: actions/upload-artifact@v4
         with:
