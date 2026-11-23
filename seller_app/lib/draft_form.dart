@@ -63,6 +63,7 @@ class DraftForm {
         'id': session.productId,
         'createKey': session.createKey,
         'requestKeys': session.requestKeys,
+        'submittedSignature': session.submittedSignature,
       },
     };
   }
@@ -70,6 +71,7 @@ class DraftForm {
   static DraftForm decode(ProductData data) {
     final sessionData = Map<String, dynamic>.from(data['session'] as Map);
     final session = ProductSaveSession()
+      ..submittedSignature = sessionData['submittedSignature'] as String?
       ..productId = sessionData['id'] as String?
       ..createKey = sessionData['createKey'] as String;
     session.requestKeys.addAll(
