@@ -169,6 +169,7 @@ docs/CHAT_ATTACHMENT_FIX_R3.md
 docs/DESIGN_SYSTEM_R18.md
 docs/HOSTING_PORTABILITY.md
 docs/MIGRATIONS_R4.md
+docs/MODERATION_CALIBRATION.md
 docs/MODERATION_WORKSPACE.md
 docs/NATIVE_RELEASE_READINESS.md
 docs/PAVILION_FLOW_R7.md
@@ -555,6 +556,7 @@ server/backend/requirements-ml.txt
 server/backend/requirements.txt
 server/backend/tests/test_account.py
 server/backend/tests/test_admin.py
+server/backend/tests/test_admin_moderation_gate.py
 server/backend/tests/test_api.py
 server/backend/tests/test_auth_v072.py
 server/backend/tests/test_build_info.py
@@ -712,6 +714,7 @@ tools/check_api_candidate.sh
 tools/check.ps1
 tools/check_production_env.py
 tools/compose.qa.yml
+tools/evaluate_moderation_photos.py
 tools/gate.ps1
 tools/manage_review_accounts.py
 tools/package_release.py
@@ -724,6 +727,7 @@ tools/sync_version.py
 tools/test_api_portability.py
 tools/test_backup_archive.py
 tools/test_backup_restore_integration.sh
+tools/test_moderation_metrics.py
 tools/test_production_preflight.py
 tools/test_r8_chat_contract.py
 tools/test_version.py

@@ -40,6 +40,8 @@ jobs:
         run: bash -n tools/backup_production.sh tools/restore_drill.sh tools/check_api_candidate.sh
       - name: Portable production API and stable store URL
         run: python tools/test_api_portability.py
+      - name: Validate moderation benchmark arithmetic
+        run: python tools/test_moderation_metrics.py
       - name: Проверить native IDs, permissions и release signing
         run: python tools/test_native_config.py
       - name: Проверить оригинальный Manrope во всех клиентах
