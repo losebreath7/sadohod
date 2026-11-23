@@ -84,7 +84,7 @@ def test_version_archive_is_immutable(documents):
 
 
 def test_publish_blocks_drafts_and_fake_approval(documents):
-    for marker in ("[УКАЗАТЬ EMAIL]", "ПРОЕКТ —", "НЕ ПУБЛИКОВАТЬ"):
+    for marker in ("[УКАЗАТЬ EMAIL]", "[OPERATOR_NAME]", "[OPERATOR_TAX_ID]", "[OPERATOR_ADDRESS]", "[ДАТА]", "ПРОЕКТ —", "НЕ ПУБЛИКОВАТЬ"):
         with pytest.raises(ValueError):
             prepare(sample() + marker, "privacy", "2026-12-01", "2026-12-01", "QA Reviewer")
     with pytest.raises(ValueError):
