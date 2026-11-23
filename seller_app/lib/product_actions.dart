@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 
 import 'api.dart';
+import 'seller_product.dart';
 
 typedef ProductData = Map<String, dynamic>;
 String operationId() =>
@@ -27,14 +28,15 @@ class ProductSaveSession {
 /// A successful save request does not necessarily mean a public listing.
 /// Always use the *returned server status*, never the HTTP 200 alone.
 String productSaveFeedback(ProductData saved) {
-  final status = '${saved['status'] ?? ''}'.toLowerCase();
-  final listings = dataRows(saved['listings']);
-  if (status == 'pending' || listings.any((row) => row['status'] == 'pending')) {
+  final product = SellerProduct(saved);
+  if (product.status == SellerStatus.rejected) return 'Товар отклонён модерацией.';
+  if (product.awaitingReview) {
+    if (product.catalogListing() != null) {
+      return 'Товар опубликован в части павильонов. Есть предложения на проверке.';
+    }
     return 'Товар отправлен на проверку модерации. Пока не опубликован.';
   }
-  if (status == 'rejected') return 'Товар отклонён модерацией.';
-  if (status == 'approved' && listings.any((row) =>
-      row['published'] == true || row['status'] == 'approved')) {
+  if (product.catalogListing() != null) {
     return 'Товар опубликован';
   }
   return 'Товар сохранён';
@@ -104,25 +106,24 @@ class ProductActions {
       await checkpoint?.call();
     }
     final id = session.productId!;
-    final originalListings = dataRows(original['listings']);
+    final originalProduct = SellerProduct(original);
+    final originalListings = originalProduct.listings;
     final fallbackModes = originalListings.isEmpty
         ? <String>['retail']
-        : List<String>.from(originalListings.first['sale_modes'] ?? ['retail']);
+        : originalListings.first.saleModes;
     final listingData = destinations.map((destination) {
-      final existing = originalListings
-          .where((l) => l['pavilion_id'] == destination)
-          .firstOrNull;
+      final existing = originalProduct.forPavilion(destination);
       final edited = listingEdits[destination];
       return <String, dynamic>{
         'pavilion_id': destination,
         'price': edited != null
             ? edited['price']
             : !priceChanged && existing != null
-            ? existing['price']
+            ? existing.price
             : price,
         'sale_modes':
             edited?['sale_modes'] ??
-            existing?['sale_modes'] ??
+            existing?.saleModes ??
             (originalListings.isEmpty ? saleModes : fallbackModes),
       };
     }).toList();
@@ -147,19 +148,19 @@ class ProductActions {
     );
     if (session.submittedSignature == signature) return submit();
 
-    var current = await api.call('/merchant/products/$id');
-    if (current['status'] == 'pending') {
+    final current = SellerProduct(await api.call('/merchant/products/$id'));
+    if (current.status == SellerStatus.pending) {
       throw SellerApiException(409, 'У товара осталась старая заявка на модерацию. Обновите список.');
     }
-    if (current['status'] == 'approved' &&
-        dataRows(current['listings']).any((l) => l['status'] == 'pending')) {
+    if (current.status == SellerStatus.approved &&
+        current.awaitingReview) {
       throw SellerApiException(
         409,
         'Предложение на проверке. Обновите список после решения модератора.',
       );
     }
-    if (current['status'] == 'approved') {
-      current = await api.call(
+    if (current.status == SellerStatus.approved) {
+      await api.call(
         '/merchant/products/$id',
         method: 'PUT',
         body: metadata,
@@ -179,8 +180,8 @@ class ProductActions {
       session.finishedPhotos.add(photo);
       await checkpoint?.call();
     }
-    current = await api.call('/merchant/products/$id');
-    final existingIds = dataRows(current['image_items'])
+    final refreshed = await api.call('/merchant/products/$id');
+    final existingIds = dataRows(refreshed['image_items'])
         .map((i) => '${i['id']}')
         .toSet();
     for (final imageId in deletedPhotos) {
