@@ -33,9 +33,24 @@ class ProductOffer {
   factory ProductOffer.fromJson(Map<String, dynamic> json) {
     final seller = Seller.fromJson(json['seller'] as Map<String, dynamic>);
     final pavilion = json['pavilion'];
+    // The offer belongs to a specific pavilion: the seller's default
+    // address may be a different building or market zone.
+    final code = pavilion is Map
+        ? (pavilion['code']?.toString() ?? seller.pavilion)
+        : seller.pavilion;
+    final zone = pavilion is Map
+        ? (pavilion['zone']?.toString() ?? seller.zone)
+        : seller.zone;
+    final offerSeller = Seller(
+      id: seller.id,
+      name: seller.name,
+      pavilion: code,
+      zone: zone,
+      contact: seller.contact,
+    );
     return ProductOffer(
-      seller: seller,
-      pavilion: pavilion is Map ? (pavilion['code']?.toString() ?? seller.pavilion) : seller.pavilion,
+      seller: offerSeller,
+      pavilion: code,
       price: (json['price'] as num?)?.toInt(),
       saleModes: (json['sale_modes'] as List? ?? const []).map((v) => v.toString()).toList(),
     );
