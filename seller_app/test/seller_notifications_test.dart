@@ -59,6 +59,13 @@ void main() {
     expect(circles.length, 2);
     expect(circles[0].backgroundColor, SellerColors.danger);
     expect(circles[1].backgroundColor, SellerColors.blue);
+    final rejectedIcon = tester.widget<Icon>(find.descendant(
+      of: find.byWidget(circles[0]), matching: find.byType(Icon)));
+    final approvedIcon = tester.widget<Icon>(find.descendant(
+      of: find.byWidget(circles[1]), matching: find.byType(Icon)));
+    expect(rejectedIcon.icon, Icons.error_outline);
+    expect(approvedIcon.icon, Icons.check);
+    expect(approvedIcon.color, Colors.white);
   });
 
   testWidgets('seller moderation inbox shows reasons and navigates to product',
