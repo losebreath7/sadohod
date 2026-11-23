@@ -43,3 +43,50 @@ def test_acceptance_requires_positive_and_negative_photos(tmp_path, monkeypatch)
         with pytest.raises(SystemExit) as error:
             main()
         assert error.value.code == 2
+
+
+def test_precision_recall_and_hit_are_calculated_per_query():
+    samples = [
+        {"expect_empty": False, "expected_ids": ["a", "b"],
+         "returned_ids": ["a", "x", "c", "d", "e", "b"], "hit5": True,
+         "empty": False, "duration": .2},
+        {"expect_empty": False, "expected_ids": ["z"],
+         "returned_ids": ["x", "y"], "hit5": False,
+         "empty": False, "duration": .3},
+        {"expect_empty": True, "expected_ids": [],
+         "returned_ids": [], "hit5": False,
+         "empty": True, "duration": .4},
+    ]
+    result = summarize(samples)
+    assert result["hit_at_1"] == .5
+    assert result["hit_at_5"] == .5
+    assert result["recall_at_1"] == .25
+    assert result["recall_at_5"] == .25
+    assert result["recall_at_10"] == .5
+    assert result["precision_at_1"] == .5
+    assert result["precision_at_5"] == .1
+    assert result["precision_at_10"] == .1
+    assert result["negative_rejection_rate"] == 1
+    assert result["false_positive_negative_rate"] == 0
+    assert result["positive_zero_result_rate"] == 0
+    assert result["positive_no_relevant_at_5_rate"] == .5
+
+
+def test_no_predictions_positive_query_is_not_a_correct_rejection():
+    result = summarize([
+        {"expect_empty": False, "expected_ids": ["a"],
+         "returned_ids": [], "hit5": False, "empty": True, "duration": .1},
+        {"expect_empty": True, "expected_ids": [],
+         "returned_ids": ["wrong"], "hit5": False, "empty": False, "duration": .2},
+    ])
+    assert result["recall_at_5"] == 0
+    assert result["precision_at_5"] == 0
+    assert result["positive_zero_result_rate"] == 1
+    assert result["negative_rejection_rate"] == 0
+    assert result["false_positive_negative_rate"] == 1
+
+
+def test_empty_sample_set_is_not_valid_evaluation():
+    import pytest
+    with pytest.raises(ValueError, match="At least one"):
+        summarize([])
