@@ -20,6 +20,7 @@ import sys
 
 SLUGS = frozenset(("privacy", "buyer-terms", "seller-terms",
                    "content-rules", "data-consent", "data-deletion"))
+PLACEHOLDER_RE = re.compile(r"\[[A-ZА-ЯЁ][A-ZА-ЯЁ0-9 _/.,:()—-]{2,}\]")
 BLOCKED_MARKERS = ("[УКАЗАТЬ", "[ПОДТВЕРД", "[ЗАПОЛНИ", "[СОГЛАСОВ", "[УТВЕРД",
                    "[ТРЕБУЕТ", "[ПРОВЕР", "[ПОДГОТОВ", "ПРОЕКТ —",
                    "ПРОЕКТ ФОРМУЛИРОВКИ", "НЕ ПУБЛИКОВАТЬ",
@@ -35,7 +36,7 @@ def prepare(text: str, slug: str, version: str, effective_date: str, reviewed_by
         raise ValueError("Invalid effective date")
     if len(text) < 500 or len(text) > 200000:
         raise ValueError("Document length outside safe bounds")
-    if any(marker.casefold() in text.casefold() for marker in BLOCKED_MARKERS):
+    if PLACEHOLDER_RE.search(text) or any(marker.casefold() in text.casefold() for marker in BLOCKED_MARKERS):
         raise ValueError("Draft placeholders remain: publishing is blocked")
     if not reviewed_by.strip() or len(reviewed_by.strip()) < 3:
         raise ValueError("An approving reviewer must be identified")
