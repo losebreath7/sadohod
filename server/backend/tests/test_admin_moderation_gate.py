@@ -4,6 +4,7 @@ The fixtures intentionally mock the ML decision; they test the publication
 gate, not OpenCLIP's detection quality on real photographs.
 """
 from backend.app import admin, product_screening
+from backend.tests.test_api import client  # fixture required by imported editor
 from test_admin import editor, draft, upload
 from test_instant_publication import setup_seller
 from test_merchant_v080 import env, photo
