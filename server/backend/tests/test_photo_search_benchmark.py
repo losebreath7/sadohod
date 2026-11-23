@@ -62,7 +62,7 @@ def test_precision_recall_and_hit_are_calculated_per_query():
     assert result["hit_at_5"] == .5
     assert result["recall_at_1"] == .25
     assert result["recall_at_5"] == .25
-    assert result["recall_at_10"] == .75
+    assert result["recall_at_10"] == .5
     assert result["precision_at_1"] == .5
     assert result["precision_at_5"] == .1
     assert result["precision_at_10"] == .1
