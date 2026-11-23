@@ -65,6 +65,25 @@ jobs:
             echo "storePassword=$STORE_PASSWORD"
           } > "${{ inputs.app }}/android/key.properties"
           chmod 600 "${{ inputs.app }}/android/key.properties"
+          # Fail before Gradle if either the file, alias or signing passwords are wrong.
+          # Convert one key into an ephemeral PKCS12 file to validate BOTH passwords.
+          check_store="$RUNNER_TEMP/upload-key-check.p12"
+          check_password="$(openssl rand -hex 24)"
+          if ! keytool -importkeystore \
+              -srckeystore "${{ inputs.app }}/android/app/upload-keystore.jks" \
+              -srcstoretype JKS \
+              -srcstorepass "$STORE_PASSWORD" \
+              -srcalias "$KEY_ALIAS" \
+              -srckeypass "$KEY_PASSWORD" \
+              -destkeystore "$check_store" \
+              -deststoretype PKCS12 \
+              -deststorepass "$check_password" \
+              -noprompt > /dev/null 2>&1; then
+            rm -f "$check_store"
+            echo "::error::Android signing check failed: verify Base64 keystore, alias, store password and key password in mobile-release."
+            exit 1
+          fi
+          rm -f "$check_store"
       - name: Check synchronized versions
         run: python3 tools/sync_version.py --check
       - name: Resolve dependencies and verify
