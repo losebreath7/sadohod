@@ -144,6 +144,7 @@ buyer_app/lib/features/seller/seller_screen.dart
 buyer_app/lib/main.dart
 buyer_app/pubspec.lock
 buyer_app/pubspec.yaml
+buyer_app/test/api_base_url_test.dart
 buyer_app/test/catalog_test.dart
 buyer_app/test/design_foundations_test.dart
 buyer_app/test/figma_flow_test.dart
@@ -166,8 +167,10 @@ docker-compose.yml
 docs/AUTO_REPLIES_R6.md
 docs/CHAT_ATTACHMENT_FIX_R3.md
 docs/DESIGN_SYSTEM_R18.md
+docs/HOSTING_PORTABILITY.md
 docs/MIGRATIONS_R4.md
 docs/MODERATION_WORKSPACE.md
+docs/NATIVE_RELEASE_READINESS.md
 docs/PAVILION_FLOW_R7.md
 docs/PHOTO_SEARCH_R23.md
 docs/PRODUCTION_DEPLOYMENT.md
@@ -704,6 +707,8 @@ shared/flutter_core/lib/device_preview_shell.dart
 shared/flutter_core/lib/product_photo.dart
 shared/flutter_core/pubspec.yaml
 tools/backup_production.sh
+tools/build_store_release.py
+tools/check_api_candidate.sh
 tools/check.ps1
 tools/check_production_env.py
 tools/compose.qa.yml
@@ -716,6 +721,7 @@ tools/restore_drill.sh
 tools/run_client.ps1
 tools/start.ps1
 tools/sync_version.py
+tools/test_api_portability.py
 tools/test_backup_archive.py
 tools/test_backup_restore_integration.sh
 tools/test_production_preflight.py

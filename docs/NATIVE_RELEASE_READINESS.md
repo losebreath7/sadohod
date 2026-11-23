@@ -30,10 +30,12 @@ For **each app separately**:
 2. Approve the final application ID and required app information.
 3. Generate a distinct **upload keystore** outside Git; back up the keystore and all credentials securely, offline. Do not transmit secrets in chats, commits or build logs.
 4. Copy `<app>/android/key.properties.example` to `<app>/android/key.properties`; set `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. All real `key.properties`, `.jks`, `.keystore` are Git-ignored.
-5. Point `API_BASE_URL` to the real public HTTPS backend, with no demo data. From `buyer_app` or `seller_app`:
+5. Build from the repository root using the checked-in release helper.
+   It always sets `API_BASE_URL=https://api.sadohod.ru` for both clients,
+   never a temporary VPS IP, debug URL or staging hostname:
    ```sh
-   flutter pub get
-   flutter build appbundle --release --dart-define=API_BASE_URL=https://YOUR-PRODUCTION-API
+   python tools/build_store_release.py --app buyer_app --platform android
+   python tools/build_store_release.py --app seller_app --platform android
    ```
 6. Verify the resulting AAB is signed using the intended upload certificate and inspect the merged release AndroidManifest, SDK levels, package ID, permissions and included third-party SDKs.
 7. Use Play App Signing, complete Data safety, privacy policy, content rating, store images, support information, testing requirements and release track configuration.
@@ -45,15 +47,28 @@ For **each app separately**:
 For **each app separately**:
 1. Enroll in Apple Developer and configure App Store Connect, seller/buyer Bundle IDs, display names, icons, privacy manifest declarations and entitlement requirements.
 2. Create an App ID for the exact Bundle ID, assign the Apple Developer Team, signing certificate and provisioning profile (automatic signing via Xcode is acceptable).
-3. On macOS with Xcode and Flutter installed, set the production HTTPS API endpoint and build an iOS **device archive / signed IPA**:
+3. On macOS with Xcode and Flutter installed, build each **device archive / signed IPA**
+   from the repository root using the same stable public API URL:
    ```sh
-   flutter pub get
-   flutter build ipa --release --dart-define=API_BASE_URL=https://YOUR-PRODUCTION-API
+   python3 tools/build_store_release.py --app buyer_app --platform ios
+   python3 tools/build_store_release.py --app seller_app --platform ios
    ```
 4. Validate signing, entitlements, minimum iOS target, device support, permissions, screenshots, privacy questionnaire, age rating and App Store Connect metadata.
 5. Upload a signed IPA/archive to App Store Connect, test through TestFlight on physical devices and submit for App Review.
 
 `flutter build ios --simulator --no-codesign` uses the simulator SDK and does **not** produce a signed distributable iOS app. Signing for physical iPhones or App Store cannot be completed in this repository without an authorized Apple Developer account.
+
+## VPS change without store updates
+
+The domain `api.sadohod.ru` is managed through REG.RU and is independent of
+the provider's public IPv4. Moving servers changes only its A record, not
+`API_BASE_URL` in already published clients. **Do not replace the origin
+with a VPS IP even for a temporary production build.** Details, TLS caveats,
+DB/photo consistency, and rollback: `docs/HOSTING_PORTABILITY.md`.
+
+CI uses `https://example.invalid` **only for debug/simulator build checks**;
+those artifacts are not store releases. Build helpers cannot replace signed
+device tests or a live backend verification.
 
 ## Physical-device acceptance tests (pending)
 
