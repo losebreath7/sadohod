@@ -45,7 +45,42 @@ class RequestFlowApi extends SellerApi {
   }
 }
 
+class RefreshFailureApi extends RequestFlowApi {
+  RefreshFailureApi() : super(existingShop: true);
+  bool offline = false;
+
+  @override
+  Future<Map<String, dynamic>> call(String route, {
+    String method = 'GET', Map<String, dynamic>? body,
+  }) async {
+    if (route == '/merchant/products' && offline) throw Exception('Нет связи');
+    if (route == '/merchant/notifications') {
+      return {};
+    }
+    if (route == '/account') return {'name': offline ? 'Новое имя' : 'Продавец'};
+    return super.call(route, method: method, body: body);
+  }
+}
+
 void main() {
+  testWidgets('home tab opens cached cabinet during a failed refresh', (tester) async {
+    final api = RefreshFailureApi();
+    await tester.pumpWidget(MaterialApp(home: SellerV3(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.text('добавить первый товар'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Профиль'));
+    await tester.pumpAndSettle();
+    api.offline = true;
+    await tester.tap(find.bySemanticsLabel('Магазины'));
+    await tester.pumpAndSettle();
+    expect(find.text('добавить первый товар'), findsOneWidget);
+    expect(find.text('Нет связи'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Профиль'));
+    await tester.pumpAndSettle();
+    expect(find.text('Продавец'), findsWidgets);
+    expect(find.text('Новое имя'), findsNothing);
+  });
+
   for (final width in [390.0, 402.0]) {
     testWidgets('Pending request survives restart, camera opens without publishing ($width)', (tester) async {
       tester.view.physicalSize = Size(width, 874);

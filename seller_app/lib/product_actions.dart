@@ -19,9 +19,8 @@ class ProductSaveSession {
   String createKey = operationId();
   final photoKeys = <XFile, String>{};
   final finishedPhotos = <XFile>{};
+  String? submittedSignature;
   final requestKeys = <String, String>{};
-  String keyFor(ProductData body) =>
-      requestKeys.putIfAbsent(jsonEncode(body), operationId);
 }
 
 
@@ -105,7 +104,6 @@ class ProductActions {
       await checkpoint?.call();
     }
     final id = session.productId!;
-    var current = await api.call('/merchant/products/$id');
     final originalListings = dataRows(original['listings']);
     final fallbackModes = originalListings.isEmpty
         ? <String>['retail']
@@ -133,8 +131,23 @@ class ProductActions {
       'listings': listingData,
       'submit': true,
     };
-    final finalKey = session.keyFor(finalBody);
-    await checkpoint?.call();
+    // Photo-only edits can have identical metadata. Include the stable upload
+    // keys and deletions when deciding whether this is the same submission.
+    final signature = jsonEncode([
+      finalBody,
+      for (final photo in photos)
+        [session.photoKeys.putIfAbsent(photo, operationId), replacements[photo]],
+      deletedPhotos.toList()..sort(),
+    ]);
+    final finalKey = session.requestKeys.putIfAbsent(signature, operationId);
+    Future<ProductData> submit() => api.call(
+      '/merchant/products/$id/save',
+      method: 'PUT',
+      body: {...finalBody, 'request_id': finalKey},
+    );
+    if (session.submittedSignature == signature) return submit();
+
+    var current = await api.call('/merchant/products/$id');
     if (current['status'] == 'pending') {
       throw SellerApiException(409, 'У товара осталась старая заявка на модерацию. Обновите список.');
     }
@@ -178,10 +191,8 @@ class ProductActions {
         );
       }
     }
-    return api.call(
-      '/merchant/products/$id/save',
-      method: 'PUT',
-      body: {...finalBody, 'request_id': finalKey},
-    );
+    session.submittedSignature = signature;
+    await checkpoint?.call();
+    return submit();
   }
 }

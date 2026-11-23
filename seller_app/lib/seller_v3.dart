@@ -13,6 +13,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api.dart';
+import 'seller_cabinet.dart';
 import 'product_actions.dart';
 import 'draft_store.dart';
 import 'draft_form.dart';
@@ -30,19 +31,6 @@ const muted = SellerColors.muted,
     blue = SellerColors.blue,
     red = SellerColors.danger;
 const preview = bool.fromEnvironment('FIGMA_PREVIEW');
-typedef RowData = Map<String, dynamic>;
-
-// The API may omit status for already approved pavilion records.
-// Explicit pending/rejected statuses must never unlock the product catalogue.
-bool isApprovedPavilion(RowData pavilion) {
-  final status = '${pavilion['status'] ?? 'approved'}'.trim().toLowerCase();
-  return status == 'approved' || status == 'active';
-}
-
-List<RowData> rows(dynamic value) => (value is List ? value : const [])
-    .whereType<Map>()
-    .map((e) => Map<String, dynamic>.from(e))
-    .toList();
 TextStyle type(double size, {bool bold = false, Color color = Colors.black}) =>
     TextStyle(
       fontFamily: SadohodFont.family,
@@ -290,6 +278,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       selecting = false,
       hidden = false,
       actions = false;
+  bool hasLoadedCabinet = false;
   RowData account = {}, merchant = {}, pavilion = {}, product = {};
   List<RowData> pavilions = [], requests = [], products = [];
   final selected = <String>{}, destinations = <String>{};
@@ -507,6 +496,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     final key = activeDraftKey!;
     final completed = draftCompleted;
     final session = ProductSaveSession()
+      ..submittedSignature = saveSession.submittedSignature
       ..productId = saveSession.productId
       ..createKey = saveSession.createKey;
     session.photoKeys.addAll(saveSession.photoKeys);
@@ -676,7 +666,14 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     draftTimer?.cancel();
     activeDraftKey = null;
     restoringDraft = true;
+    hasLoadedCabinet = false;
+    loading = false;
     account = {};
+    merchant = {};
+    pavilions = [];
+    products = [];
+    requests = [];
+    pavilion = {};
     product = {};
     originalProduct = {};
     photos.clear();
@@ -933,73 +930,53 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     setState(() => loading = true);
     final token = widget.api.token;
     try {
-      final loadedAccount = await widget.api.call('/account');
-      final loadedMerchant = await widget.api.call('/merchant/me');
+      final cabinet = await SellerCabinet.load(widget.api);
       if (!mounted || token != widget.api.token) return false;
-      account = loadedAccount;
-      merchant = loadedMerchant;
-      if (merchant['shop'] != null) {
-        final r = await Future.wait([
-          widget.api.call('/merchant/pavilions'),
-          widget.api.call('/merchant/products'),
-        ]);
-        if (!mounted || token != widget.api.token) return false;
-        pavilions = rows(r[0]['items']);
-        // Only confirmed trading locations unlock the product home screen.
-        // Pending/rejected locations belong to the applications flow.
-        pavilions = pavilions.where(isApprovedPavilion).toList();
-        requests = rows(r[0]['requests'])
-            .where((r) => r['status'] != 'approved')
-            .map((r) => {...r, '_requestType': 'pavilion'})
-            .toList();
-        products = rows(r[1]['items']);
-      } else {
-        pavilions = [];
-        requests = rows(merchant['applications'])
-            .where((r) => r['status'] != 'approved')
-            .map((r) => {...r, '_requestType': 'application'})
-            .toList();
-        products = [];
-      }
-      if (mounted)
-        setState(() {
-          loading = false;
-          if (navigate) {
-            history.clear();
-            screen = name.trim().isEmpty ? 'name' : home;
-          } else if (['pending', 'rejected', 'approved'].contains(screen)) {
-            final matches = requests.where(
-              (r) =>
-                  r['id'] == pavilion['id'] &&
-                  r['_requestType'] == pavilion['_requestType'],
+      setState(() {
+        final wasHome = screen == home;
+        account = cabinet.account;
+        merchant = cabinet.merchant;
+        pavilions = cabinet.pavilions;
+        requests = cabinet.requests;
+        products = cabinet.products;
+        hasLoadedCabinet = true;
+        loading = false;
+        if (navigate) {
+          history.clear();
+          screen = name.trim().isEmpty ? 'name' : home;
+        } else if (['pending', 'rejected', 'approved'].contains(screen)) {
+          final matches = requests.where(
+            (r) =>
+                r['id'] == pavilion['id'] &&
+                r['_requestType'] == pavilion['_requestType'],
+          );
+          if (matches.isNotEmpty) {
+            pavilion = matches.first;
+            screen = pavilion['status'] == 'rejected'
+                ? 'rejected'
+                : 'pending';
+          } else {
+            final confirmed = pavilions.where(
+              (p) =>
+                  '${p['zone']}'.trim().toLowerCase() ==
+                      '${pavilion['zone']}'.trim().toLowerCase() &&
+                  '${p['code']}'.trim().toLowerCase() ==
+                      '${pavilion['code']}'.trim().toLowerCase(),
             );
-            if (matches.isNotEmpty) {
-              pavilion = matches.first;
-              screen = pavilion['status'] == 'rejected'
-                  ? 'rejected'
-                  : 'pending';
+            if (confirmed.isNotEmpty) {
+              pavilion = confirmed.first;
+              screen = 'approved';
             } else {
-              final confirmed = pavilions.where(
-                (p) =>
-                    '${p['zone']}'.trim().toLowerCase() ==
-                        '${pavilion['zone']}'.trim().toLowerCase() &&
-                    '${p['code']}'.trim().toLowerCase() ==
-                        '${pavilion['code']}'.trim().toLowerCase(),
-              );
-              if (confirmed.isNotEmpty) {
-                pavilion = confirmed.first;
-                screen = 'approved';
-              } else {
-                screen = home;
-              }
+              screen = home;
             }
-          } else if (screen == 'emptyStores') {
-            screen = home;
           }
-        });
+        } else if (wasHome || screen == 'emptyStores') {
+          screen = home;
+        }
+      });
       return true;
     } catch (e) {
-      if (mounted) {
+      if (mounted && token == widget.api.token) {
         setState(() => loading = false);
         failure(e);
       }
@@ -1120,7 +1097,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       return;
     }
     // Entering the camera cannot depend on a successful catalogue refresh.
-    if (!testPreview && index == 0 && !await reload(navigate: false)) return;
+    final refreshHome = !testPreview && index == 0;
+    final useCachedHome = refreshHome && hasLoadedCabinet;
+    if (refreshHome && !useCachedHome && !await reload(navigate: false)) return;
     if (!mounted) return;
     setState(() {
       history.clear();
@@ -1136,6 +1115,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       // has not yet been approved. Product publishing is validated later.
       screen = index == 2 ? 'profile' : index == 1 ? 'capture' : home;
     });
+    if (useCachedHome) await reload(navigate: false);
     if (index == 2) refreshUnreadNotifications();
     // Do not call restoreDraft('new') on the camera tab: it asynchronously
     // replaces 'capture' with 'newProduct' and hides the live viewfinder.
@@ -1723,7 +1703,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   if (!busy) tab(index);
                 },
               ),
-        body: loading
+        body: loading && !hasLoadedCabinet
             ? const Center(child: CircularProgressIndicator())
             : Stack(
                 fit: StackFit.expand,

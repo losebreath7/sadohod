@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sadohod_seller/api.dart';
+import 'package:sadohod_seller/draft_form.dart';
 import 'package:sadohod_seller/product_actions.dart';
 
 class ActionsApi extends SellerApi {
@@ -20,6 +21,23 @@ class ActionsApi extends SellerApi {
     keys.add(requestId!);
     current = {...current, 'image_items': [{'id': 'i1', 'url': '/photo.jpg'}], 'images': ['/photo.jpg']};
     if (loseUpload) { loseUpload = false; throw Exception('Response lost after server commit'); }
+  }
+}
+
+class LostFinalResponseApi extends ActionsApi {
+  LostFinalResponseApi() { loseUpload = false; }
+
+  bool loseFinal = true;
+  @override
+  Future<Map<String, dynamic>> call(String route, {
+    String method = 'GET', Map<String, dynamic>? body,
+  }) async {
+    final result = await super.call(route, method: method, body: body);
+    if (route.endsWith('/save') && loseFinal) {
+      loseFinal = false;
+      throw Exception('Lost final response');
+    }
+    return result;
   }
 }
 
@@ -59,6 +77,35 @@ void main() {
     expect(api.keys.length, 2);
     expect(api.keys[0], api.keys[1]);
     expect(api.requests.where((r) => r['route'] == '/merchant/products' && r['method'] == 'POST').length, 1);
+  });
+
+  test('restored draft replays only its own final submission', () async {
+    final api = LostFinalResponseApi();
+    final actions = ProductActions(api);
+    var form = DraftForm(
+      title: 'Худи', price: '', initialPrice: '', product: {}, original: {},
+      destinations: {'shop'}, deleted: {}, replacements: {},
+      photos: [XFile.fromData(Uint8List.fromList([1]), name: 'x.jpg')],
+      session: ProductSaveSession(),
+    );
+    late ProductData snapshot;
+    Future<ProductData> save(String title) => actions.save(
+      session: form.session, original: form.original, title: title, price: null,
+      priceChanged: false, destinations: form.destinations, photos: form.photos,
+      deletedPhotos: form.deleted, replacements: form.replacements,
+      checkpoint: () async { snapshot = await form.encode({}); },
+    );
+    await expectLater(save(form.title), throwsException);
+    final originalRequest = api.requests.last;
+    expect(originalRequest['route'], endsWith('/save'));
+    form = DraftForm.decode(snapshot);
+    await expectLater(save('Другой товар'), throwsA(isA<SellerApiException>()));
+    final beforeRetry = api.requests.length;
+    final result = await save(form.title);
+    expect(api.requests.skip(beforeRetry).toList(), [originalRequest]);
+    expect(result['status'], 'pending');
+    expect(api.keys, hasLength(1));
+    expect(api.requests.where((r) => r['method'] == 'POST'), hasLength(1));
   });
 
   test('unchanged edit retains individual pavilion prices and sale modes', () async {

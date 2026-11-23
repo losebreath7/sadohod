@@ -464,6 +464,7 @@ seller_app/lib/seller_features.dart
 seller_app/lib/seller_notifications.dart
 seller_app/lib/seller_settings.dart
 seller_app/lib/seller_telegram_chat.dart
+seller_app/lib/seller_cabinet.dart
 seller_app/lib/seller_v3.dart
 seller_app/pubspec.lock
 seller_app/pubspec.yaml
