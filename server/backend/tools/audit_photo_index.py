@@ -5,6 +5,8 @@ Use on a staging copy of the database, not the production write path.
 """
 import json
 from sqlalchemy import func, select, text
+# Register the relationships referenced by Product when running outside the API.
+from backend.app import merchant_models  # noqa: F401
 from backend.app.database import SessionLocal
 from backend.app.models import ImageMLEmbedding, ProductImage
 from backend.app.ml_clip import MODEL_ID

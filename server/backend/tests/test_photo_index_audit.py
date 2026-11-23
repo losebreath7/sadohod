@@ -13,7 +13,9 @@ def test_index_coverage_tracks_missing_and_present_vectors():
         "sqlite://", poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=[
+        Product.__table__, ProductImage.__table__, ImageMLEmbedding.__table__,
+    ])
     try:
         with Session(engine) as session:
             session.add(Product(
