@@ -5,7 +5,6 @@ Use on a staging copy of the database, not the production write path.
 """
 import json
 from sqlalchemy import func, select, text
-from . import __package__ as _package  # noqa: F401
 from backend.app.database import SessionLocal
 from backend.app.models import ImageMLEmbedding, ProductImage
 from backend.app.ml_clip import MODEL_ID
