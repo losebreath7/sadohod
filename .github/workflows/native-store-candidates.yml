@@ -80,7 +80,8 @@ jobs:
         run: |
           flutter build appbundle --release --dart-define=API_BASE_URL=https://api.sadohod.ru --dart-define=USE_LOCAL_DEMO=false --dart-define=FIGMA_PREVIEW=false
           test -s build/app/outputs/bundle/release/app-release.aab
-          jarsigner -verify -strict build/app/outputs/bundle/release/app-release.aab
+          jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab > "$RUNNER_TEMP/aab-verify.txt"
+          grep -q 'jar verified.' "$RUNNER_TEMP/aab-verify.txt" || { echo "::error::AAB signature verification failed"; exit 1; }
       - name: Upload AAB candidate
         uses: actions/upload-artifact@v4
         with:
@@ -196,7 +197,7 @@ jobs:
           find build/ios/ipa -name '*.ipa' -size +0c | grep -q .
           IPA="$(find build/ios/ipa -name '*.ipa' -print -quit)"
           mkdir -p "$RUNNER_TEMP/ipa-check"
-          unzip -q "$IPA" 'Payload/*.app/*' -d "$RUNNER_TEMP/ipa-check"
+          unzip -q "$IPA" -d "$RUNNER_TEMP/ipa-check"
           APP_PATH="$(find "$RUNNER_TEMP/ipa-check/Payload" -maxdepth 1 -name '*.app' -print -quit)"
           test -n "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
