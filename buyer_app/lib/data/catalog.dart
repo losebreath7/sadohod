@@ -348,5 +348,5 @@ String formatRubles(int amount) {
     final start = i >= 3 ? i - 3 : 0;
     chunks.insert(0, str.substring(start, i));
   }
-  return '${chunks.join(' ')} ₽';
+  return '≈ ${chunks.join(' ')} ₽';
 }
