@@ -112,6 +112,10 @@ class AccountStore extends ChangeNotifier {
                   ? http.get(uri, headers: headers)
                   : method == 'DELETE'
                   ? http.delete(uri, headers: headers)
+                  : method == 'PUT'
+                  ? http.put(uri, headers: headers, body: jsonEncode(body ?? {}))
+                  : method == 'PATCH'
+                  ? http.patch(uri, headers: headers, body: jsonEncode(body ?? {}))
                   : http.post(
                       uri,
                       headers: headers,

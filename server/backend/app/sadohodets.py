@@ -342,6 +342,9 @@ def review_data(row, name):
             'created_at': row.created_at, 'moderation_status': row.moderation_status}
 
 
+class ReviewModerationInput(BaseModel):
+    status: Literal['approved', 'hidden', 'pending']
+
 @router.get('/admin/reviews', dependencies=[Depends(require_admin)])
 def moderation_queue(status: Literal['pending', 'approved', 'hidden'] = 'pending',
                      limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
@@ -409,8 +412,7 @@ def remove_review(profile_id: str, buyer: Buyer = Depends(current_buyer), db: Se
     return {'ok': True}
 
 
-class ReviewModerationInput(BaseModel):
-    status: Literal['approved', 'hidden', 'pending']
+
 
 
 @router.get('/{profile_id}')

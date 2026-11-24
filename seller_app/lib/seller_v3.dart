@@ -14,6 +14,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api.dart';
+import 'sadohodets_cabinet.dart';
 import 'seller_cabinet.dart';
 import 'product_actions.dart';
 import 'seller_product.dart';
@@ -1662,7 +1663,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       child: Scaffold(
         backgroundColor: beige,
         resizeToAvoidBottomInset: true,
-        bottomNavigationBar: authScreen
+        bottomNavigationBar: authScreen || screen == 'sadohodets'
             ? null
             : SellerTabBar(
                 index: index,
@@ -1697,6 +1698,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'code':
       case 'name':
         return authBody();
+      case 'sadohodets':
+        return SadohodetsCabinet(api: widget.api, initialName: name, onBack: back);
       case 'profile':
         return profileBody();
       case 'editProfile':
@@ -2013,6 +2016,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 61),
               pill('добавить магазин', () => go('address')),
+              if (!testPreview) pill('стать садоходцем', () => go('sadohodets')),
             ],
           ),
         ),
@@ -2162,6 +2166,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             },
           ),
         const SizedBox(height: 24),
+        if (!testPreview) pill('кабинет садоходца', () => go('sadohodets')),
         label(SadohodBuild.label, 10, color: muted),
         const SizedBox(height: 12),
       ],
