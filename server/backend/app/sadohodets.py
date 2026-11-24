@@ -342,6 +342,28 @@ def review_data(row, name):
             'created_at': row.created_at, 'moderation_status': row.moderation_status}
 
 
+@router.get('/admin/reviews', dependencies=[Depends(require_admin)])
+def moderation_queue(status: Literal['pending', 'approved', 'hidden'] = 'pending',
+                     limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+                     db: Session = Depends(get_db)):
+    rows = db.scalars(select(SadohodetsReview).where(SadohodetsReview.moderation_status == status)
+        .order_by(SadohodetsReview.created_at.desc(), SadohodetsReview.profile_id, SadohodetsReview.reviewer_id)
+        .limit(limit).offset(offset)).all()
+    return {'items': [{'profile_id': row.profile_id, 'reviewer_id': row.reviewer_id,
+                       **review_data(row, '')} for row in rows]}
+
+
+@router.put('/admin/reviews/{profile_id}/{reviewer_id}', dependencies=[Depends(require_admin)])
+def moderate_review(profile_id: str, reviewer_id: str, body: ReviewModerationInput,
+                    db: Session = Depends(get_db)):
+    row = db.get(SadohodetsReview, (profile_id, reviewer_id))
+    if row is None:
+        raise HTTPException(404, 'Отзыв не найден.')
+    row.moderation_status = body.status
+    db.commit()
+    return {'ok': True}
+
+
 @router.get('/{profile_id}/reviews')
 def list_reviews(profile_id: str, limit: int = Query(50, ge=1, le=100),
                  offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
@@ -389,28 +411,6 @@ def remove_review(profile_id: str, buyer: Buyer = Depends(current_buyer), db: Se
 
 class ReviewModerationInput(BaseModel):
     status: Literal['approved', 'hidden', 'pending']
-
-
-@router.get('/admin/reviews', dependencies=[Depends(require_admin)])
-def moderation_queue(status: Literal['pending', 'approved', 'hidden'] = 'pending',
-                     limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
-                     db: Session = Depends(get_db)):
-    rows = db.scalars(select(SadohodetsReview).where(SadohodetsReview.moderation_status == status)
-        .order_by(SadohodetsReview.created_at.desc(), SadohodetsReview.profile_id, SadohodetsReview.reviewer_id)
-        .limit(limit).offset(offset)).all()
-    return {'items': [{'profile_id': row.profile_id, 'reviewer_id': row.reviewer_id,
-                       **review_data(row, '')} for row in rows]}
-
-
-@router.put('/admin/reviews/{profile_id}/{reviewer_id}', dependencies=[Depends(require_admin)])
-def moderate_review(profile_id: str, reviewer_id: str, body: ReviewModerationInput,
-                    db: Session = Depends(get_db)):
-    row = db.get(SadohodetsReview, (profile_id, reviewer_id))
-    if row is None:
-        raise HTTPException(404, 'Отзыв не найден.')
-    row.moderation_status = body.status
-    db.commit()
-    return {'ok': True}
 
 
 @router.get('/{profile_id}')
