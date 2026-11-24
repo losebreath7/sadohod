@@ -246,6 +246,21 @@ void main() {
     expect(find.text('Незавершённый товар восстановлен'), findsNothing);
   });
 
+  testWidgets('Shop header ends with selection action and has no ellipsis',
+      (tester) async {
+    await openFrame(tester, '440:713');
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+    final select = find.byKey(const ValueKey('shop-bulk-select'));
+    expect(select, findsOneWidget);
+    final dynamic state = tester.state(find.byType(SellerV3));
+    expect(state.selecting, isFalse);
+    await tester.tap(select);
+    await tester.pumpAndSettle();
+    expect(state.selecting, isTrue);
+    expect(find.byKey(const ValueKey('selection-actions-bar')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Shop search actually filters products', (tester) async {
     await openFrame(tester, '440:713');
     await tester.enterText(find.byType(TextField), 'несуществующий товар');
@@ -373,7 +388,7 @@ void main() {
     );
     expect(find.descendant(of: first, matching: find.text('Б-2В-81')),
         findsOneWidget);
-    expect(find.descendant(of: first, matching: find.text('300 ₽')),
+    expect(find.descendant(of: first, matching: find.text('≈ 300 ₽')),
         findsOneWidget);
     expect(tester.getCenter(address).dy, closeTo(tester.getCenter(price).dy, 1));
     expect(tester.getTopLeft(title).dy,
