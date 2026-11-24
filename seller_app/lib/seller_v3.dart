@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -4127,6 +4128,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               },
             ),
             const SizedBox(height: 16),
+            if (edit && currentProductVisible && product['id'] != null && !testPreview)
+              ProductShareActions(productId: '${product['id']}'),
             if (edit)
               Row(
                 children: [

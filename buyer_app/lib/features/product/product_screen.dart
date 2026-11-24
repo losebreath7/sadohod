@@ -3,6 +3,7 @@ import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -364,6 +365,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              ProductShareActions(productId: p.id),
               BuyerProductReportButton(
                 sending: _reportSending,
                 onPressed: _reportProduct,
