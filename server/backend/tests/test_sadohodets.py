@@ -37,3 +37,45 @@ def test_full_account_deletion_cleans_profile(setup):
     assert c.delete('/api/v1/account', headers=a).status_code == 200
     with sessions() as db:
         assert db.get(SadohodetsProfile, buyer_id) is None
+
+
+def test_client_folders_isolation_and_independent_collected_state(setup):
+    from backend.app.models import Product, ProductDetails
+    c, codes, sessions = setup
+    a = login(c, codes, 'folder-a@example.com')
+    b = login(c, codes, 'folder-b@example.com')
+    for headers in (a, b):
+        assert c.put(ROOT, headers=headers, json={'name': 'Садоходец'}).status_code == 200
+    with sessions() as db:
+        db.add(Product(id='folder-product', title='Сумка', category='Сумки', description='', colors=[], is_demo=False))
+        db.commit()
+    base = ROOT+'/folders'
+    ids = []
+    for name in ('Клиент А', 'Клиент Б'):
+        r = c.post(base, headers=a, json={'name': name, 'note': 'Проверить цвет'})
+        assert r.status_code == 201, r.text
+        ids.append(r.json()['id'])
+    first, second = [base+'/'+i for i in ids]
+    assert c.get(base, headers=b).json()['items'] == []
+    assert c.get(first, headers=b).status_code == 404
+    assert c.put(first, headers=b, json={'name': 'Чужая'}).status_code == 404
+    assert c.delete(first, headers=b).status_code == 404
+    for path in (first, second):
+        assert c.put(path+'/items/folder-product', headers=a).status_code == 200
+    item = first+'/items/folder-product'
+    assert c.patch(item, headers=b, json={'collected': True}).status_code == 404
+    assert c.patch(item, headers=a, json={'collected': True}).json()['collected']
+    assert c.put(item, headers=a).json()['collected']
+    assert len(c.get(first, headers=a).json()['items']) == 1
+    assert not c.get(second, headers=a).json()['items'][0]['collected']
+    assert c.put(first+'/items/missing', headers=a).status_code == 404
+    with sessions() as db:
+        db.add(ProductDetails(product_id='folder-product', active=False, sizes=[]))
+        db.commit()
+    hidden = c.get(first, headers=a).json()['items'][0]
+    assert hidden['available'] is False and hidden['product'] is None
+    assert c.delete(item, headers=a).status_code == 200
+    assert c.get(first, headers=a).json()['items'] == []
+    assert c.delete(second, headers=a).status_code == 200
+    assert c.get(second, headers=a).status_code == 404
+    assert c.delete(ROOT, headers=a).status_code == 200
