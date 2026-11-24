@@ -83,6 +83,10 @@ def test_ml_flags_each_photo_not_just_first(monkeypatch):
     vector[0] = 1.0
     monkeypatch.setattr(s, '_prompts', lambda: ([('опасные вещества', [1.0] + [0.0] * (s.DIM - 1))],
                                               [[0.0] * s.DIM]))
+    # Independent infographic review must also be deterministic in synthetic
+    # vector tests, without attempting a real OpenCLIP model download.
+    monkeypatch.setattr(s, '_overlay_prompts', lambda: (
+        [[0.0] * s.DIM], [[0.0] * s.DIM]))
     images = [SimpleNamespace(id='one'), SimpleNamespace(id='two')]
     db = SimpleNamespace(get=lambda _cls, key: SimpleNamespace(
         embedding=([0.0, 1.0] + [0.0] * (s.DIM - 2)) if key[0] == 'one' else vector))

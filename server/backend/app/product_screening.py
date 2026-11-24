@@ -125,6 +125,59 @@ BENIGN_PROMPTS = (
 )
 
 
+# Catalog photos must remain photographs, not digitally designed ads.
+# In-frame packaging text, labels and physical garment prints remain allowed.
+# These prompts are distinct from prohibited-content screening: a suspected
+# overlay is *queued for a human*, never definitively rejected by OpenCLIP.
+OVERLAY_PROMPTS = (
+    'a commercial product photo with large promotional text banners digitally added over the image',
+    'an online shopping product infographic with digital arrows and feature callout labels',
+    'a product listing picture with floating price stickers and sale badges overlaid on the photo',
+    'a photo of a product decorated with computer-generated graphic shapes icons and captions',
+    'a marketplace product advertising poster with digitally overlaid feature text and arrows',
+    'an ecommerce product photo with a digital watermark or seller contact text overlaid',
+    'a digitally assembled product collage with multiple cutout photos in a graphic layout',
+    'a product picture with decorative digital borders and superimposed illustrations',
+)
+CLEAN_PHOTO_PROMPTS = (
+    'a plain natural product photograph on a neutral background without graphic overlays',
+    'an unedited photograph of clothes on a person with natural lighting',
+    'a simple product photograph with a printed logo physically on the product packaging',
+    'a close-up photograph of a t-shirt with a printed design on its fabric',
+    'a photo of a cosmetic bottle with a printed product label on the bottle',
+    'a photograph of a box with text printed directly on the physical cardboard',
+    'a studio product photo with a plain white background and no added text',
+)
+
+
+@lru_cache(maxsize=1)
+def _overlay_prompts():
+    from .ml_clip import embed_text
+    return ([embed_text(prompt) for prompt in OVERLAY_PROMPTS],
+            [embed_text(prompt) for prompt in CLEAN_PHOTO_PROMPTS])
+
+
+def _overlay_review_reason(overlay_scores, clean_scores):
+    """Conservative triage only. CLIP similarity is not a calibrated probability.
+
+    Do not mistake physical package labels or fabric prints for digital overlays.
+    Thresholds must be calibrated on a labelled photo set before relying on them
+    for automatic rejection; this path always requires a moderator's decision.
+    """
+    if (not overlay_scores or not clean_scores or
+            any(not math.isfinite(v) for v in (*overlay_scores, *clean_scores))):
+        return 'Автопроверка: некорректные показатели анализа инфографики'
+    overlay = max(overlay_scores)
+    clean = max(clean_scores)
+    if overlay >= 0.265 and overlay - clean >= 0.035:
+        return ('Автопроверка: возможна цифровая инфографика поверх фотографии '
+                '(надписи, плашки, стрелки или коллаж). Требуется проверка модератора.')
+    if overlay >= 0.240 and overlay - clean >= 0.010:
+        return ('Автопроверка: возможны добавленные графические элементы '
+                'на фотографии. Требуется проверка модератора.')
+    return None
+
+
 @lru_cache(maxsize=1)
 def _prompts():
     from .ml_clip import embed_text
@@ -229,6 +282,20 @@ def assess(db, product):
             decision = _visual_review_reason(risk_scores, benign)
             if decision:
                 return decision
+
+            # Every photo must pass an independent overlay triage. Unlike text
+            # safety, this has benign counterexamples for *physical* labels.
+            overlay_prompts, clean_prompts = _overlay_prompts()
+            if not overlay_prompts or not clean_prompts:
+                return 'Автопроверка: отсутствуют примеры для анализа инфографики'
+            if any(len(prompt) != DIM or not all(math.isfinite(float(n)) for n in prompt)
+                   for prompt in (*overlay_prompts, *clean_prompts)):
+                return 'Автопроверка: некорректные векторы анализа инфографики'
+            overlay_reason = _overlay_review_reason(
+                [_dot(vector, prompt) for prompt in overlay_prompts],
+                [_dot(vector, prompt) for prompt in clean_prompts])
+            if overlay_reason:
+                return overlay_reason
     except Exception:
         return 'Автопроверка: ML-анализ временно недоступен'
     return None

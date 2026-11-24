@@ -134,3 +134,63 @@ def test_cocaine_text_is_queued_not_public(env, monkeypatch):
     assert saved.json()['status'] == 'pending'
     assert all(not row['published'] for row in saved.json()['listings'])
     assert client.get(f'/api/v1/products/{pid}').status_code == 404
+
+
+
+def test_overlay_triage_flags_infographics_but_not_physical_prints():
+    """Synthetic CLIP similarities test routing, not actual photo accuracy."""
+    review = screening._overlay_review_reason
+    assert 'инфографика' in review([.30, .28], [.20, .21])
+    assert 'графические' in review([.255], [.23])
+    assert review([.27, .28], [.30]) is None  # physical packaging text
+    assert review([.20], [.15]) is None
+    assert review([.24], [.235]) is None
+    assert 'некорректные' in review([float('nan')], [.15])
+    assert 'некорректные' in review([], [.15])
+
+
+def test_overlay_prompts_cover_banners_arrows_collage_and_physical_labels():
+    risk = ' '.join(screening.OVERLAY_PROMPTS)
+    safe = ' '.join(screening.CLEAN_PHOTO_PROMPTS)
+    assert all(word in risk for word in ('banners', 'arrows', 'collage', 'watermark'))
+    assert all(word in safe for word in ('packaging', 't-shirt', 'cardboard'))
+
+
+def test_clip_overlay_review_checks_every_photo_and_does_not_override_safety(monkeypatch):
+    """Real assess() uses embeddings from every image and queues overlay review."""
+    monkeypatch.setattr(screening, 'SEARCH_BACKEND', 'clip')
+    vector_overlay = [1.0] + [0.0] * (screening.DIM - 1)
+    vector_clean = [0.0, 1.0] + [0.0] * (screening.DIM - 2)
+    vector_zero = [0.0] * screening.DIM
+    monkeypatch.setattr(screening, '_prompts', lambda: (
+        [('оружие', vector_zero)], [vector_zero]))
+    monkeypatch.setattr(screening, '_overlay_prompts', lambda: (
+        [vector_overlay], [vector_clean]))
+    image_a = SimpleNamespace(id='clean')
+    image_b = SimpleNamespace(id='digital-overlays')
+    embeds = {'clean': vector_clean, 'digital-overlays': vector_overlay}
+    class ImageDb:
+        def get(self, model, key):
+            return SimpleNamespace(embedding=embeds[key[0]])
+    item = SimpleNamespace(title='Футболка', description='',
+                           images=[image_a, image_b])
+    assert 'инфографика' in screening.assess(ImageDb(), item)
+    item.images = [image_a]
+    assert screening.assess(ImageDb(), item) is None
+    item.images = [image_b]
+    assert 'инфографика' in screening.assess(ImageDb(), item)
+    item.title = 'Настоящий пистолет'
+    assert 'оружие' in screening.assess(ImageDb(), item)
+
+
+def test_clip_overlay_prompt_failure_stays_in_review(monkeypatch):
+    monkeypatch.setattr(screening, 'SEARCH_BACKEND', 'clip')
+    vector = [1.0] + [0.0] * (screening.DIM - 1)
+    monkeypatch.setattr(screening, '_prompts', lambda: (
+        [('оружие', [0.0] * screening.DIM)], [[0.0] * screening.DIM]))
+    monkeypatch.setattr(screening, '_overlay_prompts', lambda: (
+        [[float('nan')] + [0.0] * (screening.DIM - 1)], [vector]))
+    item = SimpleNamespace(title='Куртка', description='',
+                           images=[SimpleNamespace(id='i')])
+    db = SimpleNamespace(get=lambda *_: SimpleNamespace(embedding=vector))
+    assert 'инфографики' in screening.assess(db, item)
