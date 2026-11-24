@@ -7,12 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api.dart';
+import 'sadohodets_cabinet.dart';
 import 'seller_cabinet.dart';
 import 'product_actions.dart';
 import 'seller_product.dart';
@@ -1661,7 +1663,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       child: Scaffold(
         backgroundColor: beige,
         resizeToAvoidBottomInset: true,
-        bottomNavigationBar: authScreen
+        bottomNavigationBar: authScreen || screen == 'sadohodets'
             ? null
             : SellerTabBar(
                 index: index,
@@ -1696,6 +1698,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'code':
       case 'name':
         return authBody();
+      case 'sadohodets':
+        return SadohodetsCabinet(api: widget.api, initialName: name, onBack: back);
       case 'profile':
         return profileBody();
       case 'editProfile':
@@ -2012,6 +2016,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 61),
               pill('добавить магазин', () => go('address')),
+              if (!testPreview) pill('стать садоходцем', () => go('sadohodets')),
             ],
           ),
         ),
@@ -2161,6 +2166,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             },
           ),
         const SizedBox(height: 24),
+        if (!testPreview) pill('кабинет садоходца', () => go('sadohodets')),
         label(SadohodBuild.label, 10, color: muted),
         const SizedBox(height: 12),
       ],
@@ -4127,6 +4133,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               },
             ),
             const SizedBox(height: 16),
+            if (edit && currentProductVisible && product['id'] != null && !testPreview)
+              ProductShareActions(productId: '${product['id']}'),
             if (edit)
               Row(
                 children: [

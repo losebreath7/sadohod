@@ -1,6 +1,7 @@
 from threading import BoundedSemaphore
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session, selectinload
 
@@ -277,3 +278,27 @@ def search_image(photo: tuple[bytes, str] = Depends(read_search_photo),
                    if SEARCH_BACKEND == 'clip' else
                    "Сходство рассчитано по цветам, композиции и контурам. Это не распознавание модели товара и не подтверждение идентичности."),
     }
+
+@router.get("/products/{id}/share", response_class=HTMLResponse, include_in_schema=False)
+def shared_product(id: str, session: Session = Depends(get_db)):
+    """Public browser fallback; no private or withdrawn product data."""
+    from html import escape
+    from urllib.parse import quote
+    product = session.scalar(product_query().where(Product.id == id))
+    if product is None or not product.offers:
+        return HTMLResponse('<!doctype html><html lang="ru"><meta charset="utf-8"><title>Садоход</title><p>Товар недоступен.</p></html>', status_code=404,
+                            headers={'Cache-Control': 'no-store'})
+    data = serialize_product(product)
+    title = escape(data['title'] or 'Товар')
+    description = escape(data['description'] or '')
+    price = f"{data['price']:,} ₽".replace(',', ' ') if data['price'] is not None else 'Цена по запросу'
+    images = data['images']
+    image = '/media/products/' + quote(images[0].rsplit('/', 1)[-1], safe='') if images else ''
+    photo = f'<img src="{escape(image, quote=True)}" alt="{title}">' if image else ''
+    page = f'''<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — Садоход</title><meta property="og:title" content="{title} — Садоход">
+<style>body{{font:16px system-ui,sans-serif;margin:24px auto;padding:0 20px;max-width:480px;color:#111}}img{{width:100%;max-height:65vh;object-fit:contain;border-radius:12px}}p{{white-space:pre-wrap;overflow-wrap:anywhere}}</style>
+</head><body><main><header>Садоход</header>{photo}<h1>{title}</h1><strong>{price}</strong><p>{description}</p></main></body></html>'''
+    return HTMLResponse(page, headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"})

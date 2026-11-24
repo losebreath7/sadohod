@@ -22,7 +22,8 @@ from .product_safety import router as product_safety_router
 from .legal_documents import router as legal_router
 from .moderation_controls import router as moderation_controls_router
 from .buyer_interests import router as buyer_interests_router
-from . import buyer_interests_models  # noqa: F401
+from .sadohodets import router as sadohodets_router
+from . import buyer_interests_models, sadohodets_models  # noqa: F401
 from .moderation_enforcement_models import AccountRestriction, ShopRestriction, ModerationEmail  # noqa: F401
 from .config import ALLOWED_ORIGINS, DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND, SADOHOD_ENV
 from .database import SessionLocal, init_db
@@ -129,6 +130,7 @@ app.include_router(product_safety_router)
 app.include_router(legal_router)
 app.include_router(moderation_controls_router)
 app.include_router(buyer_interests_router)
+app.include_router(sadohodets_router)
 
 
 @app.get("/health")
