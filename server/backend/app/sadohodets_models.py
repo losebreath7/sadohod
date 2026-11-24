@@ -1,5 +1,5 @@
 """Independent courier profiles and private client collections."""
-from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Index, Integer, JSON, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from .database import Base
 
@@ -48,3 +48,10 @@ class SadohodetsReview(Base):
     body: Mapped[str] = mapped_column(Text, default='')
     created_at: Mapped[float] = mapped_column(Float)
     moderation_status: Mapped[str] = mapped_column(String(16), default='pending', server_default='pending')
+
+
+class SadohodetsMedia(Base):
+    __tablename__ = 'sadohodets_media'
+    profile_id: Mapped[str] = mapped_column(ForeignKey('sadohodets_profiles.buyer_id', ondelete='CASCADE'), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(8), primary_key=True)
+    raw: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

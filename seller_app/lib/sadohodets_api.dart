@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'api.dart';
 
 /// Uses the existing seller session, including its expiry handling.
@@ -27,6 +29,12 @@ class SadohodetsApi {
   Future<Map<String, dynamic>> publication(bool published) => api.call(
     '$root/publication', method: 'PUT', body: {'published': published},
   );
+
+  Future<Map<String, dynamic>> uploadMedia(String kind, Uint8List bytes) =>
+      api.call('$root/media/${Uri.encodeComponent(kind)}', method: 'PUT', body: {'data': base64Encode(bytes)});
+
+  Future<Map<String, dynamic>> removeMedia(String kind) =>
+      api.call('$root/media/${Uri.encodeComponent(kind)}', method: 'DELETE');
 
   Future<void> deleteProfile() async {
     await api.call(root, method: 'DELETE');

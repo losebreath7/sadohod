@@ -114,3 +114,24 @@ def test_directory_and_moderated_reviews(setup, monkeypatch):
     assert c.delete(review, headers=b).status_code == 200
     assert c.put(ROOT+'/publication', headers=a, json={'published': False}).status_code == 200
     assert c.get(base+'/'+pid).status_code == 404
+
+
+def test_profile_media_publication_boundary(setup):
+    import base64
+    import io
+    from PIL import Image
+    c, codes, sessions = setup
+    a = login(c, codes, 'media-courier@example.com')
+    assert c.put(ROOT, headers=a, json={'name': 'Анна', 'contacts': {'phone': '+79991234567'}}).status_code == 200
+    buf = io.BytesIO()
+    Image.new('RGB', (12, 12), 'red').save(buf, format='PNG')
+    data = base64.b64encode(buf.getvalue()).decode()
+    r = c.put(ROOT+'/media/avatar', headers=a, json={'data': data})
+    assert r.status_code == 200, r.text
+    public = r.json()['avatar']
+    assert c.get(public).status_code == 404
+    assert c.get(ROOT+'/media/avatar', headers=a).headers['content-type'] == 'image/jpeg'
+    assert c.put(ROOT+'/publication', headers=a, json={'published': True}).status_code == 200
+    assert c.get(public).status_code == 200
+    assert c.delete(ROOT+'/media/avatar', headers=a).status_code == 200
+    assert c.get(public).status_code == 404

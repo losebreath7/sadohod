@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .account import Buyer, current_buyer
 from .admin_auth import require_admin
 from .database import get_db
-from .sadohodets_models import SadohodetsProfile, SadohodetsFolder, SadohodetsFolderItem, SadohodetsReview
+from .sadohodets_models import SadohodetsProfile, SadohodetsFolder, SadohodetsFolderItem, SadohodetsReview, SadohodetsMedia
 
 router = APIRouter(prefix='/api/v1/sadohodets', tags=['sadohodets'])
 CONTACT_KEYS = {'phone', 'phone2', 'telegram', 'vk', 'whatsapp', 'avito', 'website'}
@@ -124,6 +124,7 @@ def delete_profile_data(db, buyer_id, *, delete_written_reviews=False):
     db.execute(delete(SadohodetsReview).where(SadohodetsReview.profile_id == buyer_id))
     if delete_written_reviews:
         db.execute(delete(SadohodetsReview).where(SadohodetsReview.reviewer_id == buyer_id))
+    db.execute(delete(SadohodetsMedia).where(SadohodetsMedia.profile_id == buyer_id))
     db.execute(delete(SadohodetsProfile).where(SadohodetsProfile.buyer_id == buyer_id))
 
 
@@ -416,3 +417,74 @@ def moderate_review(profile_id: str, reviewer_id: str, body: ReviewModerationInp
 def directory_profile(profile_id: str, db: Session = Depends(get_db)):
     row = public_profile(db, profile_id)
     return {**serialize(row), **review_stats(db, profile_id)}
+
+
+# Media is stored separately from the directory response to avoid embedding
+# large base64 images in every paginated list.
+class ProfileMediaInput(BaseModel):
+    data: str = Field(min_length=10, max_length=2_000_000)
+
+
+@router.put('/me/media/{kind}')
+def upload_profile_media(kind: Literal['avatar', 'cover'], body: ProfileMediaInput,
+                         buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    import base64
+    import binascii
+    import io
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    row = own_profile(db, buyer.id, lock=True)
+    try:
+        raw = base64.b64decode(body.data, validate=True)
+        if len(raw) > 1_500_000:
+            raise HTTPException(413, 'Изображение должно быть меньше 1,5 МБ.')
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.format not in {'JPEG', 'PNG', 'WEBP'} or image.width * image.height > 25_000_000:
+                raise ValueError('Unsupported image')
+            image = ImageOps.exif_transpose(image)
+            image.thumbnail((1600, 900) if kind == 'cover' else (600, 600))
+            buf = io.BytesIO()
+            image.convert('RGB').save(buf, format='JPEG', quality=78, optimize=True)
+        raw = buf.getvalue()
+    except (ValueError, binascii.Error, OSError, UnidentifiedImageError, Image.DecompressionBombError):
+        raise HTTPException(422, 'Не удалось прочитать изображение.') from None
+    item = db.get(SadohodetsMedia, (buyer.id, kind))
+    if item is None:
+        item = SadohodetsMedia(profile_id=buyer.id, kind=kind, raw=raw)
+        db.add(item)
+    else:
+        item.raw = raw
+    setattr(row, kind, f'/api/v1/sadohodets/{buyer.id}/media/{kind}')
+    touch_profile(db, buyer.id)
+    db.commit()
+    return serialize(row)
+
+
+@router.delete('/me/media/{kind}')
+def delete_profile_media(kind: Literal['avatar', 'cover'], buyer: Buyer = Depends(current_buyer),
+                         db: Session = Depends(get_db)):
+    row = own_profile(db, buyer.id, lock=True)
+    db.execute(delete(SadohodetsMedia).where(SadohodetsMedia.profile_id == buyer.id, SadohodetsMedia.kind == kind))
+    setattr(row, kind, None)
+    db.commit()
+    return serialize(row)
+
+
+@router.get('/me/media/{kind}')
+def own_media(kind: Literal['avatar', 'cover'], buyer: Buyer = Depends(current_buyer),
+              db: Session = Depends(get_db)):
+    own_profile(db, buyer.id)
+    return media_response(db, buyer.id, kind)
+
+
+def media_response(db, profile_id, kind):
+    from fastapi.responses import Response
+    item = db.get(SadohodetsMedia, (profile_id, kind))
+    if item is None:
+        raise HTTPException(404, 'Изображение не найдено.')
+    return Response(item.raw, media_type='image/jpeg', headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
+
+
+@router.get('/{profile_id}/media/{kind}')
+def public_media(profile_id: str, kind: Literal['avatar', 'cover'], db: Session = Depends(get_db)):
+    public_profile(db, profile_id)
+    return media_response(db, profile_id, kind)
