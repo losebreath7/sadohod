@@ -14,13 +14,11 @@ class SellerSettingsPage extends StatefulWidget {
     required this.api,
     required this.onSignedOut,
     required this.onOpenInfo,
-    required this.onOpenSupport,
   });
 
   final SellerApi api;
   final VoidCallback onSignedOut;
   final ValueChanged<String> onOpenInfo;
-  final VoidCallback onOpenSupport;
 
   @override
   State<SellerSettingsPage> createState() => _SellerSettingsPageState();
@@ -60,20 +58,13 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
 
   Future<void> deleteAccount() async {
     if (busy) return;
-    // Both applications share the same Buyer account. DELETE /account is
-    // destructive for the buyer too and can orphan active merchant data.
-    // Do not call it from the seller app before a dedicated deletion workflow
-    // has been designed and verified.
-    final openSupport = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Удаление кабинета продавца'),
+        title: const Text('Удалить аккаунт продавца и закрыть все магазины?'),
         content: const Text(
-          'Кабинет продавца связан с общим аккаунтом покупателя. '
-          'Автоматическое удаление сейчас недоступно: можно потерять доступ '
-          'к павильонам, товарам и заявкам. '
-          'Напишите в поддержку для безопасного удаления кабинета. '
-          'До обработки обращения данные не удаляются.',
+          'Ваши товары, карточка продавца и отзывы о вас исчезнут из приложения. '
+          'Вы сможете пользоваться аккаунтом покупателя как раньше.',
         ),
         actions: [
           TextButton(
@@ -83,14 +74,24 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text(
-              'Написать в поддержку',
+              'Удалить аккаунт продавца',
               style: TextStyle(color: accent),
             ),
           ),
         ],
       ),
     );
-    if (openSupport == true && mounted) widget.onOpenSupport();
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.api.call('/merchant/account', method: 'DELETE');
+      await widget.api.logout();
+      if (mounted) widget.onSignedOut();
+    } catch (error) {
+      message(error.toString());
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
@@ -171,7 +172,7 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
         child: TextButton(
           onPressed: busy ? null : deleteAccount,
           child: const Text(
-            'удалить аккаунт',
+            'Удалить аккаунт продавца',
             style: TextStyle(color: accent, fontSize: 12),
           ),
         ),

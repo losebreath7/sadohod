@@ -13,7 +13,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -201,6 +201,55 @@ def me(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
             'applications': [as_application(r) for r in applications]}
 
 
+@router.delete('/account')
+def close_seller_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    from .account import ReviewAccess
+    from .buyer_reviews_v082 import BuyerSellerNote, ReviewReport, SellerReview
+    from .seller_notifications import SellerNotification
+
+    db.scalar(select(Buyer.id).where(Buyer.id == buyer.id).with_for_update())
+    if db.scalar(select(ReviewAccess).where(ReviewAccess.buyer_id == buyer.id)):
+        raise HTTPException(409, 'Учётная запись проверяющего управляется отдельно.')
+    membership = db.get(ShopMembership, buyer.id)
+    if membership and membership.role != 'owner':
+        raise HTTPException(403, 'Закрыть магазин может только владелец.')
+    if membership:
+        sid = membership.seller_id
+        shop = db.scalar(select(Seller).where(Seller.id == sid).with_for_update(of=Seller))
+        pavilion_ids = set(db.scalars(select(PavilionClaim.pavilion_id).where(
+            PavilionClaim.seller_id == sid)))
+        pavilion_ids.add(shop.pavilion_id)
+        review_ids = select(SellerReview.id).where(SellerReview.seller == sid)
+        db.execute(delete(ReviewReport).where(ReviewReport.review_id.in_(review_ids)))
+        db.execute(delete(SellerReview).where(SellerReview.seller == sid))
+        db.execute(delete(BuyerSellerNote).where(BuyerSellerNote.seller == sid))
+        owned_products = select(MerchantProduct.product_id).where(MerchantProduct.seller_id == sid)
+        db.execute(update(ProductDetails).where(ProductDetails.product_id.in_(owned_products))
+                   .values(active=False))
+        for product_id in db.scalars(owned_products.where(
+                ~select(ProductDetails.product_id).where(
+                    ProductDetails.product_id == MerchantProduct.product_id).exists())):
+            db.add(ProductDetails(product_id=product_id, active=False))
+        for model in (MerchantListing, Offer, MerchantProduct, MerchantOperation,
+                      PavilionRequest, PavilionClaim, ShopRecord, ShopMembership, ShopApplication):
+            db.execute(delete(model).where(model.seller_id == sid))
+        db.delete(shop)
+        db.flush()
+        # Older catalog data may share a physical pavilion with another seller.
+        db.execute(delete(Pavilion).where(
+            Pavilion.id.in_(pavilion_ids),
+            ~select(Seller.id).where(Seller.pavilion_id == Pavilion.id).exists(),
+            ~select(Offer.id).where(Offer.pavilion_id == Pavilion.id).exists(),
+            ~select(MerchantListing.id).where(MerchantListing.pavilion_id == Pavilion.id).exists(),
+            ~select(PavilionClaim.pavilion_id).where(PavilionClaim.pavilion_id == Pavilion.id).exists(),
+        ))
+    db.execute(delete(ShopApplication).where(ShopApplication.buyer_id == buyer.id))
+    db.execute(delete(MerchantInvitation).where(MerchantInvitation.email == buyer.email))
+    db.execute(delete(SellerNotification).where(SellerNotification.buyer_id == buyer.id))
+    safe_commit(db)
+    return {'closed': True}
+
+
 @router.post('/applications', status_code=201)
 def apply(data: ApplyInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     db.scalar(select(Buyer).where(Buyer.id == buyer.id).with_for_update())
@@ -246,6 +295,7 @@ def resubmit_application(aid: str, data: ApplyInput, buyer: Buyer = Depends(curr
 
 @router.post('/invitations/accept', status_code=201)
 def accept_invitation(body: AcceptInvitation, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    db.scalar(select(Buyer.id).where(Buyer.id == buyer.id).with_for_update())
     token_digest = hashlib.sha256(body.token.encode()).hexdigest()
     invitation = db.scalar(select(MerchantInvitation).where(MerchantInvitation.code_digest == token_digest))
     if not invitation or invitation.used_at is not None or invitation.expires_at < time.time():

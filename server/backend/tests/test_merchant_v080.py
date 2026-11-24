@@ -271,3 +271,35 @@ def test_merchant_role_cannot_use_admin_token(env):
     assert c.get('/api/v1/admin/merchant/queue',headers=owner).status_code==401
     assert c.post('/api/v1/admin/merchant/invitations',headers=owner,json={
       'email':'noadmin@test.com','shop_name':'Тест', 'zone':'Линия','code':'5'}).status_code==401
+
+
+def test_close_seller_account_preserves_buyer_and_releases_all_pavilions(env):
+    c, codes, _, _ = env
+    owner = login(c, codes, 'owner@example.test')
+    other = login(c, codes, 'other@example.test')
+    admin_client(c)
+    sid = approve(c, f'applications/{applicant(c,"10",owner)}/decision')['seller_id']
+    other_sid = approve(c, f'applications/{applicant(c,"20",other)}/decision')['seller_id']
+    req = c.post('/api/v1/merchant/pavilions', headers=owner, json={'zone':'Б','code':'11'})
+    approve(c, f'pavilions/{req.json()["id"]}/decision')
+    pavilions = c.get('/api/v1/merchant/pavilions', headers=owner).json()['items']
+    products = [make_published(c, owner, p['id']) for p in pavilions]
+    assert len(products) == 2
+    assert c.post('/api/v1/account/favorite', headers=owner, json={
+        'kind':'seller', 'id':other_sid, 'saved':True}).is_success
+    before = c.get('/api/v1/account', headers=owner).json()
+    review = c.post(f'/api/v1/sellers/{sid}/reviews', headers=other,
+                    json={'rating':5,'text':'Отзыв'})
+    assert review.is_success, review.text
+    for _ in range(2):
+        response = c.delete('/api/v1/merchant/account', headers=owner)
+        assert response.is_success, response.text
+    for path in [f'sellers/{sid}', f'sellers/{sid}/reviews', *[f'products/{p}' for p in products]]:
+        assert c.get('/api/v1/'+path).status_code == 404
+    assert c.get('/api/v1/account', headers=owner).json() == before
+    assert c.get('/api/v1/merchant/me', headers=owner).json()['shop'] is None
+    assert c.get('/api/v1/merchant/shop', headers=other).json()['id'] == other_sid
+    for zone, code in [('Линия А','10'),('Б','11')]:
+        assert c.post('/api/v1/merchant/pavilions', headers=other,
+                      json={'zone':zone,'code':code}).is_success
+    assert c.get('/api/v1/account', headers=login(c,codes,'owner@example.test')).json() == before

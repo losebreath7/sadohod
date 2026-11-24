@@ -6,6 +6,9 @@ import 'package:sadohod_seller/seller_settings.dart';
 
 class _FakeSellerSettingsApi extends SellerApi {
   _FakeSellerSettingsApi() { token = 'test-only-session'; }
+  @override
+  Future<void> logout() async { token = null; }
+
   final calls = <String>[];
 
   @override
@@ -18,10 +21,9 @@ class _FakeSellerSettingsApi extends SellerApi {
 
 void main() {
 
-  testWidgets('seller account deletion opens support and preserves shared buyer',
+  testWidgets('seller account deletion requires confirmation and preserves shared buyer',
       (tester) async {
     final api = _FakeSellerSettingsApi();
-    var openedSupport = false;
     var signedOut = false;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -29,26 +31,24 @@ void main() {
           api: api,
           onSignedOut: () => signedOut = true,
           onOpenInfo: (_) {},
-          onOpenSupport: () => openedSupport = true,
         ),
       ),
     ));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('удалить аккаунт'));
+    await tester.tap(find.text('Удалить аккаунт продавца'));
     await tester.pumpAndSettle();
-    expect(find.text('Удаление кабинета продавца'), findsOneWidget);
-    expect(find.textContaining('До обработки обращения данные не удаляются'),
+    expect(find.text('Удалить аккаунт продавца и закрыть все магазины?'), findsOneWidget);
+    expect(find.textContaining('Вы сможете пользоваться аккаунтом покупателя'),
         findsOneWidget);
     expect(api.calls, isNot(contains('DELETE /account')));
     await tester.tap(find.text('Отмена'));
     await tester.pumpAndSettle();
-    expect(openedSupport, isFalse);
-    await tester.tap(find.text('удалить аккаунт'));
+    await tester.tap(find.text('Удалить аккаунт продавца'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Написать в поддержку'));
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Удалить аккаунт продавца')));
     await tester.pumpAndSettle();
-    expect(openedSupport, isTrue);
-    expect(signedOut, isFalse);
+    expect(api.calls, ['DELETE /merchant/account']);
+    expect(signedOut, isTrue);
     expect(api.calls, isNot(contains('DELETE /account')));
     expect(tester.takeException(), isNull);
   });
@@ -80,7 +80,7 @@ void main() {
     expect(find.text('Пользовательское соглашение'), findsOneWidget);
     expect(find.text('Политика конфиденциальности'), findsOneWidget);
     expect(find.text('выйти из аккаунта'), findsOneWidget);
-    expect(find.text('удалить аккаунт'), findsOneWidget);
+    expect(find.text('Удалить аккаунт продавца'), findsOneWidget);
     expect(find.text('Уведомления'), findsNothing);
 
     await tester.tap(find.text('О приложении'));
