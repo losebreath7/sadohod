@@ -173,6 +173,7 @@ docs/MODERATION_CALIBRATION.md
 docs/MODERATION_WORKSPACE.md
 docs/NATIVE_RELEASE_READINESS.md
 docs/PAVILION_FLOW_R7.md
+docs/PHOTO_SEARCH_QUALITY_AUDIT.md
 docs/PHOTO_SEARCH_R23.md
 docs/PRODUCTION_DEPLOYMENT.md
 docs/R7_CHAT_AND_PG_PATCH.md
@@ -577,6 +578,7 @@ server/backend/tests/test_migrations.py
 server/backend/tests/test_ml_index.py
 server/backend/tests/test_moderation_workspace.py
 server/backend/tests/test_pavilion_resubmission.py
+server/backend/tests/test_photo_index_audit.py
 server/backend/tests/test_photo_search_benchmark.py
 server/backend/tests/test_postgres_migrations.py
 server/backend/tests/test_postgres_onboarding.py
@@ -595,6 +597,7 @@ server/backend/tests/test_text_photo_search.py
 server/backend/tests/test_v04.py
 server/backend/tools/__init__.py
 server/backend/tools/admin_access.py
+server/backend/tools/audit_photo_index.py
 server/backend/tools/evaluate_photo_search_live.py
 server/backend/tools/evaluate_photos.py
 server/backend/tools/evaluate_search.py
