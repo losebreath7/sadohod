@@ -268,3 +268,35 @@ def test_admin_semantic_audit_reports_missing_ml_vectors_without_mutation(env, m
     assert audit['indexed_count'] == 0
     assert audit['best_score'] is None
     assert c.get(f'/api/v1/products/{pid}').json()['category_id'] is None
+
+
+def test_catalog_responds_while_startup_refresh_is_pending(env, monkeypatch):
+    from threading import Event
+    from fastapi.testclient import TestClient
+    from backend.app import main
+
+    _, factory, product_id = _published_unnamed(env)
+    entered, release, finished = Event(), Event(), Event()
+    refresh = category_inference.reclassify_indexed_products
+
+    def delayed_refresh(session, stop):
+        entered.set()
+        assert release.wait(5)
+        refresh(session, stop)
+        finished.set()
+
+    monkeypatch.setattr(main, 'init_db', lambda: None)
+    monkeypatch.setattr(main, 'DEMO_SEED', False)
+    monkeypatch.setattr(main, 'SEARCH_BACKEND', 'classic')
+    monkeypatch.setattr(main, 'SessionLocal', factory)
+    monkeypatch.setattr(category_inference, 'reclassify_indexed_products', delayed_refresh)
+    with TestClient(main.app) as client:
+        try:
+            assert entered.wait(5)
+            assert client.get('/health').status_code == 200
+            response = client.get('/api/v1/products')
+            assert response.status_code == 200
+            assert product_id in {item['id'] for item in response.json()['items']}
+        finally:
+            release.set()
+        assert finished.wait(5)

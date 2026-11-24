@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+from threading import Event
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,26 +46,17 @@ async def lifespan(app: FastAPI):
     if SEARCH_BACKEND == 'clip':
         # Explicitly selected ML mode: fail loudly if weights are unavailable.
         # Never silently replace the neural model with v0.2 features.
-        from .ml_index import index_catalog
-        with SessionLocal() as session:
-            index_catalog(session)
-        from .category_inference import text_vectors, toy_text_vectors, reclassify_indexed_products
+        from .category_inference import text_vectors, toy_text_vectors
         text_vectors()
         toy_text_vectors()
-        with SessionLocal() as session:
-            reclassify_indexed_products(session)
-        # Health becomes available only after indexing and classification.
-    else:
-        # Backfill deterministic title/taxonomy search facets even in classic
-        # local development. No claim of neural photo recognition in this mode.
-        from .category_inference import reclassify_indexed_products
-        with SessionLocal() as session:
-            reclassify_indexed_products(session)
+    stop = Event()
+    catalog_task = asyncio.create_task(asyncio.to_thread(_refresh_catalog, stop))
     bridge_task = asyncio.create_task(run_bridge()) if telegram_configured() else None
     mail_task = asyncio.create_task(_moderation_mail_loop())
     try:
         yield
     finally:
+        stop.set()
         mail_task.cancel()
         try:
             await mail_task
@@ -76,6 +68,28 @@ async def lifespan(app: FastAPI):
                 await bridge_task
             except asyncio.CancelledError:
                 pass
+
+        await catalog_task
+
+
+def _refresh_catalog(stop):
+    from .category_inference import reclassify_indexed_products
+    from .ml_index import index_catalog_batch
+    while not stop.is_set():
+        try:
+            with SessionLocal() as session:
+                if SEARCH_BACKEND == 'clip':
+                    while not stop.is_set():
+                        processed, _ = index_catalog_batch(session)
+                        if processed == 0:
+                            break
+                reclassify_indexed_products(session, stop)
+            if not stop.is_set():
+                logging.getLogger(__name__).info('Catalog refresh complete')
+            return
+        except Exception:
+            logging.getLogger(__name__).exception('Catalog refresh failed')
+            stop.wait(30)
 
 
 async def _moderation_mail_loop():
