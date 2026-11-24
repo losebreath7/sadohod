@@ -79,3 +79,38 @@ def test_client_folders_isolation_and_independent_collected_state(setup):
     assert c.delete(second, headers=a).status_code == 200
     assert c.get(second, headers=a).status_code == 404
     assert c.delete(ROOT, headers=a).status_code == 200
+
+
+def test_directory_and_moderated_reviews(setup, monkeypatch):
+    c, codes, sessions = setup
+    monkeypatch.setenv('ADMIN_TOKEN', 'courier-test-admin')
+    a = login(c, codes, 'directory-a@example.com')
+    b = login(c, codes, 'directory-b@example.com')
+    for headers, name in ((a, 'Анна'), (b, 'Борис')):
+        r = c.put(ROOT, headers=headers, json={'name': name, 'contacts': {'phone': '+79991234567'}})
+        assert r.status_code == 200, r.text
+    pid = c.get(ROOT, headers=a).json()['id']
+    bid = c.get(ROOT, headers=b).json()['id']
+    base = '/api/v1/sadohodets'
+    assert c.get(base).json()['items'] == []
+    assert c.get(base+'/'+pid).status_code == 404
+    for headers in (a, b):
+        assert c.put(ROOT+'/publication', headers=headers, json={'published': True}).status_code == 200
+    review = base+'/'+pid+'/my-review'
+    assert c.put(review, headers=a, json={'rating': 5}).status_code == 403
+    assert c.put(review, headers=b, json={'rating': 6}).status_code == 422
+    r = c.put(review, headers=b, json={'rating': 5, 'text': 'Спасибо'})
+    assert r.status_code == 200, r.text
+    assert c.get(base+'/'+pid).json()['rating'] is None
+    admin = {'Authorization': 'Bearer courier-test-admin'}
+    path = base+'/admin/reviews/'+pid+'/'+bid
+    assert c.put(path, headers=b, json={'status': 'approved'}).status_code == 401
+    assert c.put(path, headers=admin, json={'status': 'approved'}).status_code == 200
+    assert c.get(base).json()['items'][0]['id'] == pid
+    assert c.get(base+'?min_rating=5').json()['items'][0]['review_count'] == 1
+    assert c.get(base+'/'+pid+'/reviews').json()['items'][0]['rating'] == 5
+    assert c.put(review, headers=b, json={'rating': 4}).status_code == 200
+    assert c.get(base+'/'+pid+'/reviews').json()['items'] == []
+    assert c.delete(review, headers=b).status_code == 200
+    assert c.put(ROOT+'/publication', headers=a, json={'published': False}).status_code == 200
+    assert c.get(base+'/'+pid).status_code == 404

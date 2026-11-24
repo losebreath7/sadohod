@@ -40,9 +40,11 @@ class SadohodetsReview(Base):
     __table_args__ = (
         CheckConstraint('rating >= 1 AND rating <= 5', name='ck_sadohodets_review_rating'),
         CheckConstraint('profile_id <> reviewer_id', name='ck_sadohodets_review_not_self'),
+        Index('ix_sadohodets_reviews_status', 'moderation_status'),
     )
     profile_id: Mapped[str] = mapped_column(ForeignKey('sadohodets_profiles.buyer_id', ondelete='CASCADE'), primary_key=True)
     reviewer_id: Mapped[str] = mapped_column(ForeignKey('buyers.id', ondelete='CASCADE'), primary_key=True)
     rating: Mapped[int] = mapped_column(Integer)
     body: Mapped[str] = mapped_column(Text, default='')
     created_at: Mapped[float] = mapped_column(Float)
+    moderation_status: Mapped[str] = mapped_column(String(16), default='pending', server_default='pending')

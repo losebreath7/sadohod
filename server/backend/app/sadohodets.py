@@ -2,14 +2,16 @@
 import re
 import time
 import uuid
+from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from .account import Buyer, current_buyer
+from .admin_auth import require_admin
 from .database import get_db
 from .sadohodets_models import SadohodetsProfile, SadohodetsFolder, SadohodetsFolderItem, SadohodetsReview
 
@@ -267,3 +269,150 @@ def remove_folder_item(folder_id: str, product_id: str, buyer: Buyer = Depends(c
     touch_profile(db, buyer.id)
     db.commit()
     return {'ok': True}
+
+
+# Public directory: account restrictions are applied before pagination and ranking.
+def not_blocked(buyer_column):
+    from .moderation_enforcement_models import AccountRestriction
+    return ~select(AccountRestriction.buyer_id).where(
+        AccountRestriction.buyer_id == buyer_column,
+        AccountRestriction.active.is_(True),
+        or_(AccountRestriction.until.is_(None), AccountRestriction.until > time.time())
+    ).exists()
+
+
+def public_profiles():
+    return select(SadohodetsProfile).where(
+        SadohodetsProfile.published.is_(True),
+        not_blocked(SadohodetsProfile.buyer_id))
+
+
+def public_profile(db, profile_id):
+    row = db.scalar(public_profiles().where(SadohodetsProfile.buyer_id == profile_id))
+    if row is None:
+        raise HTTPException(404, 'Садоходец не найден.')
+    return row
+
+
+def approved_reviews():
+    return and_(SadohodetsReview.moderation_status == 'approved',
+                not_blocked(SadohodetsReview.reviewer_id))
+
+
+def review_stats(db, profile_id):
+    average, count = db.execute(select(func.avg(SadohodetsReview.rating), func.count())
+        .where(SadohodetsReview.profile_id == profile_id, approved_reviews())).one()
+    return {'rating': round(float(average), 2) if average is not None else None,
+            'review_count': count}
+
+
+@router.get('')
+def directory(sort: Literal['rating', 'activity'] = 'rating',
+              min_rating: int = Query(0, ge=0, le=5),
+              active_days: int | None = Query(None, ge=1, le=365),
+              limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+              db: Session = Depends(get_db)):
+    stats = select(SadohodetsReview.profile_id.label('pid'),
+                   func.avg(SadohodetsReview.rating).label('rating'),
+                   func.count().label('review_count')).where(approved_reviews()).group_by(
+                       SadohodetsReview.profile_id).subquery()
+    statement = public_profiles().add_columns(stats.c.rating, stats.c.review_count).outerjoin(
+        stats, stats.c.pid == SadohodetsProfile.buyer_id)
+    if min_rating:
+        statement = statement.where(stats.c.rating >= min_rating)
+    if active_days is not None:
+        statement = statement.where(SadohodetsProfile.last_active_at >= time.time() - active_days * 86400)
+    rating_order = func.coalesce(stats.c.rating, 0).desc()
+    activity_order = SadohodetsProfile.last_active_at.desc()
+    orders = (rating_order, activity_order) if sort == 'rating' else (activity_order, rating_order)
+    rows = db.execute(statement.order_by(*orders, SadohodetsProfile.buyer_id).limit(limit).offset(offset)).all()
+    return {'items': [{**serialize(row), 'rating': round(float(rating), 2) if rating is not None else None,
+                       'review_count': count or 0} for row, rating, count in rows]}
+
+
+class ReviewInput(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    rating: int = Field(ge=1, le=5, strict=True)
+    text: str = Field(default='', max_length=2000)
+
+
+def review_data(row, name):
+    return {'rating': row.rating, 'text': row.body, 'name': (name or '').strip() or 'Пользователь',
+            'created_at': row.created_at, 'moderation_status': row.moderation_status}
+
+
+@router.get('/{profile_id}/reviews')
+def list_reviews(profile_id: str, limit: int = Query(50, ge=1, le=100),
+                 offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    public_profile(db, profile_id)
+    rows = db.execute(select(SadohodetsReview, Buyer.name).join(
+        Buyer, Buyer.id == SadohodetsReview.reviewer_id).where(
+        SadohodetsReview.profile_id == profile_id, approved_reviews()).order_by(
+        SadohodetsReview.created_at.desc(), SadohodetsReview.reviewer_id).limit(limit).offset(offset)).all()
+    return {**review_stats(db, profile_id), 'items': [review_data(row, name) for row, name in rows],
+            'verified_purchases': False}
+
+
+@router.get('/{profile_id}/my-review')
+def my_review(profile_id: str, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    public_profile(db, profile_id)
+    row = db.get(SadohodetsReview, (profile_id, buyer.id))
+    return {'item': review_data(row, buyer.name) if row else None}
+
+
+@router.put('/{profile_id}/my-review')
+def save_review(profile_id: str, body: ReviewInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    if profile_id == buyer.id:
+        raise HTTPException(403, 'Нельзя оставить отзыв о себе.')
+    db.scalar(select(Buyer.id).where(Buyer.id == buyer.id).with_for_update())
+    public_profile(db, profile_id)
+    row = db.get(SadohodetsReview, (profile_id, buyer.id))
+    if row is None:
+        row = SadohodetsReview(profile_id=profile_id, reviewer_id=buyer.id, created_at=time.time())
+        db.add(row)
+    if row.moderation_status == 'hidden':
+        raise HTTPException(403, 'Отзыв скрыт модератором.')
+    row.rating, row.body, row.moderation_status = body.rating, body.text, 'pending'
+    db.commit()
+    return {'item': review_data(row, buyer.name)}
+
+
+@router.delete('/{profile_id}/my-review')
+def remove_review(profile_id: str, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    db.scalar(select(Buyer.id).where(Buyer.id == buyer.id).with_for_update())
+    db.execute(delete(SadohodetsReview).where(SadohodetsReview.profile_id == profile_id,
+                                             SadohodetsReview.reviewer_id == buyer.id))
+    db.commit()
+    return {'ok': True}
+
+
+class ReviewModerationInput(BaseModel):
+    status: Literal['approved', 'hidden', 'pending']
+
+
+@router.get('/admin/reviews', dependencies=[Depends(require_admin)])
+def moderation_queue(status: Literal['pending', 'approved', 'hidden'] = 'pending',
+                     limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
+                     db: Session = Depends(get_db)):
+    rows = db.scalars(select(SadohodetsReview).where(SadohodetsReview.moderation_status == status)
+        .order_by(SadohodetsReview.created_at.desc(), SadohodetsReview.profile_id, SadohodetsReview.reviewer_id)
+        .limit(limit).offset(offset)).all()
+    return {'items': [{'profile_id': row.profile_id, 'reviewer_id': row.reviewer_id,
+                       **review_data(row, '')} for row in rows]}
+
+
+@router.put('/admin/reviews/{profile_id}/{reviewer_id}', dependencies=[Depends(require_admin)])
+def moderate_review(profile_id: str, reviewer_id: str, body: ReviewModerationInput,
+                    db: Session = Depends(get_db)):
+    row = db.get(SadohodetsReview, (profile_id, reviewer_id))
+    if row is None:
+        raise HTTPException(404, 'Отзыв не найден.')
+    row.moderation_status = body.status
+    db.commit()
+    return {'ok': True}
+
+
+@router.get('/{profile_id}')
+def directory_profile(profile_id: str, db: Session = Depends(get_db)):
+    row = public_profile(db, profile_id)
+    return {**serialize(row), **review_stats(db, profile_id)}
