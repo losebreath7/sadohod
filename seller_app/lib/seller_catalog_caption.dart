@@ -15,7 +15,7 @@ class SellerCatalogCaption extends StatelessWidget {
   final int? price;
   final String title;
 
-  /// Match the buyer catalogue's ruble grouping and no approximation sign.
+  /// Match the buyer catalogue's ruble grouping and approximate price marker.
   static String rubles(int amount) {
     final text = amount.toString();
     final groups = <String>[];
@@ -23,7 +23,7 @@ class SellerCatalogCaption extends StatelessWidget {
       final start = end >= 3 ? end - 3 : 0;
       groups.insert(0, text.substring(start, end));
     }
-    return '${groups.join(' ')} ₽';
+    return '≈ ${groups.join(' ')} ₽';
   }
 
   @override
