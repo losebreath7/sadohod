@@ -363,6 +363,8 @@ def remove_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(
     db.execute(delete(ReviewReport).where(ReviewReport.review_id.in_(owned_ids)))
     db.execute(delete(SellerReview).where(SellerReview.buyer == buyer.id))
     db.execute(delete(BuyerSellerNote).where(BuyerSellerNote.buyer == buyer.id))
+    from .sadohodets import delete_profile_data
+    delete_profile_data(db, buyer.id, delete_written_reviews=True)
     db.delete(buyer)
     db.commit()
     return {'ok': True}
