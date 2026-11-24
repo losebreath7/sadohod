@@ -31,7 +31,7 @@ void main() {
     final price = find.byKey(const ValueKey('seller-card-price'));
     final title = find.byKey(const ValueKey('seller-card-title'));
     expect(find.text('Б-08'), findsOneWidget);
-    expect(find.text('2 450 ₽'), findsOneWidget);
+    expect(find.text('≈ 2 450 ₽'), findsOneWidget);
     expect(find.text('Сумка с короткими ручками'), findsOneWidget);
     expect(tester.getCenter(address).dy, closeTo(tester.getCenter(price).dy, 1));
     expect(tester.getTopLeft(title).dy,
@@ -86,7 +86,7 @@ void main() {
         ),
       ),
     ));
-    expect(find.text('100 000 000 ₽'), findsOneWidget);
+    expect(find.text('≈ 100 000 000 ₽'), findsOneWidget);
     final name = tester.widget<Text>(
       find.byKey(const ValueKey('seller-card-title')),
     );
@@ -106,7 +106,7 @@ void main() {
     expect(sellerListingAddress({'pavilion_id': 'p1'}, pavilions), 'Б-08');
     expect(sellerListingAddress({'pavilion_id': 'not-confirmed'}, pavilions), '');
     expect(sellerListingAddress(null, pavilions), '');
-    expect(SellerCatalogCaption.rubles(0), '0 ₽');
-    expect(SellerCatalogCaption.rubles(3890), '3 890 ₽');
+    expect(SellerCatalogCaption.rubles(0), '≈ 0 ₽');
+    expect(SellerCatalogCaption.rubles(3890), '≈ 3 890 ₽');
   });
 }
