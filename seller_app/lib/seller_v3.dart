@@ -3078,6 +3078,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   ),
                 tap(
                   SizedBox(
+                    key: shop ? const ValueKey('shop-bulk-select') : null,
                     width: 24,
                     height: 24,
                     child: Center(
