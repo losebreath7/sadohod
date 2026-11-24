@@ -6,7 +6,7 @@
 
 1. Убедиться, что применены миграции Alembic, включая `20261120_11_product_search_tags`.
 2. Проверить `/health`: значение `search_backend` должно быть `clip` на production, а `photo_categories` — `true`.
-3. При запуске API в режиме `clip` выполняются `index_catalog()` и `reclassify_indexed_products()`. Искать сообщения `ML index ready`, `Reclassified` и ошибки `Category inference unavailable`.
+3. После открытия API фоновой поток обновляет недостающие фотовекторы в режиме `clip`, затем категории. Готовность HTTP можно проверить через `/health`, завершение обработки — по записи `Catalog refresh complete`. При ошибке `Catalog refresh failed` поток повторит попытку через 30 секунд.
 4. Авторизованным администратором запросить `GET /api/v1/admin/merchant/catalog/classification-audit`. Передавать секрет администратора только в заголовке `Authorization: Bearer …`; не записывать его в отчёты.
 5. Для точечной диагностики использовать параметр `?product_id=<id>`. Сверить `photos` с `indexed_photos`, `category_id`, `search_tags` и `status`. `photo_index_missing` указывает на отсутствующий ML-вектор; `needs_review` может означать недостаточную уверенность классификатора; `manual` в поле `source` означает приоритет ручного назначения.
 6. В публичном API проверить тот же товар через `GET /api/v1/products/<id>` и `GET /api/v1/search/text?q=кольцо` (или реальный тип товара). Проверять, что товар опубликован и активен.

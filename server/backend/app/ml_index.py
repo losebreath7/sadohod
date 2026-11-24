@@ -1,5 +1,4 @@
 """Versioned embeddings. Existing 96D table and old PostgreSQL volume are preserved."""
-import logging
 import math
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -7,10 +6,19 @@ from .config import MEDIA
 from .models import ImageMLEmbedding
 from .ml_clip import MODEL_ID, DIM, embed_image
 
-log = logging.getLogger(__name__)
+INDEX_BATCH_SIZE = 64
 
 
 def index_catalog(session: Session, embed=embed_image, media=MEDIA, model_id=MODEL_ID):
+    changed = 0
+    while True:
+        processed, embedded = index_catalog_batch(session, embed, media, model_id)
+        changed += embedded
+        if processed < INDEX_BATCH_SIZE:
+            return changed
+
+
+def index_catalog_batch(session, embed=embed_image, media=MEDIA, model_id=MODEL_ID):
     postgres = session.get_bind().dialect.name == 'postgresql'
     mirror_join = ''
     missing_mirror = ''
@@ -31,8 +39,8 @@ def index_catalog(session: Session, embed=embed_image, media=MEDIA, model_id=MOD
         {mirror_join}
         WHERE e.image_id IS NULL OR json_array_length(e.embedding) <> :dim
               {missing_mirror}
-        ORDER BY i.id
-    """), {'model': model_id, 'dim': DIM}).all()
+        ORDER BY i.id LIMIT :batch_size
+    """), {'model': model_id, 'dim': DIM, 'batch_size': INDEX_BATCH_SIZE}).all()
     changed = 0
     for image_id, filename, indexed_id, dimensions in candidates:
         if indexed_id is None:
@@ -53,8 +61,7 @@ def index_catalog(session: Session, embed=embed_image, media=MEDIA, model_id=MOD
                 ON CONFLICT (image_id, model_id) DO UPDATE SET embedding = EXCLUDED.embedding
             """), {'image_id': image_id, 'model_id': model_id, 'embedding': literal})
     session.commit()
-    log.info('ML index ready: %s newly embedded, model=%s', changed, model_id)
-    return changed
+    return len(candidates), changed
 
 
 def nearest_ml_images(session: Session, data: bytes, limit=12, embed=embed_image, model_id=MODEL_ID, category=None, category_ids=None):

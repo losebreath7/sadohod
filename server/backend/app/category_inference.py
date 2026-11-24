@@ -502,7 +502,7 @@ def describe(db, product):
             'score': state.score, 'score_kind': 'cosine_similarity', 'photo_model': MODEL_ID if SEARCH_BACKEND == 'clip' else None}
 
 
-def reclassify_indexed_products(db):
+def reclassify_indexed_products(db, stop=None):
     """Idempotently refresh existing products after ML backfills their images.
 
     Merchant-selected manual categories are never overwritten. Products retain
@@ -511,9 +511,23 @@ def reclassify_indexed_products(db):
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from .models import Product
-    products = db.scalars(select(Product).options(
-        selectinload(Product.images),
-        selectinload(Product.category_assignment))).all()
+    query = select(Product).options(
+        selectinload(Product.images), selectinload(Product.category_assignment)
+    ).order_by(Product.id).limit(32).with_for_update(of=Product)
+    changed = 0
+    last_id = None
+    while stop is None or not stop.is_set():
+        batch = query if last_id is None else query.where(Product.id > last_id)
+        products = db.scalars(batch).all()
+        if not products:
+            break
+        last_id = products[-1].id
+        changed += _refresh_category_batch(db, products)
+        db.commit()
+    return changed
+
+
+def _refresh_category_batch(db, products):
     changed = 0
     for product in products:
         state = db.get(ProductCategoryState, product.id)
@@ -531,6 +545,4 @@ def reclassify_indexed_products(db):
         assigned = db.get(ProductCategoryAssignment, product.id)
         if (assigned.category_id if assigned else None) != before:
             changed += 1
-    db.commit()
-    log.info('Reclassified %s of %s indexed products', changed, len(products))
     return changed
