@@ -27,7 +27,11 @@ class _CabinetState extends State<SadohodetsCabinet> {
   bool busy = true;
   bool loaded = false;
   String? error;
-  bool showFolders = false;
+  int selectedTab = 0;
+  bool get showFolders => selectedTab == 1;
+  bool settings = false;
+  void selectTab(int index) { setState(() { selectedTab=index; folder=null; settings=false; }); }
+  Future<void> signOut() => run(() async { await widget.api.call('/auth/logout',method:'POST'); await widget.api.logout(); });
   @override
   void initState() { super.initState(); name.text = widget.initialName; load(); }
   @override
@@ -83,16 +87,26 @@ class _CabinetState extends State<SadohodetsCabinet> {
   Widget field(String title,TextEditingController c,{int lines=1}) => Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:c,maxLines:lines,decoration:InputDecoration(labelText:title,filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:BorderSide.none))));
   Widget action(String title,VoidCallback? callback) => SizedBox(width:double.infinity,child:FilledButton(onPressed:busy?null:callback,style:FilledButton.styleFrom(backgroundColor:const Color(0xff5f0f10),foregroundColor:Colors.white),child:Text(title)));
   @override
-  Widget build(BuildContext context) => SafeArea(child:Column(children:[
-    Row(children:[IconButton(onPressed:busy?null:(){if(folder != null){setState(()=>folder=null);}else{widget.onBack();}},icon:const Icon(Icons.arrow_back)),Expanded(child:Text(folder?['name']?.toString() ?? 'садоходец',textAlign:TextAlign.center,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold))),const SizedBox(width:48)]),
+  Widget build(BuildContext context) => Column(children:[Expanded(child:SafeArea(bottom:false,child:Column(children:[
+    Row(children:[if(folder != null || settings) IconButton(onPressed:busy?null:(){setState((){folder=null;settings=false;});},icon:const Icon(Icons.arrow_back)) else const SizedBox(width:48),Expanded(child:Text(folder?['name']?.toString() ?? (settings?'настройки':['садоходец','клиенты','профиль'][selectedTab]),textAlign:TextAlign.center,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold))),const SizedBox(width:48)]),
     if(busy) const LinearProgressIndicator(),
     if(error != null) Padding(padding:const EdgeInsets.all(12),child:Text(error!,style:const TextStyle(color:Colors.red))),
     if(!loaded) Expanded(child:Center(child:TextButton(onPressed:busy?null:load,child:const Text('Повторить')))) else Expanded(child:AbsorbPointer(absorbing:busy,child:ListView(padding:const EdgeInsets.fromLTRB(30,12,30,24),children:[
-      if(folder == null && profile != null) SegmentedButton<bool>(segments:const [ButtonSegment(value:false,label:Text('Профиль')),ButtonSegment(value:true,label:Text('Клиенты'))],selected:{showFolders},onSelectionChanged:(v)=>setState(()=>showFolders=v.first)),
+
       const SizedBox(height:16),
-      if(folder != null) ...[
+      if(settings) ...[
+        action('Выйти из аккаунта',signOut),
+      ] else if(selectedTab==0) ...[
+        Text(profile?['published']==true?'Анкета опубликована':'Анкета не опубликована',textAlign:TextAlign.center),
+        const SizedBox(height:16),
+        action('Найти товар',() async { final product=await showDialog<String>(context:context,builder:(_)=>_ProductPicker(api:widget.api)); if(product==null||!mounted)return; if(profile==null){selectTab(2);return;} if(folders.isEmpty){await editFolder();if(!mounted||folders.isEmpty)return;} final id=await showDialog<String>(context:context,builder:(ctx)=>SimpleDialog(title:const Text('Выберите клиента'),children:[for(final f in folders)SimpleDialogOption(onPressed:()=>Navigator.pop(ctx,'${f['id']}'),child:Text('${f['name']}'))]));if(id!=null&&mounted)await run(() async {await api.addItem(id,product);folders=await api.folders();selectedTab=1;folder=await api.folder(id);});}),
+        action('Папки клиентов',()=>selectTab(1)),
+        action('Редактировать анкету',()=>selectTab(2)),
+      ] else if(folder != null) ...[
         Text('${folder!['note'] ?? ''}'),TextButton(onPressed:()=>editFolder(folder),child:const Text('Редактировать')),action('Добавить товар',addProduct),
         GridView.count(crossAxisCount:2,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisSpacing:16,mainAxisSpacing:16,childAspectRatio:.66,children:[for(final raw in (folder!['items'] as List? ?? [])) _item(raw as Map)]),
+      ] else if(showFolders && profile == null) ...[
+        const Text('Сначала сохраните анкету.'),action('Создать анкету',()=>selectTab(2)),
       ] else if(showFolders && profile != null) ...[
         action('Добавить клиента',()=>editFolder()),
         for(final f in folders) ListTile(title:Text('${f['name']}'),subtitle:Text('${f['note'] ?? ''} • ${f['collected_count']}/${f['count']}'),onTap:()=>run(() async {folder=await api.folder('${f['id']}');}),trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:() async {if(await confirm('Удалить папку?')) await run(() async {await api.deleteFolder('${f['id']}');folders=await api.folders();});})),
@@ -102,15 +116,18 @@ class _CabinetState extends State<SadohodetsCabinet> {
           if(media.containsKey(kind)) TextButton(onPressed:()=>run(() async {profile=await api.removeMedia(kind);media.remove(kind);}),child:const Text('Удалить фото')),
           const SizedBox(height:12),
         ],
+        TextButton(onPressed:()=>setState(()=>settings=true),child:const Text('Настройки')),
         field('имя',name),field('о себе',description,lines:3),
         for(final k in contacts.keys) field(labels[k]!,contacts[k]!),
         const Text('Для публикации нужен хотя бы один контакт.'),
         action('Сохранить',()=>save()),
         if(profile?['published']==true) action('Скрыть анкету',()=>run(() async {profile=await api.publication(false);})) else action('Опубликовать',()=>save(publish:true)),
-        if(profile!=null) TextButton(onPressed:() async {if(await confirm('Удалить анкету и папки клиентов?')) await run(() async {await api.deleteProfile();profile=null;folders=[];media.clear();showFolders=false;description.clear();for(final c in contacts.values){c.clear();}});},child:const Text('Удалить анкету')),
+        if(profile!=null) TextButton(onPressed:() async {if(await confirm('Удалить анкету и папки клиентов?')) await run(() async {await api.deleteProfile();profile=null;folders=[];media.clear();selectedTab=2;description.clear();for(final c in contacts.values){c.clear();}});},child:const Text('Удалить анкету')),
       ],
     ]))),
-  ]));
+  ]))),
+  SafeArea(top:false,child:NavigationBar(backgroundColor:Colors.white,selectedIndex:selectedTab,onDestinationSelected:busy?null:selectTab,destinations:const [NavigationDestination(icon:Icon(Icons.search),label:'Главная'),NavigationDestination(icon:Icon(Icons.folder_outlined),label:'Клиенты'),NavigationDestination(icon:Icon(Icons.person_outline),label:'Профиль')])),
+  ]);
   Widget _item(Map item) {
     final product = item['product'] as Map?;
     final images = product?['images'] as List? ?? [];

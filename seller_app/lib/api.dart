@@ -18,12 +18,19 @@ class SellerApi extends ChangeNotifier {
   static const configuredUrl = String.fromEnvironment('API_BASE_URL');
   static const _storage = FlutterSecureStorage();
   String? token;
+  bool courierRole = false;
+
+  Future<void> selectRole(bool courier) async {
+    if (signedIn) throw StateError('Сначала выйдите из аккаунта.');
+    courierRole = courier;
+  }
   String get baseUrl => sadohodApiBaseUrl(configuredUrl);
   bool get signedIn => token != null;
 
   Future<void> restore() async {
     try {
       token = await _storage.read(key: 'seller.session');
+      courierRole = await _storage.read(key: 'seller.role') == 'courier';
     } catch (_) {
       token = null;
     }
@@ -144,6 +151,7 @@ class SellerApi extends ChangeNotifier {
     final newToken = result['token'];
     if (newToken is! String || newToken.isEmpty)
       throw Exception('Сервер не вернул токен');
+    await _storage.write(key: 'seller.role', value: courierRole ? 'courier' : 'seller');
     await _storage.write(key: 'seller.session', value: newToken);
     token = newToken;
     notifyListeners();

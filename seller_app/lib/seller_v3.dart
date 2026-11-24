@@ -264,6 +264,19 @@ class SellerV3 extends StatefulWidget {
 
 class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   String screen = 'welcome';
+  bool get courierRole => widget.api.courierRole;
+
+  Future<void> enterRole() async {
+    if (!courierRole) { await reload(); return; }
+    final token = widget.api.token;
+    final data = await widget.api.call('/account');
+    if (!mounted || token != widget.api.token) return;
+    setState(() {
+      account = data;
+      history.clear();
+      screen = name.trim().isEmpty ? 'name' : 'sadohodets';
+    });
+  }
   final history =
       <
         ({
@@ -738,7 +751,11 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     if (testPreview) {
       seed();
     } else if (widget.api.signedIn) {
-      reload();
+      if (courierRole) {
+        run(enterRole);
+      } else {
+        reload();
+      }
     }
   }
 
@@ -1168,7 +1185,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       if (c('code').text.length != 6) return;
       if (!testPreview) {
         await widget.api.verify(c('email').text, c('code').text);
-        await reload();
+        await enterRole();
       } else
         go('name');
     } else if (screen == 'name') {
@@ -1181,9 +1198,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
         );
       account['name'] = c('name').text.trim();
       if (testPreview)
-        go('emptyStores');
+        go(courierRole ? 'sadohodets' : 'emptyStores');
       else
-        await reload();
+        await enterRole();
     }
   });
   void fillProfile() {
@@ -1638,6 +1655,9 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   }).toList();
   @override
   Widget build(BuildContext context) {
+    if (screen == 'sadohodets' && courierRole) {
+      return Scaffold(backgroundColor: const Color(0xfff1f1f1), body: SadohodetsCabinet(key: ValueKey(widget.api.token), api: widget.api, initialName: name, onBack: () {}));
+    }
     if (screen == 'missing')
       return PopScope(
         canPop: false,
@@ -1699,7 +1719,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'name':
         return authBody();
       case 'sadohodets':
-        return SadohodetsCabinet(api: widget.api, initialName: name, onBack: back);
+        return SadohodetsCabinet(api: widget.api, initialName: name, onBack: () {});
       case 'profile':
         return profileBody();
       case 'editProfile':
@@ -1831,7 +1851,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   left: 30,
                   right: 30,
                   child: label(
-                    'для продавцов',
+                    courierRole ? 'для курьеров' : 'для продавцов',
                     15,
                     color: muted,
                     align: TextAlign.center,
@@ -1841,7 +1861,21 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   left: 30,
                   right: 30,
                   bottom: 81,
-                  child: pill('продолжить', auth),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    if (!testPreview) ...[
+                      SegmentedButton<bool>(
+                        segments: const [ButtonSegment(value: false, label: Text('Я продавец')), ButtonSegment(value: true, label: Text('Я курьер'))],
+                        selected: {courierRole},
+                        onSelectionChanged: busy ? null : (value) async {
+                          if (widget.api.signedIn) return;
+                          await widget.api.selectRole(value.first);
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    pill('продолжить', auth),
+                  ]),
                 ),
               ],
             ),
@@ -2016,7 +2050,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 61),
               pill('добавить магазин', () => go('address')),
-              if (!testPreview) pill('стать садоходцем', () => go('sadohodets')),
             ],
           ),
         ),
@@ -2166,7 +2199,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
             },
           ),
         const SizedBox(height: 24),
-        if (!testPreview) pill('кабинет садоходца', () => go('sadohodets')),
         label(SadohodBuild.label, 10, color: muted),
         const SizedBox(height: 12),
       ],
