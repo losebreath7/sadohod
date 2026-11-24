@@ -2,7 +2,7 @@ from alembic import context
 from sqlalchemy import text
 
 from backend.app.database import Base, engine
-from backend.app import models, account, buyer_extras, merchant_models, buyer_reviews_v082, telegram_bridge, moderation_models, seller_notifications, product_safety, moderation_enforcement_models, buyer_interests_models  # noqa: F401
+from backend.app import models, account, buyer_extras, merchant_models, buyer_reviews_v082, telegram_bridge, moderation_models, seller_notifications, product_safety, moderation_enforcement_models, buyer_interests_models, sadohodets_models  # noqa: F401
 
 
 def include_object(obj, name, type_, reflected, compare_to):

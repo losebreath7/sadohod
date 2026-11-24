@@ -22,7 +22,7 @@ from .product_safety import router as product_safety_router
 from .legal_documents import router as legal_router
 from .moderation_controls import router as moderation_controls_router
 from .buyer_interests import router as buyer_interests_router
-from . import buyer_interests_models  # noqa: F401
+from . import buyer_interests_models, sadohodets_models  # noqa: F401
 from .moderation_enforcement_models import AccountRestriction, ShopRestriction, ModerationEmail  # noqa: F401
 from .config import ALLOWED_ORIGINS, DEMO_SEED, MEDIA, MODEL_ID, ROOT, SEARCH_BACKEND, SADOHOD_ENV
 from .database import SessionLocal, init_db
