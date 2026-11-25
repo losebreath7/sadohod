@@ -24,4 +24,22 @@ void main(){
   expect(find.text('test@example.com'),findsOneWidget);
   expect(tester.takeException(),isNull);
  });
+ testWidgets('Folder list has no title bar and starts below the safe area', (tester) async {
+   tester.view.physicalSize=const Size(390,844);
+   tester.view.devicePixelRatio=1;
+   addTearDown(tester.view.resetPhysicalSize);
+   addTearDown(tester.view.resetDevicePixelRatio);
+   await tester.pumpWidget(MaterialApp(home:Scaffold(body:MediaQuery(
+     data:const MediaQueryData(size:Size(390,844),padding:EdgeInsets.only(top:62)),
+     child:SadohodetsCabinet(api:CourierTestApi(),initialName:'Анна',onBack:(){}),
+   ))));
+   await tester.pumpAndSettle();
+   await tester.tap(find.bySemanticsLabel('Папки').last);
+   await tester.pumpAndSettle();
+   expect(find.text('папки'),findsNothing);
+   expect(find.text('Создать папку'),findsOneWidget);
+   expect(tester.getTopLeft(find.text('Создать папку')).dy,lessThan(125));
+   expect(tester.takeException(),isNull);
+ });
+
 }

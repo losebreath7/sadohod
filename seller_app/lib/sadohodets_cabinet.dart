@@ -675,16 +675,18 @@ class _CabinetState extends State<SadohodetsCabinet>
             : selectedTab == 2 && !editing && !settings
             ? profileMenu()
             : SafeArea(
-                top: !editing,
+                top: !editing && folder == null,
                 bottom: false,
                 child: Column(
                   children: [
-                    if (editing) V3Header(title:'профиль',back:(){if(!busy)setState(()=>editing=false);})
-                    else Container(height:54,decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(bottom:Radius.circular(30))),child:Row(children:[
-                      if(folder!=null) IconButton(onPressed:busy?null:()=>setState(()=>folder=null),icon:const Icon(Icons.chevron_left)) else const SizedBox(width:48),
-                      Expanded(child:Text(folder?['name']?.toString()??'папки',textAlign:TextAlign.center,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w600))),
-                      const SizedBox(width:48)
-                    ])),
+                    if (editing)
+                      V3Header(title: 'профиль', back: () {
+                        if (!busy) setState(() => editing = false);
+                      })
+                    else if (folder != null)
+                      V3Header(title: folder!['name']?.toString() ?? '', back: () {
+                        if (!busy) setState(() => folder = null);
+                      }),
                     if (busy) const LinearProgressIndicator(),
                     if (error != null)
                       Padding(
