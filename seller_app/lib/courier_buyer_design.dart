@@ -1,5 +1,6 @@
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 class BuyerHeaderLayout {
   const BuyerHeaderLayout._(this.obstructionBottom, this.contentTop, this.height);
@@ -124,7 +125,7 @@ class _SearchCapsuleState extends State<SearchCapsule> {
         style: const TextStyle(fontSize: 12),
         decoration: InputDecoration(
           hintText: 'поиск',
-          hintStyle: const TextStyle(color: Color(0xffa5a5a5)),
+          hintStyle: const TextStyle(color: SellerColors.muted),
           isDense: true,
           prefixIconConstraints: const BoxConstraints(minWidth: 33, minHeight: 20),
           prefixIcon: const SizedBox(width: 33, child: Center(child: SizedBox(
@@ -141,7 +142,7 @@ class _SearchCapsuleState extends State<SearchCapsule> {
                   child: const SizedBox(
                     width: 32, height: 32,
                     child: Center(child: Icon(Icons.close, size: 14,
-                        color: Color(0xffa5a5a5))),
+                        color: SellerColors.muted)),
                   ),
                 ),
               if (widget.onPhotoTap != null)
@@ -155,7 +156,7 @@ class _SearchCapsuleState extends State<SearchCapsule> {
             ],
           ),
           filled: true,
-          fillColor: const Color(0xffeaeaea),
+          fillColor: const SellerColors.background,
           contentPadding: const EdgeInsets.only(left: 10, right: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
@@ -237,14 +238,14 @@ class CourierHomeHeader extends SliverPersistentHeaderDelegate {
                 const SizedBox(height: 16),
                 const Text('находи и забирай   //   без посредников',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: Color(0xff555555))),
+                  style: TextStyle(fontSize: 13, color: SellerColors.brown)),
                 const SizedBox(height: 2),
                 const Text('11 тыс. магазинов садовода в одном месте',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: Color(0xff555555))),
+                  style: TextStyle(fontSize: 12, color: SellerColors.brown)),
                 const SizedBox(height: 15),
                 Material(
-                  color: Colors.black,
+                  color: SellerColors.brown,
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     onTap: onPhotoTap,
@@ -271,7 +272,7 @@ class CourierHomeHeader extends SliverPersistentHeaderDelegate {
                 // the SAME actual control before, during, and after collapse.
                 const SizedBox(height: 74),
                 const Text('найти по тегам', style: TextStyle(
-                  fontSize: 12, color: Color(0xff6c6c6c))),
+                  fontSize: 12, color: SellerColors.muted)),
                 const SizedBox(height: 9),
                 SizedBox(height: 22, child: ScrollConfiguration(
                   // Flutter Web excludes mouse dragging by default. Add it
@@ -287,14 +288,14 @@ class CourierHomeHeader extends SliverPersistentHeaderDelegate {
                   children: [for (final tag in tags) Padding(
                     padding: const EdgeInsets.only(right: 4),
                     child: Material(
-                      color: const Color(0xffeaeaea),
+                      color: const SellerColors.background,
                       borderRadius: BorderRadius.circular(11),
                       child: InkWell(
                         onTap: () => onTag(tag),
                         borderRadius: BorderRadius.circular(11),
                         child: Padding(padding: const EdgeInsets.symmetric(horizontal: 11),
                           child: Center(child: Text(tag, style: const TextStyle(
-                            fontSize: 12, height: 1, color: Color(0xff343434))))),
+                            fontSize: 12, height: 1, color: SellerColors.brown)))),
                       ),
                     ),
                   )],
@@ -380,7 +381,7 @@ class _SadohodWordmarkPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / 98, size.height / 13);
     final paint = Paint()
-      ..color = const Color(0xFF000000)
+      ..color = const SellerColors.brown
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
     final p0 = Path();

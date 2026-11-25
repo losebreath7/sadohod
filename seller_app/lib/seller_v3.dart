@@ -1656,7 +1656,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (screen == 'sadohodets' && courierRole) {
-      return Scaffold(backgroundColor: const Color(0xfff1f1f1), body: SadohodetsCabinet(key: ValueKey(widget.api.token), api: widget.api, initialName: name, onBack: () {}));
+      return Scaffold(backgroundColor: SellerColors.background, body: SadohodetsCabinet(key: ValueKey(widget.api.token), api: widget.api, initialName: name, onBack: () {}));
     }
     if (screen == 'missing')
       return PopScope(
