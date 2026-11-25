@@ -23,7 +23,7 @@ class _PhotoGalleryState extends State<PhotoGallery> {
         if (!widget.small && widget.fit == BoxFit.contain)
           const ColoredBox(color: Color(0xffeaeaea)),
         if (widget.photos.isEmpty)
-          const SadohodProductPhoto(path: '', placeholder: Color(0xFFEAEAEA))
+          const ColoredBox(color: Color(0xFFEAEAEA), child: Center(child: Icon(Icons.image_outlined, color: Color(0xff777777), size: 24)))
         else PageView.builder(
           itemCount: widget.photos.length,
           onPageChanged: (i) => setState(() => current = i),
