@@ -37,3 +37,45 @@ String contactLineDisplay(String raw) {
   if (host == 'wa.me' || host == 'whatsapp.com' || host.endsWith('.whatsapp.com')) return contactDisplay('whatsapp',s);
   return s;
 }
+
+String? contactKey(String raw) {
+  final lower=raw.trim().toLowerCase();
+  for(final e in {'тг':'telegram','tg':'telegram','telegram':'telegram','вк':'vk','vk':'vk','вконтакте':'vk','whatsapp':'whatsapp','авито':'avito','сайт':'website','телефон':'phone'}.entries) {
+    if(lower.startsWith('${e.key}:')) return e.value;
+  }
+  final host=Uri.tryParse(lower.contains('://')?lower:'https://$lower')?.host??'';
+  if(host=='t.me'||host=='telegram.me'||lower.startsWith('@'))return 'telegram';
+  if(host=='vk.com'||host=='vk.ru')return 'vk';
+  if(host=='wa.me'||host=='whatsapp.com'||host.endsWith('.whatsapp.com'))return 'whatsapp';
+  if(host=='avito.ru'||host.endsWith('.avito.ru'))return 'avito';
+  return null;
+}
+String contactValue(String raw) {
+  final key=contactKey(raw);
+  final colon=raw.indexOf(':');
+  if(key!=null&&colon>=0&&!raw.substring(0,colon).contains(RegExp(r'^https?$')))return raw.substring(colon+1).trim();
+  return raw.trim();
+}
+Uri? contactTarget(String key,String raw) {
+  final value=raw.trim();
+  if(value.isEmpty)return null;
+  if(key=='phone'||key=='phone2'||(key.isEmpty&&RegExp(r'^\+?[0-9 ()-]{7,25}$').hasMatch(value))){
+    return Uri(scheme:'tel',path:value.replaceAll(RegExp(r'[^0-9+]'),''));
+  }
+  final existing=Uri.tryParse(value.contains('://')?value:'https://$value');
+  if(key=='whatsapp'){
+    var n=(existing?.queryParameters['phone']??(existing?.host=='wa.me'&&existing!.pathSegments.isNotEmpty?existing.pathSegments.last:value)).replaceAll(RegExp(r'[^0-9]'),'');
+    if(n.length==11&&n.startsWith('8'))n='7${n.substring(1)}';
+    return n.length>=7&&n.length<=15?Uri.https('wa.me','/$n'):null;
+  }
+  if(key=='telegram'||key=='vk'){
+    final host=key=='telegram'?'t.me':'vk.com';
+    final permitted=key=='telegram'?['t.me','telegram.me']:['vk.com','vk.ru'];
+    final n=existing!=null&&permitted.contains(existing.host)&&existing.pathSegments.isNotEmpty?existing.pathSegments.last:value.replaceFirst('@','');
+    if(RegExp(r'^[A-Za-z0-9_.-]{2,64}$').hasMatch(n))return Uri.https(host,'/$n');
+    return null;
+  }
+  if(existing!=null&&existing.scheme=='https'&&existing.host.contains('.')&&existing.userInfo.isEmpty)return existing;
+  return null;
+}
+Uri? contactLineTarget(String raw)=>contactTarget(contactKey(raw)??'',contactValue(raw));

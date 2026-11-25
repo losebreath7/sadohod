@@ -26,7 +26,7 @@ void main() {
   });
 
   test('ruble formatting groups thousands', () {
-    expect(formatRubles(3890), '3 890 ₽');
-    expect(formatRubles(990), '990 ₽');
+    expect(formatRubles(3890), '≈ 3 890 ₽');
+    expect(formatRubles(990), '≈ 990 ₽');
   });
 }

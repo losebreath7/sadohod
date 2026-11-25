@@ -68,7 +68,7 @@ class _CabinetState extends State<SadohodetsCabinet>
   bool settings = false;
   bool editing = false;
   void openPage(String title, Widget content) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (ctx) => Scaffold(backgroundColor: SellerColors.background, body: Column(children:[V3Header(title:title,back:()=>Navigator.pop(ctx)),Expanded(child:content)])))); }
-  void openSettings() => openPage('настройки', SellerSettingsPage(api:widget.api,courier:true,onSignedOut:(){},onOpenInfo:(kind)=>openPage(kind=='about'?'о приложении':kind=='terms'?'пользовательское соглашение':'конфиденциальность',SellerSettingsInfoPage(kind:kind))));
+  void openSettings() {final navigator=Navigator.of(context,rootNavigator:true);openPage('настройки', SellerSettingsPage(api:widget.api,courier:true,onSignedOut:(){navigator.popUntil((route)=>route.isFirst);},onOpenInfo:(kind)=>openPage(kind=='about'?'о приложении':kind=='terms'?'пользовательское соглашение':'конфиденциальность',SellerSettingsInfoPage(kind:kind))));}
   void openNotifications() => openPage('уведомления',SellerNotificationsPage(api:widget.api,onOpenPavilions:(){},onOpenProduct:(id) async {try{final product=await widget.api.call('/products/${Uri.encodeComponent(id)}');if(mounted)await openProduct(product);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}));
   void openNavigation() { final address=TextEditingController(); openPage('навигация', _CourierNavigation(controller:address)); }
 
@@ -661,7 +661,7 @@ class _CabinetState extends State<SadohodetsCabinet>
 
   Widget field(String title, TextEditingController c, {int lines = 1}) =>
       Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 10),
         child: V3Field(title, c),
       );
   Widget action(String title, VoidCallback? callback) => Padding(

@@ -111,7 +111,7 @@ class AcceptInvitation(BaseModel):
 
 class ShopEditInput(BaseModel):
     name: str = Field(min_length=2, max_length=120)
-    contact: str = Field(default='', max_length=250)
+    contact: str = Field(default='', max_length=500)
 
 
 def shop_for(buyer: Buyer, db: Session) -> Seller:

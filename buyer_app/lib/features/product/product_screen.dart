@@ -563,15 +563,7 @@ class _FullGalleryState extends State<_FullGallery> {
 class ContactText extends StatelessWidget {
   const ContactText(this.value, {super.key});
   final String value;
-  Uri? _target(String raw) {
-    final s = raw.trim().replaceFirst(RegExp(r'^(тг|tg|телефон|сайт)\s*:\s*', caseSensitive: false), '');
-    if (RegExp(r'^\+?[\d\s()-]{7,}$').hasMatch(s))
-      return Uri(scheme: 'tel', path: s.replaceAll(RegExp(r'[^+\d]'), ''));
-    if (RegExp(r'^@[a-zA-Z0-9_]{5,}$').hasMatch(s)) return Uri.https('t.me', s.substring(1));
-    final candidate = Uri.tryParse(s.contains('://') ? s : 'https://$s');
-    if (candidate != null && (candidate.scheme == 'https' || candidate.scheme == 'http') && candidate.host.contains('.')) return candidate;
-    return null;
-  }
+  Uri? _target(String raw) => contactLineTarget(raw);
 
   @override
   Widget build(BuildContext context) {

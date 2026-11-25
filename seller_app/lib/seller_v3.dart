@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/display_format.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter/services.dart';
@@ -1211,9 +1212,13 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   });
   void fillProfile() {
     c('profileName').text = name;
-    c('phone').text = '${merchant['shop']?['contact'] ?? ''}';
-    c('phone2').clear();
-    showSecondPhone = false;
+    for(final key in ['phone','phone2','telegram','vk','whatsapp','avito','website']) { c(key).clear(); }
+    for(final line in '${merchant['shop']?['contact'] ?? ''}'.split('\n').where((v)=>v.trim().isNotEmpty)){
+      var key=contactKey(line)??'phone';
+      if(key=='phone'&&c('phone').text.isNotEmpty)key='phone2';
+      c(key).text=contactValue(line);
+    }
+    showSecondPhone = c('phone2').text.isNotEmpty;
     c('profileEmail').text = '${account['email'] ?? ''}';
   }
 
@@ -2364,33 +2369,15 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               );
               return;
             }
-            if (c('phone2').text.trim().isNotEmpty && !testPreview) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Сервер пока не поддерживает второй номер. Изменения не сохранены.',
-                  ),
-                ),
-              );
-              return;
+            final contactLines=<String>[];
+            for(final key in ['phone','phone2','telegram','vk','whatsapp','avito','website']){
+              final value=c(key).text.trim();
+              if(value.isEmpty)continue;
+              final target=contactTarget(key,value);
+              if(target==null){failure(Exception('Проверьте контакт: $key'));return;}
+              contactLines.add(key=='phone'||key=='phone2'?value:target.toString());
             }
-            if ([
-                  'telegram',
-                  'vk',
-                  'whatsapp',
-                  'avito',
-                  'website',
-                ].any((k) => c(k).text.trim().isNotEmpty) &&
-                !testPreview) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Сервер пока не поддерживает сохранение ссылок. Изменения не сохранены.',
-                  ),
-                ),
-              );
-              return;
-            }
+            if(contactLines.join('\n').length>500){failure(Exception('Слишком длинные контакты'));return;}
             setState(() => busy = true);
             try {
               if (!testPreview) {
@@ -2403,7 +2390,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   await widget.api.call(
                     '/merchant/shop',
                     method: 'PUT',
-                    body: {'name': newName, 'contact': c('phone').text.trim()},
+                    body: {'name': newName, 'contact': contactLines.join('\n')},
                   );
                 }
                 await reload(navigate: false);

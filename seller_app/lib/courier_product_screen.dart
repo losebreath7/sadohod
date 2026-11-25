@@ -5,6 +5,7 @@ import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'courier_buyer_design.dart';
 
@@ -54,7 +55,7 @@ class _CourierProductScreenState extends State<CourierProductScreen>{
    const SizedBox(height:15),
    if(seller.isNotEmpty)...[
     BuyerSellerIdentityRow(name:'${seller['name']??''}',saleModes:(offer?['sale_modes'] as List? ?? []).whereType<String>().toList(),onSellerTap:()=>showDialog<void>(context:context,builder:(ctx)=>AlertDialog(title:Text('${seller['name']??''}'),content:Text('${seller['pavilion']??''}\n${seller['contact']??''}'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Закрыть'))]))),
-    Padding(padding:const EdgeInsets.only(left:34),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(final line in (seller['contact']??'').toString().split('\n').where((v)=>v.trim().isNotEmpty)) InkWell(onTap:()=>Clipboard.setData(ClipboardData(text:line)),child:Padding(padding:const EdgeInsets.symmetric(vertical:2),child:Text(contactLineDisplay(line),style:const TextStyle(fontSize:12,color:SellerColors.muted))))])),
+    Padding(padding:const EdgeInsets.only(left:34),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(final line in (seller['contact']??'').toString().split('\n').where((v)=>v.trim().isNotEmpty)) InkWell(onTap:() async {final target=contactLineTarget(line);if(target!=null){try{if(await launchUrl(target,mode:LaunchMode.externalApplication))return;}catch(_){}}await Clipboard.setData(ClipboardData(text:line));},child:Padding(padding:const EdgeInsets.symmetric(vertical:2),child:Text(contactLineDisplay(line),style:const TextStyle(fontSize:12,color:SellerColors.muted))))])),
    ],
    const SizedBox(height:16),Material(color:Colors.white,borderRadius:BorderRadius.circular(6),child:InkWell(onTap:()=>pickOffer(offers),child:Container(constraints:const BoxConstraints(minHeight:65),padding:const EdgeInsets.fromLTRB(26,10,15,10),child:Row(children:[Expanded(child:BuyerProductNavigationAddress(address:address,zone:zone)),const CircleAvatar(backgroundColor:SellerColors.brown,radius:17,child:Icon(Icons.arrow_forward_rounded,color:Colors.white,size:23))])))),
    const SizedBox(height:12),ProductShareActions(productId:'${p['id']}',color:SellerColors.brown),TextButton(onPressed:reporting?null:report,child:const Text('пожаловаться на товар',style:TextStyle(color:SellerColors.muted,fontSize:12))),

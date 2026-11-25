@@ -60,15 +60,7 @@ Widget _header(BuildContext context, String title) => Row(
   ],
 );
 Future<void> contact(BuildContext context, String key, String value) async {
-  final Uri? target;
-  if (key == 'phone' || key == 'phone2') {
-    target = Uri(scheme: 'tel', path: value.replaceAll(RegExp(r'[^0-9+]'), ''));
-  } else if (key == 'whatsapp' && !value.startsWith('https://')) {
-    target = Uri.https('wa.me', '/${value.replaceAll(RegExp(r'[^0-9]'), '')}');
-  } else {
-    final u = Uri.tryParse(value);
-    target = u?.scheme == 'https' ? u : null;
-  }
+  final target = contactTarget(key, value);
   if (target == null) return;
   try {
     if (!await launchUrl(target, mode: LaunchMode.externalApplication))
