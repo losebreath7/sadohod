@@ -24,6 +24,7 @@ class SadohodetsFolder(Base):
     owner_id: Mapped[str] = mapped_column(ForeignKey('sadohodets_profiles.buyer_id', ondelete='CASCADE'), index=True)
     name: Mapped[str] = mapped_column(String(120))
     note: Mapped[str] = mapped_column(Text, default='')
+    client_link: Mapped[str] = mapped_column(String(2048), default='', server_default='')
     created_at: Mapped[float] = mapped_column(Float)
 
 

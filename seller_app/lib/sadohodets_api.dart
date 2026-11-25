@@ -67,12 +67,14 @@ class SadohodetsApi {
     String name,
     String note, {
     String? productId,
+    String clientLink = '',
   }) => api.call(
     '$root/folders',
     method: 'POST',
     body: {
       'name': name,
       'note': note,
+      'client_link': clientLink,
       if (productId != null) 'product_id': productId,
     },
   );
@@ -82,11 +84,12 @@ class SadohodetsApi {
   Future<Map<String, dynamic>> editFolder(
     String id,
     String name,
-    String note,
-  ) => api.call(
+    String note, {
+    String? clientLink,
+  }) => api.call(
     folderPath(id),
     method: 'PUT',
-    body: {'name': name, 'note': note},
+    body: {'name': name, 'note': note, if (clientLink != null) 'client_link': clientLink},
   );
 
   Future<void> deleteFolder(String id) async {

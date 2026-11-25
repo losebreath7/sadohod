@@ -144,3 +144,23 @@ def test_profile_media_publication_boundary(setup):
     assert c.get(public).status_code == 200
     assert c.delete(ROOT+'/media/avatar', headers=a).status_code == 200
     assert c.get(public).status_code == 404
+
+
+def test_private_client_link_roundtrip_and_validation(setup):
+    c, codes, sessions = setup
+    a = login(c, codes, 'link-a@example.com')
+    b = login(c, codes, 'link-b@example.com')
+    for headers in (a, b):
+        assert c.put(ROOT, headers=headers, json={'name': 'Садоходец'}).status_code == 200
+    base = ROOT + '/folders'
+    link = 'https://t.me/example_client'
+    r = c.post(base, headers=a, json={'name': 'Клиент', 'client_link': link})
+    assert r.status_code == 201, r.text
+    path = base + '/' + r.json()['id']
+    assert c.get(path, headers=a).json()['client_link'] == link
+    assert c.get(path, headers=b).status_code == 404
+    assert c.get(base, headers=b).json()['items'] == []
+    assert c.put(path, headers=a, json={'name': 'Новое имя'}).json()['client_link'] == link
+    for invalid in ('javascript:alert(1)', 'https://', 'http://example.com', 'https://user@example.com', 'https://example.com/a b'):
+        assert c.put(path, headers=a, json={'name': 'Клиент', 'client_link': invalid}).status_code == 422
+    assert c.put(path, headers=a, json={'name': 'Клиент', 'client_link': ''}).json()['client_link'] == ''

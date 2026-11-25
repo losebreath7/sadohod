@@ -146,6 +146,23 @@ class FolderInput(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     name: str = Field(min_length=1, max_length=120)
     note: str = Field(default='', max_length=4000)
+    client_link: str | None = Field(default=None, max_length=2048)
+
+    @field_validator('client_link')
+    @classmethod
+    def validate_client_link(cls, value):
+        if not value:
+            return value
+        if any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value) or '\\' in value:
+            raise ValueError('Введите корректную HTTPS-ссылку на клиента')
+        try:
+            url = urlsplit(value)
+            if url.scheme != 'https' or not url.hostname or url.username is not None or url.password is not None or '.' not in url.hostname:
+                raise ValueError('Введите корректную HTTPS-ссылку на клиента')
+            _ = url.port
+        except ValueError:
+            raise ValueError('Введите корректную HTTPS-ссылку на клиента')
+        return value
 
 
 class CreateFolderInput(FolderInput):
@@ -159,7 +176,7 @@ class ItemUpdateInput(BaseModel):
 
 
 def folder_data(row):
-    return {'id': row.id, 'name': row.name, 'note': row.note, 'created_at': row.created_at}
+    return {'id': row.id, 'name': row.name, 'note': row.note, 'client_link': row.client_link, 'created_at': row.created_at}
 
 
 def owned_folder(db, buyer_id, folder_id):
@@ -198,7 +215,7 @@ def create_folder(body: CreateFolderInput, buyer: Buyer = Depends(current_buyer)
     if count >= 500:
         raise HTTPException(409, 'Достигнут лимит папок.')
     row = SadohodetsFolder(id=uuid.uuid4().hex, owner_id=buyer.id, name=body.name,
-                           note=body.note, created_at=time.time())
+                           note=body.note, client_link=body.client_link or '', created_at=time.time())
     if body.product_id is not None:
         from .api import visible_products
         from .models import Product
@@ -234,6 +251,8 @@ def get_folder(folder_id: str, buyer: Buyer = Depends(current_buyer), db: Sessio
 def update_folder(folder_id: str, body: FolderInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     row = owned_folder(db, buyer.id, folder_id)
     row.name, row.note = body.name, body.note
+    if body.client_link is not None:
+        row.client_link = body.client_link
     touch_profile(db, buyer.id)
     db.commit()
     return folder_data(row)

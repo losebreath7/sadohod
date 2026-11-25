@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/catalog_widgets.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -581,12 +582,14 @@ class _CabinetState extends State<SadohodetsCabinet>
   ]) async {
     var client = existing?['name']?.toString() ?? '';
     var note = existing?['note']?.toString() ?? '';
+    var clientLink = existing?['client_link']?.toString() ?? '';
+    final formKey = GlobalKey<FormState>();
     final accepted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(existing == null ? 'Новая папка' : 'Редактировать папку'),
         scrollable: true,
-        content: Column(
+        content: Form(key: formKey, child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
@@ -600,15 +603,29 @@ class _CabinetState extends State<SadohodetsCabinet>
               onChanged: (v) => note = v,
               decoration: const InputDecoration(labelText: 'Заметка'),
             ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: clientLink,
+              keyboardType: TextInputType.url,
+              onChanged: (v) => clientLink = v,
+              validator: (v) => (v ?? '').trim().isEmpty || clientContactUri(v!) != null
+                  ? null : 'Введите HTTPS-ссылку',
+              decoration: const InputDecoration(
+                labelText: 'Ссылка на клиента',
+                hintText: 'https://t.me/…',
+              ),
+            ),
           ],
-        ),
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Отмена'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+            },
             child: const Text('Сохранить'),
           ),
         ],
@@ -618,18 +635,32 @@ class _CabinetState extends State<SadohodetsCabinet>
     await run(() async {
       await ensureProfile();
       if (existing == null) {
-        await api.createFolder(client.trim(), note.trim(), productId: product);
+        await api.createFolder(client.trim(), note.trim(), productId: product, clientLink: clientContactUri(clientLink)?.toString() ?? '');
         folders = await api.folders();
         if (mounted && product != null)
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Добавлено в папку «${client.trim()}»')),
           );
       } else {
-        await api.editFolder(existing['id'], client.trim(), note.trim());
+        await api.editFolder(existing['id'], client.trim(), note.trim(), clientLink: clientContactUri(clientLink)?.toString() ?? '');
         folders = await api.folders();
         folder = await api.folder(existing['id']);
       }
     });
+  }
+
+  Future<void> openClientContact() async {
+    final uri = clientContactUri(folder?['client_link']?.toString() ?? '');
+    if (uri == null) {
+      await editFolder(folder);
+      return;
+    }
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    } catch (_) { /* Show a useful error rather than silently failing. */ }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Не удалось открыть ссылку на клиента')),
+    );
   }
 
   Future<void> addProduct() async {
@@ -719,7 +750,24 @@ class _CabinetState extends State<SadohodetsCabinet>
                               if (settings) ...[
                                 action('Выйти из аккаунта', signOut),
                               ] else if (folder != null) ...[
-                                Text('${folder!['note'] ?? ''}'),
+                                if ((folder!['note'] ?? '').toString().trim().isNotEmpty)
+                                  Text('${folder!['note']}'),
+                                const SizedBox(height: 8),
+                                SizedBox(height: 48, child: OutlinedButton(
+                                  onPressed: busy ? null : openClientContact,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: SellerColors.brown,
+                                    side: const BorderSide(color: SellerColors.brown),
+                                    shape: const StadiumBorder(),
+                                  ),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    const Icon(Icons.link, size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(clientContactUri(folder!['client_link']?.toString() ?? '') == null
+                                        ? 'добавить ссылку на клиента' : 'связаться с клиентом'),
+                                  ]),
+                                )),
+                                const SizedBox(height: 8),
                                 TextButton(
                                   onPressed: () => editFolder(folder),
                                   child: const Text('Редактировать'),
@@ -1017,4 +1065,14 @@ class CourierFolderHeader extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// External client links are never public and must not invoke arbitrary schemes.
+Uri? clientContactUri(String raw) {
+  final value = raw.trim();
+  if (value.isEmpty || value.length > 2048 || RegExp(r'[\s\x00-\x1f\x7f\\]').hasMatch(value)) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null || uri.scheme != 'https' || !uri.hasAuthority ||
+      !uri.host.contains('.') || uri.userInfo.isNotEmpty) return null;
+  return uri;
 }
