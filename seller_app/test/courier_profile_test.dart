@@ -42,4 +42,25 @@ void main(){
    expect(tester.takeException(),isNull);
  });
 
+ testWidgets('Open folder header extends to screen top and owns notch inset', (tester) async {
+   tester.view.physicalSize = const Size(390,844);
+   tester.view.devicePixelRatio = 1;
+   addTearDown(tester.view.resetPhysicalSize);
+   addTearDown(tester.view.resetDevicePixelRatio);
+   var back = false;
+   await tester.pumpWidget(MaterialApp(home:Scaffold(body:MediaQuery(
+     data:const MediaQueryData(size:Size(390,844),padding:EdgeInsets.only(top:62),viewPadding:EdgeInsets.only(top:62)),
+     child:Align(alignment:Alignment.topCenter, child:CourierFolderHeader(title:'маша',onBack:(){back=true;})),
+   ))));
+   final header = find.byKey(const ValueKey('courier-folder-header'));
+   expect(tester.getRect(header), const Rect.fromLTWH(0,0,390,92));
+   final decoration = tester.widget<Container>(header).decoration as BoxDecoration;
+   expect(decoration.color, Colors.white);
+   expect(tester.getCenter(find.text('маша')).dx, 195);
+   expect(tester.getCenter(find.text('маша')).dy, 66);
+   await tester.tap(find.bySemanticsLabel('Назад'));
+   expect(back,isTrue);
+   expect(tester.takeException(),isNull);
+ });
+
 }

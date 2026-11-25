@@ -684,9 +684,12 @@ class _CabinetState extends State<SadohodetsCabinet>
                         if (!busy) setState(() => editing = false);
                       })
                     else if (folder != null)
-                      V3Header(title: folder!['name']?.toString() ?? '', back: () {
-                        if (!busy) setState(() => folder = null);
-                      }),
+                      CourierFolderHeader(
+                        title: folder!['name']?.toString() ?? '',
+                        onBack: () {
+                          if (!busy) setState(() => folder = null);
+                        },
+                      ),
                     if (busy) const LinearProgressIndicator(),
                     if (error != null)
                       Padding(
@@ -971,4 +974,47 @@ class _ProductPickerState extends State<_ProductPicker> {
       ),
     ],
   );
+}
+
+
+/// The open folder has the same full-bleed compact header geometry as
+/// the buyer product page. The header owns the top inset exactly once.
+class CourierFolderHeader extends StatelessWidget {
+  const CourierFolderHeader({
+    super.key, required this.title, required this.onBack,
+  });
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = BuyerHeaderLayout.of(context);
+    return Container(
+      key: const ValueKey('courier-folder-header'),
+      height: layout.height,
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(30, layout.contentTop, 30, BuyerHeaderLayout.gap),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+      ),
+      child: Row(children: [
+        Semantics(
+          label: 'Назад', button: true,
+          child: InkWell(
+            onTap: onBack,
+            borderRadius: BorderRadius.circular(20),
+            child: const SizedBox(width: 30, height: 28,
+              child: Center(child: Icon(Icons.chevron_left,
+                size: 27, color: SellerColors.brown))),
+          ),
+        ),
+        Expanded(child: Text(title,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: BuyerProductType.detailAddress.copyWith(color: SellerColors.brown))),
+        const SizedBox(width: 30),
+      ]),
+    );
+  }
 }
