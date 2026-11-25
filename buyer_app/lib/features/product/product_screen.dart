@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/display_format.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
@@ -592,7 +593,7 @@ class ContactText extends StatelessWidget {
             }
           },
           child: Padding(padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(line, style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12, color: Color(0xff6c6c6c)))),
+            child: Text(contactLineDisplay(line), style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12, color: Color(0xff6c6c6c)))),
         ),
     ]);
   }

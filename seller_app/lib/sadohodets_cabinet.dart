@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/display_format.dart';
 import 'package:flutter/services.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,6 +30,8 @@ class _CabinetState extends State<SadohodetsCabinet>
     with WidgetsBindingObserver {
   late final api = SadohodetsApi(widget.api);
   final name = TextEditingController();
+  final email = TextEditingController();
+  bool secondPhone = false;
   final description = TextEditingController();
   final contacts = {
     for (final k in [
@@ -37,8 +40,6 @@ class _CabinetState extends State<SadohodetsCabinet>
       'telegram',
       'vk',
       'whatsapp',
-      'avito',
-      'website',
     ])
       k: TextEditingController(),
   };
@@ -48,8 +49,6 @@ class _CabinetState extends State<SadohodetsCabinet>
     'telegram': 'Telegram',
     'vk': 'VK',
     'whatsapp': 'WhatsApp',
-    'avito': 'Avito',
-    'website': 'сайт',
   };
   Map<String, dynamic>? profile;
   List<Map<String, dynamic>> folders = [];
@@ -260,7 +259,7 @@ class _CabinetState extends State<SadohodetsCabinet>
         style: const TextStyle(fontSize: 12),
       ),
       if (p['price'] != null)
-        Text('≈ ${p['price']} ₽', style: const TextStyle(fontSize: 12)),
+        Text(approximateRubles((p['price'] as num).toInt()), style: const TextStyle(fontSize: 12)),
       InkWell(
         onTap: () => chooseFolder('${p['id']}'),
         child: const Padding(
@@ -296,9 +295,9 @@ class _CabinetState extends State<SadohodetsCabinet>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (p['price'] != null) Text('≈ ${p['price']} ₽'),
+              if (p['price'] != null) Text(approximateRubles((p['price'] as num).toInt())),
               Text('${p['description'] ?? ''}'),
-              ProductShareActions(productId: '${p['id']}'),
+              ProductShareActions(productId: '${p['id']}', color: SellerColors.brown),
               action('В папку клиента', () {
                 Navigator.pop(ctx);
                 chooseFolder('${p['id']}');
@@ -517,6 +516,7 @@ class _CabinetState extends State<SadohodetsCabinet>
     WidgetsBinding.instance.removeObserver(this);
     search.dispose();
     name.dispose();
+    email.dispose();
     description.dispose();
     for (final c in contacts.values) {
       c.dispose();
@@ -546,6 +546,9 @@ class _CabinetState extends State<SadohodetsCabinet>
   }
 
   Future<void> load() => run(() async {
+    final account = await widget.api.call('/account');
+    if (!mounted) return;
+    email.text = account['email']?.toString() ?? '';
     final p = await api.profile();
     if (!mounted) return;
     profile = p;
@@ -556,6 +559,7 @@ class _CabinetState extends State<SadohodetsCabinet>
       for (final k in contacts.keys) {
         contacts[k]!.text = values[k]?.toString() ?? '';
       }
+      secondPhone = contacts['phone2']!.text.isNotEmpty;
       folders = await api.folders();
       for (final kind in ['avatar', 'cover']) {
         if (p[kind] == null) continue;
@@ -861,8 +865,11 @@ class _CabinetState extends State<SadohodetsCabinet>
                                     const SizedBox(height: 12),
                                   ],
                                 field('имя', name),
-                                for (final k in contacts.keys)
-                                  field(labels[k]!, contacts[k]!),
+                                Stack(children: [field(labels['phone']!, contacts['phone']!), if (!secondPhone) Positioned(right: 8, top: 8, child: IconButton(onPressed: () => setState(() => secondPhone = true), icon: const Icon(Icons.add_circle))) ]),
+                                if (secondPhone) Stack(children: [field(labels['phone2']!, contacts['phone2']!), Positioned(right: 8, top: 8, child: IconButton(onPressed: () => setState(() {secondPhone = false; contacts['phone2']!.clear();}), icon: const Icon(Icons.close))) ]),
+                                for (final k in ['telegram','vk','whatsapp']) field(labels[k]!, contacts[k]!),
+                                V3Field('email', email, readOnly: true),
+                                const SizedBox(height: 20),
                                 const Text(
                                   'Для публикации нужен хотя бы один контакт.',
                                 ),

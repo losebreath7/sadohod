@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/display_format.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 
 /// Use the same two-line caption layout as a buyer's ProductTile:
@@ -15,16 +16,8 @@ class SellerCatalogCaption extends StatelessWidget {
   final int? price;
   final String title;
 
-  /// Match the buyer catalogue's ruble grouping and no approximation sign.
-  static String rubles(int amount) {
-    final text = amount.toString();
-    final groups = <String>[];
-    for (var end = text.length; end > 0; end -= 3) {
-      final start = end >= 3 ? end - 3 : 0;
-      groups.insert(0, text.substring(start, end));
-    }
-    return '${groups.join(' ')} ₽';
-  }
+  /// Match the buyer catalogue's ruble grouping with an approximation sign.
+  static String rubles(int amount) => approximateRubles(amount);
 
   @override
   Widget build(BuildContext context) => SizedBox(

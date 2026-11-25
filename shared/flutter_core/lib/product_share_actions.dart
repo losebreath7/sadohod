@@ -25,7 +25,8 @@ String? productIdFromShareLink(String text) {
 }
 
 class ProductShareActions extends StatelessWidget {
-  const ProductShareActions({super.key, required this.productId});
+  const ProductShareActions({super.key, required this.productId, this.color = Colors.black});
+  final Color color;
   final String productId;
 
   Future<void> copy(BuildContext context) async {
@@ -75,17 +76,17 @@ class ProductShareActions extends StatelessWidget {
           builder: (context) => TextButton.icon(
             onPressed: () => share(context),
             icon: const Icon(Icons.ios_share, size: 20),
-            label: const Text('Поделиться'),
-            style: TextButton.styleFrom(foregroundColor: Colors.black),
+            label: const Text('поделиться'),
+            style: TextButton.styleFrom(foregroundColor: color),
           ),
         ),
       ),
       Expanded(
         child: TextButton.icon(
           onPressed: () => copy(context),
-          icon: const Icon(Icons.link, size: 18),
-          label: const Text('Скопировать'),
-          style: TextButton.styleFrom(foregroundColor: Colors.black),
+          icon: const Icon(Icons.link, size: 20),
+          label: const Text('скопировать'),
+          style: TextButton.styleFrom(foregroundColor: color),
         ),
       ),
     ],

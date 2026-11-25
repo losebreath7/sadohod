@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/display_format.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/account.dart';
@@ -87,7 +88,6 @@ class SadohodtsyScreen extends StatefulWidget {
 }
 
 class _DirectoryState extends State<SadohodtsyScreen> {
-  int rating = 0, days = 0;
   bool favoritesOnly = false;
   late Future<List<_Row>> data = load();
   Future<List<_Row>> load() async {
@@ -101,8 +101,7 @@ class _DirectoryState extends State<SadohodtsyScreen> {
                 [],
           )
         : null;
-    final filters =
-        'sort=rating&min_rating=$rating${days == 0 ? '' : '&active_days=$days'}';
+    const filters = 'sort=rating';
     for (var offset = 0; ; offset += 100) {
       final batch = _items(
         await _request('?$filters&limit=100&offset=$offset'),
@@ -143,47 +142,7 @@ class _DirectoryState extends State<SadohodtsyScreen> {
                               : Icons.favorite_border,
                         ),
                       ),
-                    Expanded(
-                      child: DropdownButton<int>(
-                        isExpanded: true,
-                        value: rating,
-                        items: [
-                          for (final v in [0, 3, 4, 5])
-                            DropdownMenuItem(
-                              value: v,
-                              child: Text(v == 0 ? 'Любой рейтинг' : 'От $v ★'),
-                            ),
-                        ],
-                        onChanged: (v) {
-                          rating = v!;
-                          refresh();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButton<int>(
-                        isExpanded: true,
-                        value: days,
-                        items: [
-                          for (final v in [0, 1, 7, 30])
-                            DropdownMenuItem(
-                              value: v,
-                              child: Text(
-                                v == 0
-                                    ? 'Все'
-                                    : v == 1
-                                    ? 'Сегодня'
-                                    : 'За $v дней',
-                              ),
-                            ),
-                        ],
-                        onChanged: (v) {
-                          days = v!;
-                          refresh();
-                        },
-                      ),
-                    ),
+
                   ],
                 ),
               ],
@@ -264,7 +223,7 @@ class _DirectoryState extends State<SadohodtsyScreen> {
                                             vertical: 4,
                                           ),
                                           child: Text(
-                                            e.value,
+                                            contactDisplay(e.key.toString(), e.value.toString()),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
@@ -473,7 +432,7 @@ class _ProfileState extends State<SadohodetsScreen> {
                               ? 'Телефон'
                               : e.key.toString(),
                         ),
-                        subtitle: Text(e.value.toString()),
+                        subtitle: Text(contactDisplay(e.key.toString(), e.value.toString())),
                         trailing: const Icon(Icons.open_in_new, size: 18),
                         onTap: () => contact(
                           context,
