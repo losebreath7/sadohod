@@ -14,7 +14,7 @@ import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'courier_product_screen.dart';
 import 'package:sadohod_shared_core/build_info.dart';
-import 'package:sadohod_shared_core/market_addresses.dart';
+import 'courier_navigation_guide.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'dart:convert';
 
@@ -51,10 +51,10 @@ class _CabinetState extends State<SadohodetsCabinet>
   };
   static const labels = {
     'phone': 'номер телефона',
-    'phone2': 'дополнительный телефон',
-    'telegram': 'Telegram',
-    'vk': 'VK',
-    'whatsapp': 'WhatsApp',
+    'phone2': 'дополнительный номер телефона',
+    'telegram': 'телеграм',
+    'vk': 'вконтакте',
+    'whatsapp': 'whatsapp',
   };
   Map<String, dynamic>? profile;
   List<Map<String, dynamic>> folders = [];
@@ -70,7 +70,7 @@ class _CabinetState extends State<SadohodetsCabinet>
   void openPage(String title, Widget content) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (ctx) => Scaffold(backgroundColor: SellerColors.background, body: Column(children:[V3Header(title:title,back:()=>Navigator.pop(ctx)),Expanded(child:content)])))); }
   void openSettings() {final navigator=Navigator.of(context,rootNavigator:true);openPage('настройки', SellerSettingsPage(api:widget.api,courier:true,onSignedOut:(){navigator.popUntil((route)=>route.isFirst);},onOpenInfo:(kind)=>openPage(kind=='about'?'о приложении':kind=='terms'?'пользовательское соглашение':'конфиденциальность',SellerSettingsInfoPage(kind:kind))));}
   void openNotifications() => openPage('уведомления',SellerNotificationsPage(api:widget.api,onOpenPavilions:(){},onOpenProduct:(id) async {try{final product=await widget.api.call('/products/${Uri.encodeComponent(id)}');if(mounted)await openProduct(product);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}));
-  void openNavigation() { final address=TextEditingController(); openPage('навигация', _CourierNavigation(controller:address)); }
+  void openNavigation() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const Scaffold(body: MarketNavigationGuideScreen())));
 
   final search = TextEditingController();
   late Future<List<Map<String, dynamic>>> products = catalog();
@@ -688,46 +688,16 @@ class _CabinetState extends State<SadohodetsCabinet>
             : selectedTab == 2 && !editing && !settings
             ? profileMenu()
             : SafeArea(
+                top: !editing,
                 bottom: false,
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        if (folder != null || settings || editing)
-                          IconButton(
-                            onPressed: busy
-                                ? null
-                                : () {
-                                    setState(() {
-                                      folder = null;
-                                      settings = false;
-                                      editing = false;
-                                    });
-                                  },
-                            icon: const Icon(Icons.arrow_back),
-                          )
-                        else
-                          const SizedBox(width: 48),
-                        Expanded(
-                          child: Text(
-                            folder?['name']?.toString() ??
-                                (settings
-                                    ? 'настройки'
-                                    : [
-                                        'садоходец',
-                                        'Папки',
-                                        'профиль',
-                                      ][selectedTab]),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 48),
-                      ],
-                    ),
+                    if (editing) V3Header(title:'профиль',back:(){if(!busy)setState(()=>editing=false);})
+                    else Container(height:54,decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(bottom:Radius.circular(30))),child:Row(children:[
+                      if(folder!=null) IconButton(onPressed:busy?null:()=>setState(()=>folder=null),icon:const Icon(Icons.chevron_left)) else const SizedBox(width:48),
+                      Expanded(child:Text(folder?['name']?.toString()??'папки',textAlign:TextAlign.center,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w600))),
+                      const SizedBox(width:48)
+                    ])),
                     if (busy) const LinearProgressIndicator(),
                     if (error != null)
                       Padding(
@@ -1012,18 +982,4 @@ class _ProductPickerState extends State<_ProductPicker> {
       ),
     ],
   );
-}
-
-class _CourierNavigation extends StatefulWidget {
- const _CourierNavigation({required this.controller});
- final TextEditingController controller;
- @override State<_CourierNavigation> createState()=>_CourierNavigationState();
-}
-class _CourierNavigationState extends State<_CourierNavigation> {
- String result='';
- @override void dispose(){widget.controller.dispose();super.dispose();}
- @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(30),children:[
- const Text('Расшифровка адреса',style:TextStyle(fontSize:20,fontWeight:FontWeight.w600)),
- const SizedBox(height:16),V3Field('Введите адрес павильона',widget.controller,onChanged:(value)=>setState(()=>result=value.trim().isEmpty?'':parseMarketAddress(value).details)),
- const SizedBox(height:16),Text(result),]);
 }
