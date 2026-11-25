@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sadohod_shared_core/market_addresses.dart';
+import 'package:sadohod_shared_core/catalog_widgets.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:go_router/go_router.dart';
@@ -101,58 +101,15 @@ class ProductTile extends StatelessWidget {
   final DemoProduct product;
   final BoxFit imageFit;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Stack(children: [
-        GestureDetector(
-          onTap: () => context.push('/product/${product.id}'),
-          child: PhotoGallery(product.photos, small: true, fit: imageFit),
-        ),
-        Positioned(top: 6, right: 6,
-          child: SizedBox(width: 28, height: 28,
-            child: FavoriteButton(product.id, small: true, alignRight: true))),
-      ]),
-      const SizedBox(height: 9),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.push('/product/${product.id}'),
-              child: Text(
-                product.seller != null &&
-                    marketTerritories.contains(product.seller!.zone.toLowerCase())
-                    ? '${product.seller!.zone} · ${product.pavilion}'
-                    : product.pavilion,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: BuyerProductType.catalogAddress,
-              ),
-            ),
-          ),
-          if (product.price != null) ...[
-            const SizedBox(width: 6),
-            Flexible(child: Text(
-              formatRubles(product.price!),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: BuyerProductType.catalogPrice,
-            )),
-          ],
-        ],
-      ),
-      const SizedBox(height: 5),
-      GestureDetector(
-        onTap: () => context.push('/product/${product.id}'),
-        child: Text(
-          product.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: BuyerProductType.catalogTitle,
-        ),
-      ),
-    ],
+  Widget build(BuildContext context) => SadohodCatalogTile(
+    photos: product.photos,
+    address: product.pavilion,
+    zone: product.seller?.zone ?? '',
+    title: product.title,
+    price: product.price,
+    imageFit: imageFit,
+    onOpen: () => context.push('/product/${product.id}'),
+    saveAction: FavoriteButton(product.id, small: true, alignRight: true),
   );
 }
 
@@ -161,36 +118,11 @@ class ProductGrid extends StatelessWidget {
   final List<DemoProduct> products;
   final BoxFit imageFit;
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final count = constraints.maxWidth >= 780
-            ? 4
-            : constraints.maxWidth >= 520
-            ? 3
-            : 2;
-        final tileWidth = (constraints.maxWidth - (count - 1) * 16) / count;
-        final tileHeight = tileWidth + 66;
-        return GridView.builder(
-          // This is a nested grid in our screen scroll views, not an
-          // independent safe-area scroll view. Flutter's implicit top padding
-          // would otherwise reintroduce the iPhone's 62 px notch inset here.
-          padding: EdgeInsets.zero,
-          itemCount: products.length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: count,
-            mainAxisSpacing: 20,
-            crossAxisSpacing: 16,
-            childAspectRatio: tileWidth / tileHeight,
-          ),
-          itemBuilder: (context, index) =>
-              ProductTile(product: products[index], imageFit: imageFit),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => SadohodCatalogGrid(
+    itemCount: products.length,
+    itemBuilder: (context, index) =>
+        ProductTile(product: products[index], imageFit: imageFit),
+  );
 }
 
 class DemoNotice extends StatelessWidget {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/catalog_widgets.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:flutter/services.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
@@ -250,42 +251,36 @@ class _CabinetState extends State<SadohodetsCabinet>
           errorBuilder: (_, _, _) =>
               const Center(child: Icon(Icons.image_outlined)),
         );
-  Widget productCard(Map p) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: GestureDetector(
-          onTap: () => openProduct(p),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: SizedBox.expand(child: productPhoto(p)),
-          ),
+  Widget productCard(Map p) {
+    final offers = p['offers'] as List? ?? const [];
+    final offer = offers.isEmpty ? null : offers.first as Map?;
+    final seller = offer?['seller'] as Map? ?? p['seller'] as Map? ?? const {};
+    final pavilion = offer?['pavilion'] as Map? ?? const {};
+    final address = (pavilion['code'] ?? seller['pavilion'] ?? p['pavilion'] ?? '').toString();
+    final zone = (pavilion['zone'] ?? seller['zone'] ?? '').toString();
+    final images = (p['images'] as List? ?? const [])
+        .whereType<String>().where((path) => path.isNotEmpty).toList();
+    if (images.isEmpty && p['image'] is String) images.add(p['image'] as String);
+    final price = p['price'];
+    return SadohodCatalogTile(
+      photos: images.map((path) => path.startsWith('/') ? '${widget.api.baseUrl}$path' : path).toList(),
+      address: address,
+      zone: zone,
+      title: (p['title'] ?? '').toString().trim().isEmpty ? 'Без названия' : p['title'].toString(),
+      price: price is num ? price.toInt() : null,
+      ink: SellerColors.brown,
+      muted: SellerColors.muted,
+      onOpen: () => openProduct(p),
+      saveAction: Semantics(
+        button: true, label: 'В папку клиента',
+        child: InkWell(
+          onTap: () => chooseFolder('${p['id']}'),
+          child: const Align(alignment: Alignment.topRight,
+            child: Icon(Icons.folder_outlined, size: 16, color: SellerColors.brown)),
         ),
       ),
-      const SizedBox(height: 7),
-      Text(
-        '${p['title'] ?? ''}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12),
-      ),
-      if (p['price'] != null)
-        Text(approximateRubles((p['price'] as num).toInt()), style: const TextStyle(fontSize: 12)),
-      InkWell(
-        onTap: () => chooseFolder('${p['id']}'),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              Icon(Icons.folder_outlined, size: 16),
-              SizedBox(width: 5),
-              Text('В папку', style: TextStyle(fontSize: 11)),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
+    );
+  }
   Future<void> openProduct(Map p) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CourierProductScreen(api:widget.api, initial:p.cast<String,dynamic>(), onFolder:()=>chooseFolder('${p['id']}'))));
   }
@@ -327,15 +322,7 @@ class _CabinetState extends State<SadohodetsCabinet>
               final rows = snapshot.data!;
               if (rows.isEmpty)
                 return const Center(child: Text('Товары не найдены'));
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: .65,
-                ),
+              return SadohodCatalogGrid(
                 itemCount: rows.length,
                 itemBuilder: (_, i) => productCard(rows[i]),
               );
