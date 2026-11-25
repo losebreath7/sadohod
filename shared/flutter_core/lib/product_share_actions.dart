@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -68,27 +69,75 @@ class ProductShareActions extends StatelessWidget {
     }
   }
 
+  Widget _action(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    double lift = 0,
+  }) => TextButton(
+    onPressed: onPressed,
+    style: TextButton.styleFrom(
+      foregroundColor: color,
+      minimumSize: const Size(0, 48),
+      padding: EdgeInsets.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Transform.translate(
+          offset: Offset(0, -lift),
+          child: Icon(icon, size: 20),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(
+          fontFamily: SadohodFont.family,
+          fontFamilyFallback: SadohodFont.fallback,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          height: 1.2,
+        )),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Expanded(
-        child: Builder(
-          builder: (context) => TextButton.icon(
-            onPressed: () => share(context),
-            icon: const Icon(Icons.ios_share, size: 20),
-            label: const Text('поделиться'),
-            style: TextButton.styleFrom(foregroundColor: color),
-          ),
-        ),
-      ),
-      Expanded(
-        child: TextButton.icon(
-          onPressed: () => copy(context),
-          icon: const Icon(Icons.link, size: 20),
-          label: const Text('скопировать'),
-          style: TextButton.styleFrom(foregroundColor: color),
-        ),
-      ),
+      Expanded(child: Builder(builder: (context) => _action(context,
+        icon: Icons.ios_share, label: 'поделиться',
+        onPressed: () => share(context), lift: 2,
+      ))),
+      Expanded(child: _action(context,
+        icon: Icons.link, label: 'скопировать',
+        onPressed: () => copy(context),
+      )),
+    ],
+  );
+}
+
+/// Shared spacing below the pavilion block on both product detail screens.
+/// Keep the share and report controls independent, with full touch targets.
+class ProductDetailActions extends StatelessWidget {
+  const ProductDetailActions({
+    super.key, required this.productId, required this.report,
+    this.color = Colors.black,
+  });
+  final String productId;
+  final Widget report;
+  final Color color;
+
+  static const double addressGap = 36;
+  static const double reportGap = 20;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      const SizedBox(height: addressGap),
+      ProductShareActions(productId: productId, color: color),
+      const SizedBox(height: reportGap),
+      report,
     ],
   );
 }

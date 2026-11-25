@@ -58,7 +58,12 @@ class _CourierProductScreenState extends State<CourierProductScreen>{
     Padding(padding:const EdgeInsets.only(left:34),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(final line in (seller['contact']??'').toString().split('\n').where((v)=>v.trim().isNotEmpty)) InkWell(onTap:() async {final target=contactLineTarget(line);if(target!=null){try{if(await launchUrl(target,mode:LaunchMode.externalApplication))return;}catch(_){}}await Clipboard.setData(ClipboardData(text:line));},child:Padding(padding:const EdgeInsets.symmetric(vertical:2),child:Text(contactLineDisplay(line),style:const TextStyle(fontSize:12,color:SellerColors.muted))))])),
    ],
    const SizedBox(height:16),Material(color:Colors.white,borderRadius:BorderRadius.circular(6),child:InkWell(onTap:()=>pickOffer(offers),child:Container(constraints:const BoxConstraints(minHeight:65),padding:const EdgeInsets.fromLTRB(26,10,15,10),child:Row(children:[Expanded(child:BuyerProductNavigationAddress(address:address,zone:zone)),const CircleAvatar(backgroundColor:SellerColors.brown,radius:17,child:Icon(Icons.arrow_forward_rounded,color:Colors.white,size:23))])))),
-   const SizedBox(height:12),ProductShareActions(productId:'${p['id']}',color:SellerColors.brown),TextButton(onPressed:reporting?null:report,child:const Text('пожаловаться на товар',style:TextStyle(color:SellerColors.muted,fontSize:12))),
+   ProductDetailActions(
+      productId:'${p['id']}', color:SellerColors.brown,
+      report:TextButton(onPressed:reporting?null:report,
+        child:Text(reporting?'отправка...':'пожаловаться на товар',
+          style:const TextStyle(fontFamily:SadohodFont.family,fontWeight:FontWeight.w500,color:SellerColors.muted,fontSize:12))),
+    ),
    ])),
   ]);
  }));

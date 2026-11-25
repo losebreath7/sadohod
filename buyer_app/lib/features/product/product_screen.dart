@@ -365,11 +365,12 @@ class _ProductScreenState extends State<ProductScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              ProductShareActions(productId: p.id),
-              BuyerProductReportButton(
-                sending: _reportSending,
-                onPressed: _reportProduct,
+              ProductDetailActions(
+                productId: p.id,
+                report: BuyerProductReportButton(
+                  sending: _reportSending,
+                  onPressed: _reportProduct,
+                ),
               ),
             ],
           )),
