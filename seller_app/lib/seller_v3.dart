@@ -264,6 +264,11 @@ class SellerV3 extends StatefulWidget {
 
 class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
   String screen = 'welcome';
+  bool roleChosen = false;
+  Future<void> chooseRole(bool courier) => run(() async {
+    await widget.api.selectRole(courier);
+    if (mounted) setState(() => roleChosen = true);
+  });
   bool get courierRole => widget.api.courierRole;
 
   Future<void> enterRole() async {
@@ -702,6 +707,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
     restoringDraft = false;
     if (mounted && !widget.api.signedIn)
       setState(() {
+        roleChosen = false;
         screen = 'welcome';
         history.clear();
       });
@@ -1851,7 +1857,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   left: 30,
                   right: 30,
                   child: label(
-                    courierRole ? 'для курьеров' : 'для продавцов',
+                    roleChosen || testPreview ? (courierRole ? 'для курьеров' : 'для продавцов') : '',
                     15,
                     color: muted,
                     align: TextAlign.center,
@@ -1862,19 +1868,17 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   right: 30,
                   bottom: 81,
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (!testPreview) ...[
-                      SegmentedButton<bool>(
-                        segments: const [ButtonSegment(value: false, label: Text('Я продавец')), ButtonSegment(value: true, label: Text('Я курьер'))],
-                        selected: {courierRole},
-                        onSelectionChanged: busy ? null : (value) async {
-                          if (widget.api.signedIn) return;
-                          await widget.api.selectRole(value.first);
-                          if (mounted) setState(() {});
-                        },
-                      ),
+                    if (!roleChosen && !testPreview) ...[
+                      pill('я курьер', () => chooseRole(true)),
                       const SizedBox(height: 16),
+                      pill('я продавец', () => chooseRole(false)),
+                    ] else ...[
+                      if (!testPreview) ...[
+                        pill('назад', () => setState(() => roleChosen = false), color: const Color(0xffd9d9d9)),
+                        const SizedBox(height: 16),
+                      ],
+                      pill('продолжить', auth),
                     ],
-                    pill('продолжить', auth),
                   ]),
                 ),
               ],

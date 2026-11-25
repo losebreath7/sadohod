@@ -156,7 +156,7 @@ class _SearchCapsuleState extends State<SearchCapsule> {
             ],
           ),
           filled: true,
-          fillColor: const SellerColors.background,
+          fillColor: SellerColors.background,
           contentPadding: const EdgeInsets.only(left: 10, right: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
@@ -288,7 +288,7 @@ class CourierHomeHeader extends SliverPersistentHeaderDelegate {
                   children: [for (final tag in tags) Padding(
                     padding: const EdgeInsets.only(right: 4),
                     child: Material(
-                      color: const SellerColors.background,
+                      color: SellerColors.background,
                       borderRadius: BorderRadius.circular(11),
                       child: InkWell(
                         onTap: () => onTag(tag),
@@ -381,7 +381,7 @@ class _SadohodWordmarkPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / 98, size.height / 13);
     final paint = Paint()
-      ..color = const SellerColors.brown
+      ..color = SellerColors.brown
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
     final p0 = Path();

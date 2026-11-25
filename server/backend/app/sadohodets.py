@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from .account import Buyer, current_buyer
+from .account import Buyer, Favorite, current_buyer
 from .admin_auth import require_admin
 from .database import get_db
 from .sadohodets_models import SadohodetsProfile, SadohodetsFolder, SadohodetsFolderItem, SadohodetsReview, SadohodetsMedia
@@ -118,6 +118,7 @@ def set_publication(body: PublicationInput, buyer: Buyer = Depends(current_buyer
 
 
 def delete_profile_data(db, buyer_id, *, delete_written_reviews=False):
+    db.execute(delete(Favorite).where(Favorite.kind == 'courier', Favorite.item == buyer_id))
     folders = select(SadohodetsFolder.id).where(SadohodetsFolder.owner_id == buyer_id)
     db.execute(delete(SadohodetsFolderItem).where(SadohodetsFolderItem.folder_id.in_(folders)))
     db.execute(delete(SadohodetsFolder).where(SadohodetsFolder.owner_id == buyer_id))
@@ -143,9 +144,14 @@ class FolderInput(BaseModel):
     note: str = Field(default='', max_length=4000)
 
 
-class CollectedInput(BaseModel):
+class CreateFolderInput(FolderInput):
+    product_id: str | None = Field(default=None, min_length=1, max_length=32)
+
+
+class ItemUpdateInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    collected: bool
+    collected: bool | None = None
+    note: str | None = Field(default=None, max_length=250)
 
 
 def folder_data(row):
@@ -182,14 +188,23 @@ def list_folders(limit: int = Query(100, ge=1, le=200), offset: int = Query(0, g
 
 
 @router.post('/me/folders', status_code=201)
-def create_folder(body: FolderInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+def create_folder(body: CreateFolderInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     own_profile(db, buyer.id, lock=True)
     count = db.scalar(select(func.count()).select_from(SadohodetsFolder).where(SadohodetsFolder.owner_id == buyer.id))
     if count >= 500:
         raise HTTPException(409, 'Достигнут лимит папок.')
     row = SadohodetsFolder(id=uuid.uuid4().hex, owner_id=buyer.id, name=body.name,
                            note=body.note, created_at=time.time())
+    if body.product_id is not None:
+        from .api import visible_products
+        from .models import Product
+        if db.scalar(select(Product.id).where(Product.id == body.product_id, visible_products())) is None:
+            raise HTTPException(404, 'Товар не найден.')
     db.add(row)
+    if body.product_id is not None:
+        db.flush()
+        db.add(SadohodetsFolderItem(folder_id=row.id, product_id=body.product_id,
+                                   collected=False, added_at=time.time()))
     touch_profile(db, buyer.id)
     db.commit()
     return folder_data(row)
@@ -207,7 +222,7 @@ def get_folder(folder_id: str, buyer: Buyer = Depends(current_buyer), db: Sessio
         products = {p.id: serialize_product(p) for p in db.scalars(
             product_query().where(Product.id.in_([i.product_id for i in items]))).unique()}
     return {**folder_data(row), 'items': [
-        {'product_id': i.product_id, 'collected': i.collected, 'added_at': i.added_at,
+        {'product_id': i.product_id, 'collected': i.collected, 'note': i.note, 'added_at': i.added_at,
          'product': products.get(i.product_id), 'available': i.product_id in products} for i in items]}
 
 
@@ -236,7 +251,8 @@ def add_folder_item(folder_id: str, product_id: str, buyer: Buyer = Depends(curr
     from .models import Product
     row = owned_folder(db, buyer.id, folder_id)
     item = db.get(SadohodetsFolderItem, (row.id, product_id))
-    if item is None:
+    added = item is None
+    if added:
         if db.scalar(select(Product.id).where(Product.id == product_id, visible_products())) is None:
             raise HTTPException(404, 'Товар не найден.')
         count = db.scalar(select(func.count()).select_from(SadohodetsFolderItem).where(SadohodetsFolderItem.folder_id == row.id))
@@ -246,17 +262,20 @@ def add_folder_item(folder_id: str, product_id: str, buyer: Buyer = Depends(curr
         db.add(item)
     touch_profile(db, buyer.id)
     db.commit()
-    return {'product_id': item.product_id, 'collected': item.collected}
+    return {'product_id': item.product_id, 'collected': item.collected, 'added': added}
 
 
 @router.patch('/me/folders/{folder_id}/items/{product_id}')
-def mark_folder_item(folder_id: str, product_id: str, body: CollectedInput,
+def mark_folder_item(folder_id: str, product_id: str, body: ItemUpdateInput,
                      buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     row = owned_folder(db, buyer.id, folder_id)
     item = db.get(SadohodetsFolderItem, (row.id, product_id))
     if item is None:
         raise HTTPException(404, 'Товар не найден в папке.')
-    item.collected = body.collected
+    if body.collected is not None:
+        item.collected = body.collected
+    if body.note is not None:
+        item.note = body.note.strip()
     touch_profile(db, buyer.id)
     db.commit()
     return {'product_id': product_id, 'collected': item.collected}
@@ -322,7 +341,10 @@ def directory(sort: Literal['rating', 'activity'] = 'rating',
     if min_rating:
         statement = statement.where(stats.c.rating >= min_rating)
     if active_days is not None:
-        statement = statement.where(SadohodetsProfile.last_active_at >= time.time() - active_days * 86400)
+        now = time.time()
+        # 'Сегодня' starts at midnight at the market in Moscow (UTC+3).
+        since = ((now + 10800) // 86400) * 86400 - 10800 if active_days == 1 else now - active_days * 86400
+        statement = statement.where(SadohodetsProfile.last_active_at >= since)
     rating_order = func.coalesce(stats.c.rating, 0).desc()
     activity_order = SadohodetsProfile.last_active_at.desc()
     orders = (rating_order, activity_order) if sort == 'rating' else (activity_order, rating_order)
