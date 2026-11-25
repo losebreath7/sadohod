@@ -80,7 +80,7 @@ class VerifyInput(EmailInput):
     code: str = Field(pattern=r'^\d{6}$')
 
 class FavoriteInput(BaseModel):
-    kind: Literal['product', 'seller']
+    kind: Literal['product', 'seller', 'courier']
     id: str = Field(min_length=1, max_length=32)
     saved: bool
 
@@ -272,6 +272,7 @@ def account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)
     rows = db.scalars(select(Favorite).where(Favorite.buyer == buyer.id)).all()
     return {'email': buyer.email, 'name': buyer.name,
             'products': [f.item for f in rows if f.kind == 'product'],
+            'couriers': [f.item for f in rows if f.kind == 'courier'],
             'sellers': [f.item for f in rows if f.kind == 'seller']}
 
 

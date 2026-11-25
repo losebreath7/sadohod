@@ -109,7 +109,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
                         if SADOHOD_ENV == "development" else None),
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 app.mount("/media/products", StaticFiles(directory=MEDIA), name="media")

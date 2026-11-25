@@ -22,16 +22,24 @@ class SadohodetsApi {
     required String name,
     String description = '',
     required Map<String, String> contacts,
-  }) => api.call(root, method: 'PUT', body: {
-    'name': name, 'description': description, 'contacts': contacts,
-  });
+  }) => api.call(
+    root,
+    method: 'PUT',
+    body: {'name': name, 'description': description, 'contacts': contacts},
+  );
 
   Future<Map<String, dynamic>> publication(bool published) => api.call(
-    '$root/publication', method: 'PUT', body: {'published': published},
+    '$root/publication',
+    method: 'PUT',
+    body: {'published': published},
   );
 
   Future<Map<String, dynamic>> uploadMedia(String kind, Uint8List bytes) =>
-      api.call('$root/media/${Uri.encodeComponent(kind)}', method: 'PUT', body: {'data': base64Encode(bytes)});
+      api.call(
+        '$root/media/${Uri.encodeComponent(kind)}',
+        method: 'PUT',
+        body: {'data': base64Encode(bytes)},
+      );
 
   Future<Map<String, dynamic>> removeMedia(String kind) =>
       api.call('$root/media/${Uri.encodeComponent(kind)}', method: 'DELETE');
@@ -46,21 +54,40 @@ class SadohodetsApi {
     final result = <Map<String, dynamic>>[];
     const limit = 100;
     for (var offset = 0; ; offset += limit) {
-      final response = await api.call('$root/folders?limit=$limit&offset=$offset');
+      final response = await api.call(
+        '$root/folders?limit=$limit&offset=$offset',
+      );
       final batch = (response['items'] as List).cast<Map<String, dynamic>>();
       result.addAll(batch);
       if (batch.length < limit) return result;
     }
   }
 
-  Future<Map<String, dynamic>> createFolder(String name, String note) => api.call(
-    '$root/folders', method: 'POST', body: {'name': name, 'note': note},
+  Future<Map<String, dynamic>> createFolder(
+    String name,
+    String note, {
+    String? productId,
+  }) => api.call(
+    '$root/folders',
+    method: 'POST',
+    body: {
+      'name': name,
+      'note': note,
+      if (productId != null) 'product_id': productId,
+    },
   );
 
   Future<Map<String, dynamic>> folder(String id) => api.call(folderPath(id));
 
-  Future<Map<String, dynamic>> editFolder(String id, String name, String note) =>
-      api.call(folderPath(id), method: 'PUT', body: {'name': name, 'note': note});
+  Future<Map<String, dynamic>> editFolder(
+    String id,
+    String name,
+    String note,
+  ) => api.call(
+    folderPath(id),
+    method: 'PUT',
+    body: {'name': name, 'note': note},
+  );
 
   Future<void> deleteFolder(String id) async {
     await api.call(folderPath(id), method: 'DELETE');
@@ -69,12 +96,29 @@ class SadohodetsApi {
   String itemPath(String folder, String product) =>
       '${folderPath(folder)}/items/${Uri.encodeComponent(product)}';
 
-  Future<void> addItem(String folder, String product) async {
-    await api.call(itemPath(folder, product), method: 'PUT');
+  Future<bool> addItem(String folder, String product) async {
+    final result = await api.call(itemPath(folder, product), method: 'PUT');
+    return result['added'] != false;
   }
 
-  Future<void> setCollected(String folder, String product, bool collected) async {
-    await api.call(itemPath(folder, product), method: 'PATCH', body: {'collected': collected});
+  Future<void> setCollected(
+    String folder,
+    String product,
+    bool collected,
+  ) async {
+    await api.call(
+      itemPath(folder, product),
+      method: 'PATCH',
+      body: {'collected': collected},
+    );
+  }
+
+  Future<void> saveNote(String folder, String product, String note) async {
+    await api.call(
+      itemPath(folder, product),
+      method: 'PATCH',
+      body: {'note': note},
+    );
   }
 
   Future<void> removeItem(String folder, String product) async {

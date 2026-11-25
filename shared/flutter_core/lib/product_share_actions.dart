@@ -2,8 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-Uri publicProductUri(String id) =>
-    Uri(scheme: 'https', host: 'api.sadohod.ru', pathSegments: ['api', 'v1', 'products', id, 'share']);
+Uri publicProductUri(String id) => Uri(
+  scheme: 'https',
+  host: 'api.sadohod.ru',
+  pathSegments: ['api', 'v1', 'products', id, 'share'],
+);
+
+String? productIdFromShareLink(String text) {
+  final uri = Uri.tryParse(text.trim());
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.authority != publicProductUri('x').authority)
+    return null;
+  final parts = uri.pathSegments;
+  if (parts.length != 5 ||
+      parts[0] != 'api' ||
+      parts[1] != 'v1' ||
+      parts[2] != 'products' ||
+      parts[4] != 'share')
+    return null;
+  return RegExp(r'^[a-zA-Z0-9_-]{1,32}$').hasMatch(parts[3]) ? parts[3] : null;
+}
 
 class ProductShareActions extends StatelessWidget {
   const ProductShareActions({super.key, required this.productId});
@@ -11,13 +30,18 @@ class ProductShareActions extends StatelessWidget {
 
   Future<void> copy(BuildContext context) async {
     try {
-      await Clipboard.setData(ClipboardData(text: publicProductUri(productId).toString()));
+      await Clipboard.setData(
+        ClipboardData(text: publicProductUri(productId).toString()),
+      );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ссылка скопирована')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ссылка скопирована')));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось скопировать ссылку')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось скопировать ссылку')),
+        );
       }
     }
   }
@@ -28,30 +52,42 @@ class ProductShareActions extends StatelessWidget {
         ? box.localToGlobal(Offset.zero) & box.size
         : null;
     try {
-      await SharePlus.instance.share(ShareParams(
-        text: publicProductUri(productId).toString(),
-        sharePositionOrigin: origin,
-      ));
+      await SharePlus.instance.share(
+        ShareParams(
+          text: publicProductUri(productId).toString(),
+          sharePositionOrigin: origin,
+        ),
+      );
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось открыть меню отправки')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть меню отправки')),
+        );
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-    Expanded(child: Builder(builder: (context) => TextButton.icon(
-      onPressed: () => share(context),
-      icon: const Icon(Icons.ios_share, size: 20),
-      label: const Text('Поделиться'),
-      style: TextButton.styleFrom(foregroundColor: Colors.black),
-    ))),
-    Expanded(child: TextButton.icon(
-      onPressed: () => copy(context),
-      icon: const Icon(Icons.content_copy, size: 18),
-      label: const Text('Скопировать'),
-      style: TextButton.styleFrom(foregroundColor: Colors.black),
-    )),
-  ]);
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Builder(
+          builder: (context) => TextButton.icon(
+            onPressed: () => share(context),
+            icon: const Icon(Icons.ios_share, size: 20),
+            label: const Text('Поделиться'),
+            style: TextButton.styleFrom(foregroundColor: Colors.black),
+          ),
+        ),
+      ),
+      Expanded(
+        child: TextButton.icon(
+          onPressed: () => copy(context),
+          icon: const Icon(Icons.link, size: 18),
+          label: const Text('Скопировать'),
+          style: TextButton.styleFrom(foregroundColor: Colors.black),
+        ),
+      ),
+    ],
+  );
 }

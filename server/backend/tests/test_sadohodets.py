@@ -50,6 +50,11 @@ def test_client_folders_isolation_and_independent_collected_state(setup):
         db.add(Product(id='folder-product', title='Сумка', category='Сумки', description='', colors=[], is_demo=False))
         db.commit()
     base = ROOT+'/folders'
+    assert c.post(base, headers=a, json={'name':'Пустая', 'product_id':'unknown'}).status_code == 404
+    assert c.get(base, headers=a).json()['items'] == []
+    quick = c.post(base, headers=a, json={'name':'Один шаг','product_id':'folder-product'})
+    assert quick.status_code == 201
+    assert c.get(base+'/'+quick.json()['id'],headers=a).json()['items'][0]['product_id'] == 'folder-product'
     ids = []
     for name in ('Клиент А', 'Клиент Б'):
         r = c.post(base, headers=a, json={'name': name, 'note': 'Проверить цвет'})
@@ -65,6 +70,10 @@ def test_client_folders_isolation_and_independent_collected_state(setup):
     item = first+'/items/folder-product'
     assert c.patch(item, headers=b, json={'collected': True}).status_code == 404
     assert c.patch(item, headers=a, json={'collected': True}).json()['collected']
+    assert c.patch(item, headers=a, json={'note':'две, размер М'}).json()['collected']
+    assert c.put(item, headers=a).json()['added'] is False
+    assert c.get(first, headers=a).json()['items'][0]['note'] == 'две, размер М'
+    assert c.get(second, headers=a).json()['items'][0]['note'] == ''
     assert c.put(item, headers=a).json()['collected']
     assert len(c.get(first, headers=a).json()['items']) == 1
     assert not c.get(second, headers=a).json()['items'][0]['collected']

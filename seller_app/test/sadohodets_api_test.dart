@@ -1,3 +1,4 @@
+import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../lib/api.dart';
 import '../lib/sadohodets_api.dart';
@@ -15,6 +16,12 @@ class FakeApi extends SellerApi {
 }
 
 void main() {
+  test('client folders accept the URL produced by both product buttons', () {
+    final link = publicProductUri('folder-product').toString();
+    expect(productIdFromShareLink(link), 'folder-product');
+    expect(productIdFromShareLink(link.replaceFirst('api.sadohod.ru', 'example.org')), isNull);
+    expect(productIdFromShareLink('$link/extra'), isNull);
+  });
   test('profile absence is distinct from an authorization failure', () async {
     final fake = FakeApi();
     final api = SadohodetsApi(fake);
