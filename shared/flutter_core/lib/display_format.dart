@@ -27,7 +27,7 @@ String contactDisplay(String key, String raw) {
 String contactLineDisplay(String raw) {
   final s = raw.trim();
   final lower = s.toLowerCase();
-  for (final entry in {'тг':'telegram','tg':'telegram','telegram':'telegram','вк':'vk','vk':'vk','whatsapp':'whatsapp'}.entries) {
+  for (final entry in {'тг':'telegram','tg':'telegram','telegram':'telegram','вк':'vk','vk':'vk','вконтакте':'vk','whatsapp':'whatsapp'}.entries) {
     if (lower.startsWith('${entry.key}:')) return contactDisplay(entry.value, s.substring(entry.key.length+1).trim());
   }
   final uri = Uri.tryParse(s.contains('://') ? s : 'https://$s');
@@ -64,7 +64,7 @@ Uri? contactTarget(String key,String raw) {
   }
   final existing=Uri.tryParse(value.contains('://')?value:'https://$value');
   if(key=='whatsapp'){
-    var n=(existing?.queryParameters['phone']??(existing?.host=='wa.me'&&existing!.pathSegments.isNotEmpty?existing.pathSegments.last:value)).replaceAll(RegExp(r'[^0-9]'),'');
+    var n=(existing?.queryParameters['phone']??(existing!=null&&existing.host=='wa.me'&&existing.pathSegments.isNotEmpty?existing.pathSegments.last:value)).replaceAll(RegExp(r'[^0-9]'),'');
     if(n.length==11&&n.startsWith('8'))n='7${n.substring(1)}';
     return n.length>=7&&n.length<=15?Uri.https('wa.me','/$n'):null;
   }

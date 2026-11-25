@@ -22,9 +22,11 @@ class SellerNotificationsPage extends StatefulWidget {
     required this.api,
     required this.onOpenPavilions,
     required this.onOpenProduct,
+    this.courier = false,
   });
 
   final SellerApi api;
+  final bool courier;
   final VoidCallback onOpenPavilions;
   final ValueChanged<String> onOpenProduct;
 
@@ -97,7 +99,7 @@ class _SellerNotificationsPageState extends State<SellerNotificationsPage> {
     }
     refreshing = true;
     try {
-      final response = await widget.api.call('/merchant/notifications');
+      final response = await widget.api.call(widget.courier ? '/merchant/notifications?scope=courier' : '/merchant/notifications');
       final data = (response['items'] as List? ?? const [])
           .whereType<Map>()
           .map((entry) => Map<String, dynamic>.from(entry))

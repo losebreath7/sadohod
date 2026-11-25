@@ -133,12 +133,12 @@ class ProductTile extends StatelessWidget {
           ),
           if (product.price != null) ...[
             const SizedBox(width: 6),
-            Text(
+            Flexible(child: Text(
               formatRubles(product.price!),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: BuyerProductType.catalogPrice,
-            ),
+            )),
           ],
         ],
       ),

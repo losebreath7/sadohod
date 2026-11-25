@@ -127,6 +127,8 @@ def delete_profile_data(db, buyer_id, *, delete_written_reviews=False):
     db.execute(delete(SadohodetsReview).where(SadohodetsReview.profile_id == buyer_id))
     if delete_written_reviews:
         db.execute(delete(SadohodetsReview).where(SadohodetsReview.reviewer_id == buyer_id))
+    from .seller_notifications import SellerNotification
+    db.execute(delete(SellerNotification).where(SellerNotification.buyer_id == buyer_id, SellerNotification.event_type == 'courier_review'))
     db.execute(delete(SadohodetsMedia).where(SadohodetsMedia.profile_id == buyer_id))
     db.execute(delete(SadohodetsProfile).where(SadohodetsProfile.buyer_id == buyer_id))
 
@@ -386,7 +388,14 @@ def moderate_review(profile_id: str, reviewer_id: str, body: ReviewModerationInp
     row = db.get(SadohodetsReview, (profile_id, reviewer_id))
     if row is None:
         raise HTTPException(404, 'Отзыв не найден.')
+    previous = row.moderation_status
     row.moderation_status = body.status
+    if previous != body.status and body.status == 'approved':
+        from .seller_notifications import SellerNotification
+        db.add(SellerNotification(id=uuid.uuid4().hex, buyer_id=profile_id,
+            event_type='courier_review', status='approved', target_id=profile_id,
+            title='Новый отзыв', message='В вашей карточке опубликован новый отзыв.',
+            note='', created_at=time.time()))
     db.commit()
     return {'ok': True}
 

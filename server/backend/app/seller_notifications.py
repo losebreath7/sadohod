@@ -6,7 +6,7 @@ fabrication of moderation statuses is involved.
 """
 import time
 import uuid
-from typing import Optional
+from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import Float, ForeignKey, String, Text, select, event, inspect, func
@@ -189,16 +189,16 @@ def _dto(row: SellerNotification):
 
 
 @router.get('')
-def notifications(buyer: Buyer = Depends(current_buyer),
-                  db: Session = Depends(get_db)):
-    # Both first-time applicants and established sellers must see decisions.
-    rows = db.scalars(select(SellerNotification).where(
-        SellerNotification.buyer_id == buyer.id)
+def notifications(scope: Literal['seller', 'courier'] = 'seller',
+                  buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    role_filter = (SellerNotification.event_type == 'courier_review'
+                   if scope == 'courier' else SellerNotification.event_type != 'courier_review')
+    conditions = (SellerNotification.buyer_id == buyer.id, role_filter)
+    rows = db.scalars(select(SellerNotification).where(*conditions)
         .order_by(SellerNotification.created_at.desc(), SellerNotification.id.desc())
         .limit(150)).all()
     unread = db.scalar(select(func.count()).select_from(SellerNotification).where(
-        SellerNotification.buyer_id == buyer.id,
-        SellerNotification.read_at.is_(None))) or 0
+        *conditions, SellerNotification.read_at.is_(None))) or 0
     return {'items': [_dto(row) for row in rows], 'unread': unread}
 
 
