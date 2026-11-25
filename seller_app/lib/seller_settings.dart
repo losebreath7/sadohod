@@ -14,9 +14,11 @@ class SellerSettingsPage extends StatefulWidget {
     required this.api,
     required this.onSignedOut,
     required this.onOpenInfo,
+    this.courier = false,
   });
 
   final SellerApi api;
+  final bool courier;
   final VoidCallback onSignedOut;
   final ValueChanged<String> onOpenInfo;
 
@@ -61,8 +63,8 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Удалить аккаунт продавца и закрыть все магазины?'),
-        content: const Text(
+        title: Text(widget.courier ? 'Удалить аккаунт садоходца?' : 'Удалить аккаунт продавца и закрыть все магазины?'),
+        content: Text(widget.courier ? 'Анкета, отзывы о вас и папки клиентов будут удалены. Аккаунт покупателя сохранится.' :
           'Ваши товары, карточка продавца и отзывы о вас исчезнут из приложения. '
           'Вы сможете пользоваться аккаунтом покупателя как раньше.',
         ),
@@ -73,9 +75,9 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
-              'Удалить аккаунт продавца',
-              style: TextStyle(color: accent),
+            child: Text(
+              widget.courier ? 'Удалить аккаунт садоходца' : 'Удалить аккаунт продавца',
+              style: const TextStyle(color: accent),
             ),
           ),
         ],
@@ -84,7 +86,7 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
     if (confirmed != true || !mounted) return;
     setState(() => busy = true);
     try {
-      await widget.api.call('/merchant/account', method: 'DELETE');
+      await widget.api.call(widget.courier ? '/sadohodets/me' : '/merchant/account', method: 'DELETE');
       await widget.api.logout();
       if (mounted) widget.onSignedOut();
     } catch (error) {
@@ -171,9 +173,9 @@ class _SellerSettingsPageState extends State<SellerSettingsPage> {
       Center(
         child: TextButton(
           onPressed: busy ? null : deleteAccount,
-          child: const Text(
-            'Удалить аккаунт продавца',
-            style: TextStyle(color: accent, fontSize: 12),
+          child: Text(
+            widget.courier ? 'Удалить аккаунт садоходца' : 'Удалить аккаунт продавца',
+            style: const TextStyle(color: accent, fontSize: 12),
           ),
         ),
       ),

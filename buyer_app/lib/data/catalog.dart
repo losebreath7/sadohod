@@ -1,3 +1,5 @@
+import 'package:sadohod_shared_core/display_format.dart';
+
 /// All data is fictional. No seller, stock, price or pavilion in this file is
 /// verified to exist at the actual Sadovod market.
 class Seller {
@@ -341,12 +343,4 @@ class DemoCatalog {
   }
 }
 
-String formatRubles(int amount) {
-  final str = amount.toString();
-  final chunks = <String>[];
-  for (var i = str.length; i > 0; i -= 3) {
-    final start = i >= 3 ? i - 3 : 0;
-    chunks.insert(0, str.substring(start, i));
-  }
-  return '${chunks.join(' ')} ₽';
-}
+String formatRubles(int amount) => approximateRubles(amount);

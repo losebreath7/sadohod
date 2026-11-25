@@ -40,6 +40,8 @@ class ProfileInput(BaseModel):
             if key in {'phone', 'phone2', 'whatsapp'} and not value.startswith('https://'):
                 if not re.fullmatch(r'\+?[0-9 ()-]{7,25}', value) or not 7 <= len(re.sub(r'\D', '', value)) <= 15:
                     raise ValueError('Некорректный номер телефона')
+            elif key == 'vk' and re.fullmatch(r'@?[A-Za-z0-9_.-]{2,64}', value):
+                value = 'https://vk.com/' + value.lstrip('@')
             elif key == 'telegram' and re.fullmatch(r'@?[A-Za-z0-9_]{5,32}', value):
                 value = 'https://t.me/' + value.lstrip('@')
             else:

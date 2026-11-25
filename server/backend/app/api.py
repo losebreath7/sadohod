@@ -291,7 +291,7 @@ def shared_product(id: str, session: Session = Depends(get_db)):
     data = serialize_product(product)
     title = escape(data['title'] or 'Товар')
     description = escape(data['description'] or '')
-    price = f"{data['price']:,} ₽".replace(',', ' ') if data['price'] is not None else 'Цена по запросу'
+    price = f"≈ {data['price']:,} ₽".replace(',', ' ') if data['price'] is not None else 'Цена по запросу'
     images = data['images']
     image = '/media/products/' + quote(images[0].rsplit('/', 1)[-1], safe='') if images else ''
     photo = f'<img src="{escape(image, quote=True)}" alt="{title}">' if image else ''

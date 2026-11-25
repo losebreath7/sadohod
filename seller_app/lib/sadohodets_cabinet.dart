@@ -8,7 +8,13 @@ import 'dart:typed_data';
 import 'api.dart';
 import 'sadohodets_api.dart';
 import 'courier_buyer_design.dart';
-import 'seller_v3.dart' show V3Field;
+import 'seller_v3.dart' show V3Field, V3Header, asset;
+import 'seller_settings.dart';
+import 'seller_telegram_chat.dart';
+import 'seller_notifications.dart';
+import 'courier_product_screen.dart';
+import 'package:sadohod_shared_core/build_info.dart';
+import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'dart:convert';
 
@@ -61,6 +67,11 @@ class _CabinetState extends State<SadohodetsCabinet>
   bool get showFolders => selectedTab == 1;
   bool settings = false;
   bool editing = false;
+  void openPage(String title, Widget content) { Navigator.of(context).push(MaterialPageRoute<void>(builder: (ctx) => Scaffold(backgroundColor: SellerColors.background, body: Column(children:[V3Header(title:title,back:()=>Navigator.pop(ctx)),Expanded(child:content)])))); }
+  void openSettings() => openPage('настройки', SellerSettingsPage(api:widget.api,courier:true,onSignedOut:(){},onOpenInfo:(kind)=>openPage(kind=='about'?'о приложении':kind=='terms'?'пользовательское соглашение':'конфиденциальность',SellerSettingsInfoPage(kind:kind))));
+  void openNotifications() => openPage('уведомления',SellerNotificationsPage(api:widget.api,onOpenPavilions:(){},onOpenProduct:(id) async {try{final product=await widget.api.call('/products/${Uri.encodeComponent(id)}');if(mounted)await openProduct(product);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}));
+  void openNavigation() { final address=TextEditingController(); openPage('навигация', _CourierNavigation(controller:address)); }
+
   final search = TextEditingController();
   late Future<List<Map<String, dynamic>>> products = catalog();
   Future<List<Map<String, dynamic>>> catalog([String query = '']) async {
@@ -276,37 +287,7 @@ class _CabinetState extends State<SadohodetsCabinet>
     ],
   );
   Future<void> openProduct(Map p) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AspectRatio(aspectRatio: 1, child: productPhoto(p)),
-              const SizedBox(height: 12),
-              Text(
-                '${p['title'] ?? ''}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (p['price'] != null) Text(approximateRubles((p['price'] as num).toInt())),
-              Text('${p['description'] ?? ''}'),
-              ProductShareActions(productId: '${p['id']}', color: SellerColors.brown),
-              action('В папку клиента', () {
-                Navigator.pop(ctx);
-                chooseFolder('${p['id']}');
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CourierProductScreen(api:widget.api, initial:p.cast<String,dynamic>(), onFolder:()=>chooseFolder('${p['id']}'))));
   }
 
   Widget home() => CustomScrollView(
@@ -367,7 +348,7 @@ class _CabinetState extends State<SadohodetsCabinet>
   Widget profileMenu() => ListView(
     padding: const EdgeInsets.fromLTRB(30, 0, 30, 24),
     children: [
-      SizedBox(height: MediaQuery.paddingOf(context).top + 32),
+      SizedBox(height: (MediaQuery.paddingOf(context).top + 24).clamp(94.0, double.infinity).toDouble()),
       SizedBox(
         height: 181,
         child: Stack(
@@ -415,31 +396,16 @@ class _CabinetState extends State<SadohodetsCabinet>
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 50),
-      for (final item in [
-        ('34999', 'профиль', () => setState(() => editing = true)),
-        ('e6ee6', 'настройки', () => setState(() => settings = true)),
-      ])
-        InkWell(
-          onTap: item.$3,
-          child: SizedBox(
-            height: 44,
-            child: Row(
-              children: [
-                SizedBox(width: 30, height: 30, child: DesignIcon(item.$1)),
-                const SizedBox(width: 14),
-                Text(item.$2, style: const TextStyle(fontSize: 14)),
-              ],
-            ),
-          ),
-        ),
-      const SizedBox(height: 24),
-      Text(
-        profile?['published'] == true
-            ? 'Анкета опубликована'
-            : 'Анкета не опубликована',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, color: SellerColors.muted),
-      ),
+      for (final item in <(String,String,VoidCallback)>[
+        ('1b285.svg','профиль',()=>setState(()=>editing=true)),
+        ('2f6e7.svg','поддержка',()=>openPage('поддержка',SellerTelegramChat(api:widget.api,kind:'support'))),
+        ('40c2b.svg','уведомления',openNotifications),
+        ('f7cee.svg','настройки',openSettings),
+        ('cdb5f.svg','навигация',openNavigation),
+        ('1aa37.svg','сотрудничество',()=>openPage('сотрудничество',SellerTelegramChat(api:widget.api,kind:'cooperation'))),
+      ]) InkWell(onTap:item.$3,child:SizedBox(height:44,child:Row(children:[SizedBox(width:30,height:30,child:Center(child:asset(item.$1,width:item.$2=='профиль'?30:24,height:item.$2=='профиль'?30:24))),const SizedBox(width:14),Text(item.$2,style:const TextStyle(fontSize:14,color:Color(0xff2c1b15)))]))),
+      const SizedBox(height:24),
+      Text(SadohodBuild.label,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,color:SellerColors.muted)),
     ],
   );
   Widget tabBar() => ColoredBox(
@@ -598,6 +564,7 @@ class _CabinetState extends State<SadohodetsCabinet>
     if (image == null || !mounted) return;
     await run(() async {
       final bytes = await image.readAsBytes();
+      await ensureProfile();
       profile = await api.uploadMedia(kind, bytes);
       media[kind] = bytes;
     });
@@ -827,43 +794,13 @@ class _CabinetState extends State<SadohodetsCabinet>
                                     ),
                                   ),
                               ] else ...[
-                                if (profile != null)
-                                  for (final kind in ['cover', 'avatar']) ...[
-                                    GestureDetector(
-                                      onTap: () => pick(kind),
-                                      child: Container(
-                                        height: kind == 'cover' ? 150 : 94,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        clipBehavior: Clip.antiAlias,
-                                        child: media[kind] == null
-                                            ? Center(
-                                                child: Text(
-                                                  kind == 'cover'
-                                                      ? 'Добавить обложку'
-                                                      : 'Добавить аватар',
-                                                ),
-                                              )
-                                            : Image.memory(
-                                                media[kind]!,
-                                                fit: BoxFit.contain,
-                                              ),
-                                      ),
-                                    ),
-                                    if (media.containsKey(kind))
-                                      TextButton(
-                                        onPressed: () => run(() async {
-                                          profile = await api.removeMedia(kind);
-                                          media.remove(kind);
-                                        }),
-                                        child: const Text('Удалить фото'),
-                                      ),
-                                    const SizedBox(height: 12),
-                                  ],
+                                SizedBox(height:181,child:Stack(children:[
+                                  GestureDetector(onTap:()=>pick('cover'),child:Container(height:150,width:double.infinity,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:SellerColors.brown,borderRadius:BorderRadius.circular(10)),child:media['cover']==null?const Center(child:Icon(Icons.add_a_photo_outlined,color:Colors.white)):Image.memory(media['cover']!,fit:BoxFit.cover))),
+                                  Positioned(top:88,left:0,right:0,child:Center(child:GestureDetector(onTap:()=>pick('avatar'),child:CircleAvatar(radius:46.5,backgroundColor:Colors.white,backgroundImage:media['avatar']==null?null:MemoryImage(media['avatar']!),child:media['avatar']==null?const Icon(Icons.add_a_photo_outlined,size:30,color:SellerColors.brown):null)))),
+                                ])),
+                                const SizedBox(height:15),
+                                Text(name.text,textAlign:TextAlign.center,style:const TextStyle(fontSize:12,fontWeight:FontWeight.bold)),
+                                const SizedBox(height:20),
                                 field('имя', name),
                                 Stack(children: [field(labels['phone']!, contacts['phone']!), if (!secondPhone) Positioned(right: 8, top: 8, child: IconButton(onPressed: () => setState(() => secondPhone = true), icon: const Icon(Icons.add_circle))) ]),
                                 if (secondPhone) Stack(children: [field(labels['phone2']!, contacts['phone2']!), Positioned(right: 8, top: 8, child: IconButton(onPressed: () => setState(() {secondPhone = false; contacts['phone2']!.clear();}), icon: const Icon(Icons.close))) ]),
@@ -947,6 +884,7 @@ class _CabinetState extends State<SadohodetsCabinet>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (addresses.isNotEmpty) Text(addresses),
+          if (product?['price'] is num) Text(approximateRubles((product!['price'] as num).toInt())),
           TextButton(
             onPressed: busy
                 ? null
@@ -1074,4 +1012,18 @@ class _ProductPickerState extends State<_ProductPicker> {
       ),
     ],
   );
+}
+
+class _CourierNavigation extends StatefulWidget {
+ const _CourierNavigation({required this.controller});
+ final TextEditingController controller;
+ @override State<_CourierNavigation> createState()=>_CourierNavigationState();
+}
+class _CourierNavigationState extends State<_CourierNavigation> {
+ String result='';
+ @override void dispose(){widget.controller.dispose();super.dispose();}
+ @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(30),children:[
+ const Text('Расшифровка адреса',style:TextStyle(fontSize:20,fontWeight:FontWeight.w600)),
+ const SizedBox(height:16),V3Field('Введите адрес павильона',widget.controller,onChanged:(value)=>setState(()=>result=value.trim().isEmpty?'':parseMarketAddress(value).details)),
+ const SizedBox(height:16),Text(result),]);
 }
