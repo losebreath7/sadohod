@@ -122,8 +122,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   const Expanded(child: Text('избранное',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
                   IconButton(
-                    onPressed: () => setState(() => _filters = true),
-                    tooltip: 'Фильтры избранного', icon: const Icon(Icons.tune, size: 22)),
+                    onPressed: () => context.push('/navigation'),
+                    tooltip: 'Навигация',
+                    icon: const SizedBox(
+                      width: 22, height: 22,
+                      child: DesignIcon('v082_menu_location'),
+                    )),
                 ]),
               SizedBox(height: widget.sellers ? 0 : 15),
               if (!a.signedIn)
