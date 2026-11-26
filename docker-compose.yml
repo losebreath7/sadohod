@@ -28,6 +28,7 @@ services:
       DATABASE_URL: postgresql+psycopg://sadohod:${POSTGRES_PASSWORD:-local-dev-only}@db:5432/sadohod
       DEMO_SEED: "1"
       SEARCH_BACKEND: clip
+      OPEN_VOCAB_SEARCH: ${OPEN_VOCAB_SEARCH:-1}
       PHOTO_SEARCH_MIN_SCORE: ${PHOTO_SEARCH_MIN_SCORE:-0.20}
       HF_HOME: /root/.cache/huggingface
       TORCH_HOME: /root/.cache/torch
