@@ -111,7 +111,8 @@ class _FolderProductRowState extends State<_FolderProductRow> {
   Widget build(BuildContext context) {
     final product = widget.item['product'] as Map?;
     final images = product?['images'] as List? ?? const [];
-    final raw = (images.isEmpty ? product?['image'] : images.first)?.toString() ?? '';
+    final fallbackImage = product?['image'];
+    final raw = (images.isEmpty ? fallbackImage : images.first)?.toString() ?? '';
     final photo = raw.startsWith('/') ? '${widget.baseUrl}$raw' : raw;
     final name = (product?['title'] ?? '').toString().trim();
     final price = product?['price'];
