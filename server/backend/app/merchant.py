@@ -515,15 +515,12 @@ def product_images(pid: str, files: list[UploadFile] = File(...), request_id: st
         product = db.get(Product, pid)
         assign_category(db, product)
         if was_approved:
-            from .product_screening import assess
+            from .product_screening import assess, hold_for_review
             reason = assess(db, product)
             rows = db.scalars(select(MerchantListing).where(
                 MerchantListing.product_id == pid)).all()
             if reason:
-                owner.note = reason
-                for row in rows:
-                    if row.status == 'pending':
-                        row.note = reason
+                hold_for_review(db, owner, product, reason)
             else:
                 # Only a successful visual check may restore previously
                 # published listings after the atomic image replacement.

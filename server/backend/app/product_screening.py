@@ -1,6 +1,6 @@
 """Contextual triage of seller listings (not a legal classifier).
 
-Only a moderator rejects an item. Uncertain text/image matches enter the
+Photo-policy violations can block a listing automatically. Uncertain text/image matches enter the
 existing pending queue before any public offer is created. Cosine similarity
 is NOT a calibrated probability, and the visual thresholds need field data.
 """
@@ -128,7 +128,7 @@ BENIGN_PROMPTS = (
 # Catalog photos must remain photographs, not digitally designed ads.
 # In-frame packaging text, labels and physical garment prints remain allowed.
 # These prompts are distinct from prohibited-content screening: a suspected
-# overlay is *queued for a human*, never definitively rejected by OpenCLIP.
+# borderline matches are queued for a moderator.
 OVERLAY_PROMPTS = (
     'a commercial product photo with large promotional text banners digitally added over the image',
     'an online shopping product infographic with digital arrows and feature callout labels',
@@ -139,6 +139,23 @@ OVERLAY_PROMPTS = (
     'a digitally assembled product collage with multiple cutout photos in a graphic layout',
     'a product picture with decorative digital borders and superimposed illustrations',
 )
+SYNTHETIC_PROMPTS = (
+    'an AI generated photorealistic product illustration with a synthetic background',
+    'a computer generated 3D product render with artificial materials and lighting',
+    'a digitally composited product on an AI generated model or virtual backdrop',
+    'a screenshot of a shopping app product page with interface controls',
+    'a digital illustration or mockup of a product instead of a camera photograph',
+)
+
+
+class RejectedPhoto(str):
+    """A photo-policy refusal carried through the existing moderation note API."""
+
+
+def screening_status(reason):
+    return 'rejected' if isinstance(reason, RejectedPhoto) else 'pending'
+
+
 CLEAN_PHOTO_PROMPTS = (
     'a plain natural product photograph on a neutral background without graphic overlays',
     'an unedited photograph of clothes on a person with natural lighting',
@@ -147,28 +164,31 @@ CLEAN_PHOTO_PROMPTS = (
     'a photo of a cosmetic bottle with a printed product label on the bottle',
     'a photograph of a box with text printed directly on the physical cardboard',
     'a studio product photo with a plain white background and no added text',
+    'a smartphone snapshot of an actual item on a table in a shop',
+    'a real photograph of a phone case with a decorative design on the case itself',
 )
 
 
 @lru_cache(maxsize=1)
 def _overlay_prompts():
     from .ml_clip import embed_text
-    return ([embed_text(prompt) for prompt in OVERLAY_PROMPTS],
+    return ([embed_text(prompt) for prompt in OVERLAY_PROMPTS + SYNTHETIC_PROMPTS],
             [embed_text(prompt) for prompt in CLEAN_PHOTO_PROMPTS])
 
 
-def _overlay_review_reason(overlay_scores, clean_scores):
-    """Conservative triage only. CLIP similarity is not a calibrated probability.
-
-    Do not mistake physical package labels or fabric prints for digital overlays.
-    Thresholds must be calibrated on a labelled photo set before relying on them
-    for automatic rejection; this path always requires a moderator's decision.
-    """
+def _overlay_review_reason(overlay_scores, clean_scores, number=1):
+    """Compare visual evidence against photographs with physical labels and prints."""
     if (not overlay_scores or not clean_scores or
             any(not math.isfinite(v) for v in (*overlay_scores, *clean_scores))):
         return 'Автопроверка: некорректные показатели анализа инфографики'
     overlay = max(overlay_scores)
     clean = max(clean_scores)
+    synthetic = overlay_scores.index(overlay) >= len(OVERLAY_PROMPTS)
+    category = 'цифровое изображение, рендер или скриншот' if synthetic else 'инфографика или цифровое наложение'
+    if overlay >= 0.30 and overlay - clean >= 0.07:
+        return RejectedPhoto(f'Фото №{number}: {category}. Замените его обычной фотографией товара с телефона.')
+    if synthetic and overlay >= 0.240 and overlay - clean >= 0.010:
+        return f'Фото №{number}: возможно цифровое изображение. Требуется проверка модератора.'
     if overlay >= 0.265 and overlay - clean >= 0.035:
         return ('Автопроверка: возможна цифровая инфографика поверх фотографии '
                 '(надписи, плашки, стрелки или коллаж). Требуется проверка модератора.')
@@ -245,15 +265,18 @@ def assess(db, product):
     reason = _text_reason(product.title or '', product.description or '')
     if reason:
         return reason
+    if not product.images:
+        return 'Автопроверка: отсутствуют проверенные фотографии'
     if SEARCH_BACKEND != 'clip':
         # Classic descriptors are not semantic content moderation. Never treat
         # a photo as screened merely because its metadata is searchable.
-        if product.images:
-            return 'Автопроверка: фотографии ожидают ручной проверки (classic)'
-        return 'Автопроверка: отсутствуют проверенные фотографии'
+        return 'Автопроверка: фотографии ожидают ручной проверки (classic)'
     try:
         risk_prompts, benign_prompts = _prompts()
-        for image in product.images:
+        images = sorted(product.images, key=lambda image: (
+            getattr(getattr(image, 'ordering', None), 'position', 0), image.id))
+        review = None
+        for number, image in enumerate(images, 1):
             stored = db.get(ImageMLEmbedding, (image.id, MODEL_ID))
             if not stored or len(stored.embedding) != DIM:
                 return 'Автопроверка: фотография не прошла ML-анализ'
@@ -281,7 +304,7 @@ def assess(db, product):
                 return 'Автопроверка: некорректные показатели ML-анализа'
             decision = _visual_review_reason(risk_scores, benign)
             if decision:
-                return decision
+                review = decision
 
             # Every photo must pass an independent overlay triage. Unlike text
             # safety, this has benign counterexamples for *physical* labels.
@@ -291,11 +314,17 @@ def assess(db, product):
             if any(len(prompt) != DIM or not all(math.isfinite(float(n)) for n in prompt)
                    for prompt in (*overlay_prompts, *clean_prompts)):
                 return 'Автопроверка: некорректные векторы анализа инфографики'
-            overlay_reason = _overlay_review_reason(
-                [_dot(vector, prompt) for prompt in overlay_prompts],
-                [_dot(vector, prompt) for prompt in clean_prompts])
-            if overlay_reason:
+            clean_scores = [_dot(vector, prompt) for prompt in clean_prompts]
+            overlay_scores = [_dot(vector, prompt) for prompt in overlay_prompts]
+            overlay_reason = _overlay_review_reason(overlay_scores, clean_scores, number)
+            if isinstance(overlay_reason, RejectedPhoto):
                 return overlay_reason
+            if overlay_reason:
+                review = review or overlay_reason
+            elif (max(clean_scores) < 0.18 or
+                  max(clean_scores) - max(overlay_scores) < 0.015) and not review:
+                review = f'Фото №{number}: требуется проверить, что это обычная фотография товара.'
+        return review
     except Exception:
         return 'Автопроверка: ML-анализ временно недоступен'
     return None
@@ -312,8 +341,8 @@ def hold_for_review(db, owner, product, reason):
         if row.offer_id:
             drop_offer(db, row)
         if row.status not in ('deleted', 'paused'):
-            row.status = 'pending'
+            row.status = screening_status(reason)
             row.note = reason
-    owner.status = 'pending'
+    owner.status = screening_status(reason)
     owner.note = reason
     product.details.active = False
