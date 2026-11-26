@@ -91,12 +91,16 @@ class ProductShareActions extends StatelessWidget {
           child: Icon(icon, size: 20),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(
-          fontFamily: SadohodFont.family,
-          fontFamilyFallback: SadohodFont.fallback,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          height: 1.2,
+        Flexible(child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.bottomLeft,
+          child: Text(label, maxLines: 1, style: const TextStyle(
+            fontFamily: SadohodFont.family,
+            fontFamilyFallback: SadohodFont.fallback,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+          )),
         )),
       ],
     ),
