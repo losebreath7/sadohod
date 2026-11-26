@@ -32,4 +32,40 @@ void main() {
     expect(removed, isTrue);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('folder text fits revealed surface and outside tap closes actions', (tester) async {
+    tester.view.physicalSize=const Size(390,844);
+    tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const note='понедельник, очень длинная заметка о клиенте';
+    var outsideTaps=0;
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:Padding(
+      padding:const EdgeInsets.all(30),
+      child:Column(children:[
+        TextButton(onPressed:()=>outsideTaps++,child:const Text('Другое действие')),
+        CourierFolderList(folders:[
+          {'id':'a','name':'Маша','note':note,'count':2,'collected_count':1},
+        ],archived:false,onOpen:(_)async{},onArchive:(_)async{},onDelete:(_)async{}),
+        const Expanded(child:SizedBox.expand()),
+      ]),
+    ))));
+    await tester.drag(find.text('Маша'),const Offset(-150,0));
+    await tester.pumpAndSettle();
+    final text=find.text('$note • 1/2');
+    final archive=find.bySemanticsLabel('В архив');
+    expect(archive,findsOneWidget);
+    expect(tester.getRect(text).right,lessThanOrEqualTo(tester.getRect(archive).left-16));
+    expect(tester.widget<Text>(text).overflow,TextOverflow.ellipsis);
+    await tester.tapAt(const Offset(190,500));
+    await tester.pumpAndSettle();
+    expect(archive,findsNothing);
+    await tester.drag(find.text('Маша'),const Offset(-150,0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Другое действие'));
+    await tester.pumpAndSettle();
+    expect(outsideTaps,1);
+    expect(archive,findsNothing);
+    expect(tester.takeException(),isNull);
+  });
+
 }
