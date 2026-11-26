@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sadohod_shared_core/public_seller_body.dart';
+import '../../core/widgets/common.dart';
+import '../../core/widgets/design.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/account.dart';
 import '../../data/api.dart';
@@ -80,166 +83,166 @@ class SadohodtsyScreen extends StatefulWidget {
 }
 
 class _DirectoryState extends State<SadohodtsyScreen> {
+  final TextEditingController _search = TextEditingController();
   bool favoritesOnly = false;
   late Future<List<_Row>> data = load();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   Future<List<_Row>> load() async {
     final all = <_Row>[];
     final saved = favoritesOnly
         ? Set<String>.from(
             (await AccountStore.instance.request(
-                  '/account',
-                  method: 'GET',
-                ))['couriers'] ??
-                [],
+              '/account', method: 'GET',
+            ))['couriers'] ?? [],
           )
         : null;
     const filters = 'sort=rating';
     for (var offset = 0; ; offset += 100) {
-      final batch = _items(
-        await _request('?$filters&limit=100&offset=$offset'),
-      );
-      all.addAll(
-        saved == null ? batch : batch.where((p) => saved.contains(p['id'])),
-      );
+      final batch = _items(await _request('?$filters&limit=100&offset=$offset'));
+      all.addAll(saved == null
+          ? batch
+          : batch.where((p) => saved.contains(p['id'])));
       if (batch.length < 100) return all;
     }
   }
 
   void refresh() => setState(() => data = load());
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xfff1f1f1),
-    child: SafeArea(
-      child: Column(
-        children: [
-          _header(context, 'садоходцы'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    if (AccountStore.instance.signedIn)
-                      IconButton(
-                        tooltip: favoritesOnly
-                            ? 'Показать всех'
-                            : 'Только любимые',
-                        onPressed: () {
-                          favoritesOnly = !favoritesOnly;
-                          refresh();
-                        },
-                        icon: Icon(
-                          favoritesOnly
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                        ),
-                      ),
 
-                  ],
-                ),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return ColoredBox(
+      color: const Color(0xfff1f1f1),
+      child: Column(children: [
+        Container(
+          height: header.height,
+          padding: EdgeInsets.fromLTRB(
+            30, header.contentTop, 30, BuyerHeaderLayout.gap),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+          ),
+          alignment: Alignment.center,
+          child: const Text('садоходцы',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(30, 14, 30, 3),
+          child: SearchCapsule(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        if (AccountStore.instance.signedIn)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 26),
+              child: TextButton.icon(
+                onPressed: () {
+                  favoritesOnly = !favoritesOnly;
+                  refresh();
+                },
+                icon: Icon(favoritesOnly
+                    ? Icons.favorite : Icons.favorite_border, size: 16),
+                label: Text(favoritesOnly ? 'все садоходцы' : 'любимые',
+                  style: const TextStyle(fontSize: 11)),
+                style: TextButton.styleFrom(foregroundColor: Colors.black),
+              ),
             ),
           ),
-          Expanded(
-            child: FutureBuilder<List<_Row>>(
-              future: data,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done)
-                  return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError)
-                  return Center(
-                    child: TextButton(
-                      onPressed: refresh,
-                      child: Text(
-                        'Не удалось загрузить. Повторить\n${snapshot.error}',
+        Expanded(
+          child: FutureBuilder<List<_Row>>(
+            future: data,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: TextButton(
+                  onPressed: refresh, child: const Text('повторить загрузку')));
+              }
+              final query = _search.text.trim().toLowerCase();
+              final rows = (snapshot.data ?? [])
+                  .where((p) => (p['name']?.toString() ?? '')
+                    .toLowerCase().contains(query))
+                  .toList();
+              return RefreshIndicator(
+                onRefresh: () async {
+                  refresh();
+                  await data;
+                },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(30, 12, 30, 24),
+                  children: [
+                    if (rows.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 30),
+                        child: Text('Садоходцы не найдены',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12)),
                       ),
-                    ),
-                  );
-                final rows = snapshot.data ?? [];
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    refresh();
-                    await data;
-                  },
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(30, 10, 30, 24),
-                    children: [
-                      if (rows.isEmpty)
-                        const Center(child: Text('Садоходцы не найдены')),
-                      LayoutBuilder(
-                        builder: (context, box) => Wrap(
-                          spacing: 30,
-                          runSpacing: 18,
-                          children: [
-                            for (final p in rows)
-                              SizedBox(
-                                width: (box.maxWidth - 30) / 2,
-                                child: Column(
+                    LayoutBuilder(builder: (context, constraints) {
+                      final width = (constraints.maxWidth - 30) / 2;
+                      return Wrap(
+                        spacing: 30, runSpacing: 18,
+                        children: [
+                          for (final p in rows)
+                            SizedBox(
+                              width: width,
+                              child: InkWell(
+                                onTap: () async {
+                                  await context.push(
+                                    '/sadohodtsy/${Uri.encodeComponent(p['id'].toString())}');
+                                  if (mounted) refresh();
+                                },
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    InkWell(
-                                      onTap: () async {
-                                        await context.push(
-                                          '/sadohodtsy/${Uri.encodeComponent(p['id'].toString())}',
-                                        );
-                                        if (mounted) refresh();
-                                      },
-                                      child: Row(
-                                        children: [
-                                          _avatar(p, radius: 13.5),
-                                          const SizedBox(width: 7),
-                                          Expanded(
-                                            child: Text(
-                                              '${p['name']}',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                    _avatar(p, radius: 13.5),
+                                    const SizedBox(width: 7),
+                                    Expanded(child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('${p['name'] ?? ''}',
+                                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 14)),
+                                        Text(_rating(p),
+                                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11, color: Color(0xff6c6c6c))),
+                                        for (final e in (p['contacts'] as Map? ?? {}).entries)
+                                          if (e.value?.toString().trim().isNotEmpty == true)
+                                            Text(
+                                              contactDisplay(e.key.toString(), e.value.toString()),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
+                                                fontSize: 11, color: Color(0xff6c6c6c)),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      _rating(p),
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    for (final e
-                                        in (p['contacts'] as Map).entries)
-                                      InkWell(
-                                        onTap: () =>
-                                            contact(context, e.key, e.value),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: Text(
-                                            contactDisplay(e.key.toString(), e.value.toString()),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                      ],
+                                    )),
                                   ],
                                 ),
                               ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                            ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              );
+            },
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      ]),
+    );
+  }
 }
 
 class SadohodetsScreen extends StatefulWidget {
@@ -337,130 +340,111 @@ class _ProfileState extends State<SadohodetsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xfff1f1f1),
-    child: SafeArea(
-      child: Column(
-        children: [
-          _header(context, 'садоходец'),
-          Expanded(
-            child: FutureBuilder<_Row>(
-              future: data,
-              builder: (context, s) {
-                if (s.connectionState != ConnectionState.done)
-                  return const Center(child: CircularProgressIndicator());
-                if (s.hasError)
-                  return Center(
-                    child: TextButton(
-                      onPressed: refresh,
-                      child: Text('Повторить\n${s.error}'),
-                    ),
-                  );
-                final p = s.data!;
-                final contacts = p['contacts'] as Map? ?? {};
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(30, 12, 30, 24),
+  Widget build(BuildContext context) {
+    final header = BuyerHeaderLayout.of(context);
+    return ColoredBox(
+      color: const Color(0xfff1f1f1),
+      child: Column(children: [
+        Container(
+          height: header.height,
+          padding: EdgeInsets.fromLTRB(
+            30, header.contentTop, 30, BuyerHeaderLayout.gap),
+          decoration: const BoxDecoration(color: Colors.white,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
+          child: Row(children: [
+            const RoundBack(),
+            const Expanded(child: Text('садоходец',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+            SizedBox(width: 32, child: IconButton(
+              padding: EdgeInsets.zero,
+              tooltip: saved ? 'Убрать из любимых' : 'В любимые',
+              onPressed: saving ? null : toggle,
+              icon: Icon(saved ? Icons.favorite : Icons.favorite_border,
+                size: 25),
+            )),
+          ]),
+        ),
+        Expanded(
+          child: FutureBuilder<_Row>(
+            future: data,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: TextButton(
+                  onPressed: refresh, child: const Text('повторить загрузку')));
+              }
+              final p = snapshot.data!;
+              final contacts = (p['contacts'] as Map? ?? {}).entries
+                  .where((e) => e.value?.toString().trim().isNotEmpty == true)
+                  .toList();
+              final reviews = (p['reviews'] as List? ?? []);
+              return PublicSellerBody(
+                name: p['name']?.toString() ?? '',
+                addresses: const [],
+                coverImage: p['cover'] == null ? null : NetworkImage(_url(p['cover'])),
+                avatarImage: p['avatar'] == null ? null : NetworkImage(_url(p['avatar'])),
+                subtitle: Text(
+                  [_rating(p), _active(p)].where((v) => v.isNotEmpty).join(' · '),
+                  style: const TextStyle(fontSize: 11, color: Color(0xff6c6c6c))),
+                contacts: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      height: 181,
-                      child: Stack(
-                        children: [
-                          Container(
-                            height: 150,
-                            width: double.infinity,
-                            clipBehavior: Clip.antiAlias,
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: p['cover'] == null
-                                ? null
-                                : Image.network(
-                                    _url(p['cover']),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                          ),
-                          Positioned(
-                            top: 88,
-                            left: 0,
-                            right: 0,
-                            child: Center(child: _avatar(p, radius: 46.5)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            p['name'],
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: saved ? 'Убрать из любимых' : 'В любимые',
-                          onPressed: saving ? null : toggle,
-                          icon: Icon(
-                            saved ? Icons.favorite : Icons.favorite_border,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '${_rating(p)} • ${_active(p)}',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    for (final e in contacts.entries)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          e.key == 'phone' || e.key == 'phone2'
-                              ? 'Телефон'
-                              : e.key.toString(),
-                        ),
-                        subtitle: Text(contactDisplay(e.key.toString(), e.value.toString())),
-                        trailing: const Icon(Icons.open_in_new, size: 18),
-                        onTap: () => contact(
-                          context,
-                          e.key.toString(),
-                          e.value.toString(),
+                    for (final e in contacts)
+                      InkWell(
+                        onTap: () => contact(context,
+                          e.key.toString(), e.value.toString()),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          child: Row(children: [
+                            Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(e.key == 'phone' || e.key == 'phone2'
+                                  ? 'Телефон' : e.key.toString(),
+                                  style: const TextStyle(fontSize: 12)),
+                                Text(contactDisplay(
+                                    e.key.toString(), e.value.toString()),
+                                  style: const TextStyle(fontSize: 11,
+                                    color: Color(0xff6c6c6c))),
+                              ],
+                            )),
+                            const Icon(Icons.open_in_new, size: 15),
+                          ]),
                         ),
                       ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Отзывы',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  ],
+                ),
+                reviews: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Отзывы', style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
                     TextButton(
                       onPressed: review,
-                      child: const Text('Оставить или изменить отзыв'),
-                    ),
-                    for (final r in (p['reviews'] as List))
+                      child: const Text('Оставить или изменить отзыв')),
+                    for (final r in reviews)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text('${r['name']} • ★ ${r['rating']}'),
-                        subtitle: Text('${r['text']}'),
+                        title: Text("${r['name']} · ★ ${r['rating']}"),
+                        subtitle: Text("${r['text']}"),
                       ),
-                    if ((p['reviews'] as List).isEmpty)
-                      const Text('Пока нет отзывов'),
+                    if (reviews.isEmpty)
+                      const Text('Пока нет отзывов',
+                        style: TextStyle(fontSize: 12,
+                          color: Color(0xff6c6c6c))),
                   ],
-                );
-              },
-            ),
+                ),
+                products: const SizedBox.shrink(),
+              );
+            },
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      ]),
+    );
+  }
 }
 
 class _ReviewDialog extends StatefulWidget {
