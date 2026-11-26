@@ -25,6 +25,14 @@ List<CourierPavilionGroup> groupCourierItems(List<Map> items) {
     final key = code.isEmpty ? 'unknown' : (id != null && id.isNotEmpty ? 'id:$id' : 'code:$zone:$code');
     groups.putIfAbsent(key, () => CourierPavilionGroup(code.isEmpty ? 'Адрес не указан' : code)).items.add(item);
   }
+  // Stable partition: preserve original order within each status and pavilion.
+  for (final group in groups.values) {
+    final ordered = [
+      ...group.items.where((item) => item['collected'] != true),
+      ...group.items.where((item) => item['collected'] == true),
+    ];
+    group.items..clear()..addAll(ordered);
+  }
   return groups.values.toList();
 }
 
@@ -109,7 +117,7 @@ class _FolderProductRowState extends State<_FolderProductRow> {
     final price = product?['price'];
     final count = (widget.item['quantity'] as num?)?.toInt().clamp(1,999).toInt() ?? 1;
     final collected = widget.item['collected'] == true;
-    final textColor = collected ? SellerColors.muted : SellerColors.brown;
+    const textColor = SellerColors.brown;
     return SizedBox(height: rowHeight, child: ClipRect(child: Stack(children: [
       if (widget.opened || drag != null)
         Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
@@ -136,7 +144,11 @@ class _FolderProductRowState extends State<_FolderProductRow> {
             widget.onReveal(open);
           },
           onHorizontalDragCancel: () => setState(() => drag = null),
-          child: Container(
+          child: AnimatedOpacity(
+            key: ValueKey('folder-item-opacity-${widget.item['product_id']}'),
+            opacity: collected ? 0.5 : 1.0,
+            duration: SadohodMotion.standard,
+            child: Container(
             decoration: BoxDecoration(
               color: widget.opened || drag != null ? const Color(0xffdeddd9) : SellerColors.background,
               borderRadius: BorderRadius.circular(14),
@@ -147,10 +159,9 @@ class _FolderProductRowState extends State<_FolderProductRow> {
                 child: Row(children: [
                   ClipRRect(borderRadius: BorderRadius.circular(5),
                     child: SizedBox(width: rowHeight,height: rowHeight,
-                      child: Opacity(opacity: collected ? .55 : 1,
-                        child: photo.isEmpty
+                      child: photo.isEmpty
                           ? const ColoredBox(color: Color(0xffdeddd9), child: Icon(Icons.image_outlined, size: 22))
-                          : SadohodProductPhoto(path: photo)))),
+                          : SadohodProductPhoto(path: photo))),
                   const SizedBox(width: 10),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -166,18 +177,18 @@ class _FolderProductRowState extends State<_FolderProductRow> {
               )),
               const SizedBox(width: 8),
               if (!widget.opened && drag == null)
-                _quantity(count, collected)
+                _quantity(count)
               else const SizedBox(width: 96),
             ]),
-          ),
+          )),
         ),
       )),
     ])));
   }
 
-  Widget _quantity(int count, bool collected) => Container(
+  Widget _quantity(int count) => Container(
     width: 96, height: 30,
-    decoration: BoxDecoration(color: collected ? SellerColors.muted : SellerColors.blue,
+    decoration: BoxDecoration(color: SellerColors.blue,
       borderRadius: BorderRadius.circular(20)),
     child: Row(children: [
       _step('−', 'Уменьшить количество', count > 1 ? count-1 : null),

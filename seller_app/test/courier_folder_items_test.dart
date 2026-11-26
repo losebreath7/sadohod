@@ -55,4 +55,38 @@ void main() {
     expect(removed,'Брюки');
     expect(tester.takeException(),isNull);
   });
+  testWidgets('collected products move behind pending products in their pavilion and fade to exactly 50 percent', (tester) async {
+    final items = [item('Куртка','А-14'), item('Брюки','А-14'), item('Сумка','Б-08')];
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:Padding(
+      padding:const EdgeInsets.all(30),
+      child:StatefulBuilder(builder:(context,setState)=>CourierFolderItems(
+        items:items, baseUrl:'https://example.com',
+        onOpen:(_) async {},
+        onQuantity:(_,_) async {},
+        onRemove:(_) async {},
+        onCollected:(entry) async {
+          setState(()=>entry['collected'] = entry['collected'] != true);
+        },
+      )),
+    ))));
+    final opacity = find.byKey(const ValueKey('folder-item-opacity-Куртка'));
+    expect(tester.widget<AnimatedOpacity>(opacity).opacity,1.0);
+    expect(tester.getTopLeft(find.text('Куртка')).dy,lessThan(tester.getTopLeft(find.text('Брюки')).dy));
+    await tester.drag(find.text('Куртка'),const Offset(-135,0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Собрано'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AnimatedOpacity>(opacity).opacity,0.5);
+    expect(tester.getTopLeft(find.text('Куртка')).dy,greaterThan(tester.getTopLeft(find.text('Брюки')).dy));
+    expect(tester.getTopLeft(find.text('Куртка')).dy,lessThan(tester.getTopLeft(find.text('Б-08')).dy));
+    expect(find.text('А-14'),findsOneWidget);
+    await tester.drag(find.text('Куртка'),const Offset(-135,0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Снять отметку'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AnimatedOpacity>(opacity).opacity,1.0);
+    expect(tester.getTopLeft(find.text('Куртка')).dy,lessThan(tester.getTopLeft(find.text('Брюки')).dy));
+    expect(tester.takeException(),isNull);
+  });
+
 }
