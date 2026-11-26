@@ -190,6 +190,33 @@ void main() {
     expect(find.text('избранное'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('favorites navigation shortcut uses the profile icon and opens guide',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const SadohodApp());
+    appRouter.go('/favorites');
+    await tester.pumpAndSettle();
+    final shortcut = find.byTooltip('Навигация');
+    expect(shortcut, findsOneWidget);
+    final icon = find.descendant(
+      of: shortcut,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is DesignIcon &&
+          widget.file == 'v082_menu_location',
+      ),
+    );
+    expect(icon, findsOneWidget);
+    expect(find.byTooltip('Фильтры избранного'), findsNothing);
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.text('навигация'), findsWidgets);
+    expect(appRouter.routeInformationProvider.value.uri.path, '/navigation');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('product push keeps navigation and back returns to catalogue', (
     tester,
   ) async {
