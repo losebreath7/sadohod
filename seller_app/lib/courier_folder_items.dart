@@ -141,20 +141,28 @@ class _FolderProductRow extends StatelessWidget {
                 : SadohodProductPhoto(path: photo))),
           const SizedBox(width: 10),
           Expanded(child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: Align(
+                alignment: Alignment.topLeft,
+                child: Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
                   key: ValueKey('folder-item-title-$id'),
                   maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14,
-                    color: textColor, height: 1.2)),
-                if (price is num) Text(approximateRubles(price.toInt()),
-                  key: ValueKey('folder-item-price-$id'),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12,
-                    fontWeight: FontWeight.w700, color: textColor)),
-              ]),
+                    color: textColor, height: 1.12)),
+              )),
+              if (price is num)
+                SizedBox(height: 16, child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.bottomLeft,
+                    child: Text(approximateRubles(price.toInt()),
+                      key: ValueKey('folder-item-price-$id'),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12,
+                        height: 1.1, fontWeight: FontWeight.w700, color: textColor)),
+                  ),
+                )),
+            ]),
           )),
           const SizedBox(width: 8),
           // Reserve counter geometry even while it fades: no text reflow.

@@ -119,4 +119,35 @@ void main() {
     expect(tester.takeException(),isNull);
   });
 
+  for (final width in [320.0, 390.0, 430.0]) {
+    for (final scale in [1.0, 1.3]) {
+      testWidgets('long title fits with visible price at width $width scale $scale', (tester) async {
+        tester.view.physicalSize = Size(width,844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final entry = item('Верхняя одежда · образец 121 — очень длинное название товара', 'А-14');
+        final id = entry['product_id'];
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: MediaQuery(
+          data: MediaQueryData(size: Size(width,844), textScaler: TextScaler.linear(scale)),
+          child: CourierFolderItems(
+            items:[entry], baseUrl:'https://example.com',
+            onOpen:(_) async {}, onQuantity:(_,_) async {}, onCollected:(_) async {}, onRemove:(_) async {},
+          ),
+        ))));
+        final photo = find.byKey(ValueKey('folder-item-photo-$id'));
+        final title = find.byKey(ValueKey('folder-item-title-$id'));
+        final price = find.byKey(ValueKey('folder-item-price-$id'));
+        final bounds = tester.getRect(photo);
+        expect(tester.getRect(price).bottom, lessThanOrEqualTo(bounds.bottom));
+        expect(tester.getRect(title).bottom, lessThanOrEqualTo(tester.getRect(price).top + .01));
+        expect(tester.takeException(), isNull);
+        await tester.drag(title, const Offset(-130,0));
+        await tester.pumpAndSettle();
+        expect(tester.getRect(price).bottom, lessThanOrEqualTo(bounds.bottom));
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
 }

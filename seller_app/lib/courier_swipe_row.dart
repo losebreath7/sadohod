@@ -34,6 +34,8 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
   late final AnimationController position;
   bool dragging = false;
   double target = 0;
+  double dragOrigin = 0;
+  double dragStartPosition = 0;
 
   @override
   void initState() {
@@ -77,6 +79,8 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
 
   void start(DragStartDetails details) {
     position.stop();
+    dragOrigin = details.globalPosition.dx;
+    dragStartPosition = position.value;
     setState(() => dragging = true);
     // Claim this row at gesture start; any other row closes immediately.
     widget.onReveal(true);
@@ -84,16 +88,15 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
 
   void update(DragUpdateDetails details) {
     if (!dragging) return;
-    position.value = (position.value - details.delta.dx / widget.travel)
+    position.value = (dragStartPosition + (dragOrigin - details.globalPosition.dx) / widget.travel)
         .clamp(0.0, 1.0).toDouble();
   }
 
   void end(DragEndDetails details) {
     if (!dragging) return;
     final velocity = details.primaryVelocity ?? 0;
-    final projected = position.value - velocity * .12 / widget.travel;
-    final open = position.value > .05 &&
-        (velocity < -450 || (velocity <= 450 && projected >= .5));
+    final open = velocity < -450 ? position.value >= .15
+        : velocity > 450 ? false : position.value >= .5;
     setState(() => dragging = false);
     settle(open, velocity);
     widget.onReveal(open);
@@ -129,7 +132,15 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
     child: LayoutBuilder(builder: (context, constraints) {
       final contentWidth = (constraints.maxWidth - widget.closedLeft -
           widget.closedRight).clamp(0.0, constraints.maxWidth).toDouble();
-      return AnimatedBuilder(animation: position, builder: (context, _) {
+      // The recognizer stays in fixed screen coordinates while its child moves.
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        dragStartBehavior: DragStartBehavior.down,
+        onHorizontalDragStart: widget.busy ? null : start,
+        onHorizontalDragUpdate: widget.busy ? null : update,
+        onHorizontalDragEnd: widget.busy ? null : end,
+        onHorizontalDragCancel: cancel,
+        child: AnimatedBuilder(animation: position, builder: (context, _) {
         final t = position.value;
         final left = widget.closedLeft + (widget.openLeft-widget.closedLeft)*t;
         final openRight = widget.actionInset + CourierSwipeAction.reveal;
@@ -153,7 +164,6 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
           Positioned(left: left, right: right, top: 0, bottom: 0,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              dragStartBehavior: DragStartBehavior.down,
               onTap: widget.busy ? null : () {
                 if (position.value > .001) {
                   settle(false);
@@ -162,10 +172,6 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
                   widget.onOpen();
                 }
               },
-              onHorizontalDragStart: widget.busy ? null : start,
-              onHorizontalDragUpdate: widget.busy ? null : update,
-              onHorizontalDragEnd: widget.busy ? null : end,
-              onHorizontalDragCancel: cancel,
               child: DecoratedBox(
                 key: widget.surfaceKey,
                 decoration: BoxDecoration(
@@ -181,7 +187,8 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
             ),
           ),
         ]));
-      });
+      }),
+      );
     }),
   );
 }
