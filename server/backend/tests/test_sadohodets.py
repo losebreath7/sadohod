@@ -73,6 +73,14 @@ def test_client_folders_isolation_and_independent_collected_state(setup):
     assert c.patch(item, headers=a, json={'note':'две, размер М'}).json()['collected']
     assert c.put(item, headers=a).json()['added'] is False
     assert c.get(first, headers=a).json()['items'][0]['note'] == 'две, размер М'
+    assert c.get(first, headers=a).json()['items'][0]['quantity'] == 1
+    assert c.patch(item, headers=a, json={'quantity': 3}).json()['quantity'] == 3
+    assert c.get(first, headers=a).json()['items'][0]['quantity'] == 3
+    assert c.get(second, headers=a).json()['items'][0]['quantity'] == 1
+    assert c.patch(item, headers=b, json={'quantity': 4}).status_code == 404
+    for invalid in (0, -1, 1000, 1.5, True):
+        assert c.patch(item, headers=a, json={'quantity': invalid}).status_code == 422
+    assert c.get(first, headers=a).json()['items'][0]['collected'] is True
     assert c.get(second, headers=a).json()['items'][0]['note'] == ''
     assert c.put(item, headers=a).json()['collected']
     assert len(c.get(first, headers=a).json()['items']) == 1

@@ -172,6 +172,7 @@ class CreateFolderInput(FolderInput):
 class ItemUpdateInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     collected: bool | None = None
+    quantity: int | None = Field(default=None, ge=1, le=999, strict=True)
     note: str | None = Field(default=None, max_length=250)
 
 
@@ -243,7 +244,7 @@ def get_folder(folder_id: str, buyer: Buyer = Depends(current_buyer), db: Sessio
         products = {p.id: serialize_product(p) for p in db.scalars(
             product_query().where(Product.id.in_([i.product_id for i in items]))).unique()}
     return {**folder_data(row), 'items': [
-        {'product_id': i.product_id, 'collected': i.collected, 'note': i.note, 'added_at': i.added_at,
+        {'product_id': i.product_id, 'collected': i.collected, 'quantity': i.quantity, 'note': i.note, 'added_at': i.added_at,
          'product': products.get(i.product_id), 'available': i.product_id in products} for i in items]}
 
 
@@ -285,7 +286,7 @@ def add_folder_item(folder_id: str, product_id: str, buyer: Buyer = Depends(curr
         db.add(item)
     touch_profile(db, buyer.id)
     db.commit()
-    return {'product_id': item.product_id, 'collected': item.collected, 'added': added}
+    return {'product_id': item.product_id, 'collected': item.collected, 'quantity': item.quantity, 'added': added}
 
 
 @router.patch('/me/folders/{folder_id}/items/{product_id}')
@@ -295,13 +296,15 @@ def mark_folder_item(folder_id: str, product_id: str, body: ItemUpdateInput,
     item = db.get(SadohodetsFolderItem, (row.id, product_id))
     if item is None:
         raise HTTPException(404, 'Товар не найден в папке.')
+    if body.quantity is not None:
+        item.quantity = body.quantity
     if body.collected is not None:
         item.collected = body.collected
     if body.note is not None:
         item.note = body.note.strip()
     touch_profile(db, buyer.id)
     db.commit()
-    return {'product_id': product_id, 'collected': item.collected}
+    return {'product_id': product_id, 'collected': item.collected, 'quantity': item.quantity}
 
 
 @router.delete('/me/folders/{folder_id}/items/{product_id}')

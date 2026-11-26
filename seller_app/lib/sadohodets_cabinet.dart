@@ -15,6 +15,7 @@ import 'seller_settings.dart';
 import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'courier_product_screen.dart';
+import 'courier_folder_items.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'courier_navigation_guide.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
@@ -235,23 +236,6 @@ class _CabinetState extends State<SadohodetsCabinet>
     await run(() => addToFolder(id, pid));
   }
 
-  String imageUrl(Map p) {
-    final images = p['images'] as List? ?? [];
-    final raw = (images.isEmpty ? p['image'] : images.first)?.toString() ?? '';
-    return raw.startsWith('/') ? '${widget.api.baseUrl}$raw' : raw;
-  }
-
-  Widget productPhoto(Map p) => imageUrl(p).isEmpty
-      ? const ColoredBox(
-          color: Color(0xffdddddd),
-          child: Center(child: Icon(Icons.image_outlined)),
-        )
-      : Image.network(
-          imageUrl(p),
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) =>
-              const Center(child: Icon(Icons.image_outlined)),
-        );
   Widget productCard(Map p) {
     final offers = p['offers'] as List? ?? const [];
     final offer = offers.isEmpty ? null : offers.first as Map?;
@@ -663,20 +647,6 @@ class _CabinetState extends State<SadohodetsCabinet>
     );
   }
 
-  Future<void> addProduct() async {
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (_) => _ProductPicker(api: widget.api),
-    );
-    if (selected == null || !mounted || folder == null) return;
-    await run(() async {
-      final id = '${folder!['id']}';
-      await api.addItem(id, selected);
-      folder = await api.folder(id);
-      folders = await api.folders();
-    });
-  }
-
   Widget field(String title, TextEditingController c, {int lines = 1}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -750,9 +720,19 @@ class _CabinetState extends State<SadohodetsCabinet>
                               if (settings) ...[
                                 action('Выйти из аккаунта', signOut),
                               ] else if (folder != null) ...[
-                                if ((folder!['note'] ?? '').toString().trim().isNotEmpty)
-                                  Text('${folder!['note']}'),
-                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(child: Text(
+                                    (folder!['note'] ?? '').toString(),
+                                    style: const TextStyle(fontSize: 14, color: SellerColors.brown),
+                                  )),
+                                  Semantics(label: 'Редактировать папку', button: true,
+                                    child: InkWell(onTap: () => editFolder(folder),
+                                      child: const SizedBox(width: 36, height: 36,
+                                        child: Center(child: Icon(Icons.edit, size: 14, color: SellerColors.brown))),
+                                    ),
+                                  ),
+                                ]),
+                                const SizedBox(height: 4),
                                 SizedBox(height: 48, child: OutlinedButton(
                                   onPressed: busy ? null : openClientContact,
                                   style: OutlinedButton.styleFrom(
@@ -768,17 +748,21 @@ class _CabinetState extends State<SadohodetsCabinet>
                                   ]),
                                 )),
                                 const SizedBox(height: 8),
-                                TextButton(
-                                  onPressed: () => editFolder(folder),
-                                  child: const Text('Редактировать'),
-                                ),
                                 action('Добавить по ссылке', addLink),
-                                TextButton(
-                                  onPressed: addProduct,
-                                  child: const Text('Найти в каталоге'),
+                                const SizedBox(height: 46),
+                                CourierFolderItems(
+                                  key: ValueKey(folder!['id']),
+                                  items: (folder!['items'] as List).cast<Map>(),
+                                  baseUrl: widget.api.baseUrl,
+                                  busy: busy,
+                                  onOpen: (item) async {
+                                    final product = item['product'];
+                                    if (product is Map) await openProduct(product);
+                                  },
+                                  onQuantity: (item, value) => updateFolderItem(item, quantity: value),
+                                  onCollected: (item) => updateFolderItem(item, collected: item['collected'] != true),
+                                  onRemove: (item) => updateFolderItem(item, remove: true),
                                 ),
-                                for (final raw in folder!['items'])
-                                  _item(raw as Map),
                               ] else if (showFolders) ...[
                                 action('Создать папку', () => editFolder()),
                                 for (final f in folders)
@@ -865,165 +849,23 @@ class _CabinetState extends State<SadohodetsCabinet>
       tabBar(),
     ],
   );
-  Widget _item(Map item) {
-    final product = item['product'] as Map?;
-    final images = product?['images'] as List? ?? [];
-    final url = images.isEmpty ? '' : images.first.toString();
-    final id = '${folder!['id']}';
-    final pid = '${item['product_id']}';
-    final addresses = (product?['offers'] as List? ?? [])
-        .map((o) => o['pavilion']?['code'])
-        .whereType<String>()
-        .toSet()
-        .join(', ');
-    final note = item['note']?.toString() ?? '';
-    final title = product?['title']?.toString() ?? '';
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: SizedBox(
-        width: 48,
-        height: 54,
-        child: product == null || url.isEmpty
-            ? const Icon(Icons.image_not_supported_outlined)
-            : productPhoto(product),
-      ),
-      title: Text(
-        title.isNotEmpty ? title : product?['category'] ?? 'Товар недоступен',
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (addresses.isNotEmpty) Text(addresses),
-          if (product?['price'] is num) Text(approximateRubles((product!['price'] as num).toInt())),
-          TextButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    final value = await askText(
-                      'Заметка к товару',
-                      initial: note,
-                    );
-                    if (value != null && mounted)
-                      await run(() async {
-                        await api.saveNote(id, pid, value);
-                        folder = await api.folder(id);
-                      });
-                  },
-            child: Text(note.isEmpty ? 'Добавить заметку' : note),
-          ),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Checkbox(
-            semanticLabel: 'Собрано',
-            value: item['collected'] == true,
-            onChanged: busy
-                ? null
-                : (v) => run(() async {
-                    await api.setCollected(id, pid, v!);
-                    folder = await api.folder(id);
-                    folders = await api.folders();
-                  }),
-          ),
-          IconButton(
-            tooltip: 'Убрать из папки',
-            onPressed: busy
-                ? null
-                : () => run(() async {
-                    await api.removeItem(id, pid);
-                    folder = await api.folder(id);
-                    folders = await api.folders();
-                  }),
-            icon: const Icon(Icons.close, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProductPicker extends StatefulWidget {
-  const _ProductPicker({required this.api});
-  final SellerApi api;
-  @override
-  State<_ProductPicker> createState() => _ProductPickerState();
-}
-
-class _ProductPickerState extends State<_ProductPicker> {
-  final query = TextEditingController();
-  List items = [];
-  bool busy = false;
-  String? error;
-  @override
-  void dispose() {
-    query.dispose();
-    super.dispose();
-  }
-
-  Future<void> search() async {
-    if (query.text.trim().isEmpty) return;
-    setState(() {
-      busy = true;
-      error = null;
+  Future<void> updateFolderItem(Map item, {int? quantity, bool? collected, bool remove = false}) async {
+    if (busy || folder == null) return;
+    final id = folder!['id'].toString();
+    final pid = item['product_id'].toString();
+    await run(() async {
+      if (remove) {
+        await api.removeItem(id, pid);
+      } else if (quantity != null) {
+        await api.setQuantity(id, pid, quantity);
+      } else if (collected != null) {
+        await api.setCollected(id, pid, collected);
+      }
+      folder = await api.folder(id);
+      folders = await api.folders();
     });
-    try {
-      final r = await widget.api.call(
-        '/search/text?q=${Uri.encodeQueryComponent(query.text.trim())}&limit=100',
-      );
-      if (mounted) setState(() => items = r['items'] as List? ?? []);
-    } catch (e) {
-      if (mounted) setState(() => error = e.toString());
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
   }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Добавить товар'),
-    content: SizedBox(
-      width: 340,
-      height: 360,
-      child: Column(
-        children: [
-          TextField(
-            controller: query,
-            onSubmitted: (_) => search(),
-            decoration: InputDecoration(
-              hintText: 'Поиск',
-              suffixIcon: IconButton(
-                onPressed: busy ? null : search,
-                icon: const Icon(Icons.search),
-              ),
-            ),
-          ),
-          if (busy) const LinearProgressIndicator(),
-          if (error != null) Text(error!),
-          Expanded(
-            child: ListView(
-              children: [
-                for (final item in items)
-                  ListTile(
-                    title: Text('${item['title'] ?? ''}'),
-                    onTap: () => Navigator.pop(context, '${item['id']}'),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Отмена'),
-      ),
-    ],
-  );
 }
-
 
 /// The open folder has the same full-bleed compact header geometry as
 /// the buyer product page. The header owns the top inset exactly once.

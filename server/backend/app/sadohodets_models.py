@@ -30,10 +30,12 @@ class SadohodetsFolder(Base):
 
 class SadohodetsFolderItem(Base):
     __tablename__ = 'sadohodets_folder_items'
+    __table_args__ = (CheckConstraint('quantity >= 1 AND quantity <= 999', name='ck_sadohodets_item_quantity'),)
     folder_id: Mapped[str] = mapped_column(ForeignKey('sadohodets_folders.id', ondelete='CASCADE'), primary_key=True)
     product_id: Mapped[str] = mapped_column(ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
     note: Mapped[str] = mapped_column(String(250), default='', server_default='')
     collected: Mapped[bool] = mapped_column(Boolean, default=False)
+    quantity: Mapped[int] = mapped_column(Integer, default=1, server_default='1')
     added_at: Mapped[float] = mapped_column(Float)
 
 

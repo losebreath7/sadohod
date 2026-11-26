@@ -116,6 +116,10 @@ class SadohodetsApi {
     );
   }
 
+  Future<void> setQuantity(String folder, String product, int quantity) async {
+    await api.call(itemPath(folder, product), method: 'PATCH', body: {'quantity': quantity});
+  }
+
   Future<void> saveNote(String folder, String product, String note) async {
     await api.call(
       itemPath(folder, product),
