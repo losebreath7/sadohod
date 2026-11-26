@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sadohod_shared_core/public_seller_body.dart';
-import '../../core/widgets/common.dart';
 import '../../core/widgets/design.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/account.dart';
