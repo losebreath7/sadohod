@@ -89,4 +89,34 @@ void main() {
     expect(tester.takeException(),isNull);
   });
 
+  testWidgets('Figma full-bleed swipe keeps title and price readable at the screen edge', (tester) async {
+    tester.view.physicalSize = const Size(390,844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: CourierFolderItems(
+      items:[item('Куртка','А-14'),item('Брюки','А-14')], baseUrl:'https://example.com',
+      onOpen:(_) async {}, onQuantity:(_,_) async {}, onCollected:(_) async {}, onRemove:(_) async {},
+    ))));
+    final title = find.byKey(const ValueKey('folder-item-title-Куртка'));
+    final price = find.byKey(const ValueKey('folder-item-price-Куртка'));
+    final photo = find.byKey(const ValueKey('folder-item-photo-Куртка'));
+    final address = tester.getRect(find.text('А-14'));
+    expect(tester.getTopLeft(photo).dx,15);
+    expect(tester.getTopLeft(title).dx,81);
+    expect(tester.getTopLeft(price).dx,81);
+    await tester.drag(title,const Offset(-135,0));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(photo).dx,-45);
+    expect(tester.getTopLeft(title).dx,21);
+    expect(tester.getTopLeft(price).dx,21);
+    expect(tester.getRect(find.text('А-14')),address);
+    expect(tester.getBottomRight(find.bySemanticsLabel('Удалить товар')).dx,380);
+    await tester.drag(find.text('Брюки'),const Offset(-135,0));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(title).dx,81);
+    expect(find.bySemanticsLabel('Удалить товар'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+  });
+
 }

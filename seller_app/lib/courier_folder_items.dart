@@ -59,8 +59,9 @@ class _CourierFolderItemsState extends State<CourierFolderItems> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (var g = 0; g < groups.length; g++) ...[
         if (g > 0) const SizedBox(height: 26),
-        Text(groups[g].address, style: BuyerProductType.catalogAddress.copyWith(
-          color: SellerColors.brown, fontSize: 14, fontWeight: FontWeight.w700)),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Text(groups[g].address, style: BuyerProductType.catalogAddress.copyWith(
+            color: SellerColors.brown, fontSize: 14, fontWeight: FontWeight.w800))),
         const SizedBox(height: 12),
         for (var i = 0; i < groups[g].items.length; i++) ...[
           if (i > 0) const SizedBox(height: 12),
@@ -69,7 +70,10 @@ class _CourierFolderItemsState extends State<CourierFolderItems> {
             item: groups[g].items[i],
             baseUrl: widget.baseUrl, busy: widget.busy,
             opened: openId == groups[g].items[i]['product_id'].toString(),
-            onReveal: (show) => setState(() => openId = show ? groups[g].items[i]['product_id'].toString() : null),
+            onReveal: (show) => setState(() {
+              final id = groups[g].items[i]['product_id'].toString();
+              if (show) { openId = id; } else if (openId == id) { openId = null; }
+            }),
             onOpen: () => widget.onOpen(groups[g].items[i]),
             onQuantity: (n) => widget.onQuantity(groups[g].items[i], n),
             onCollected: () async {
@@ -103,10 +107,23 @@ class _FolderProductRow extends StatefulWidget {
 }
 
 class _FolderProductRowState extends State<_FolderProductRow> {
+  // Figma image 24/25: 332px visible phone, scaled to the 390px app.
+  // Closed: photo x=15, title x=83, counter ends at x=360.
+  // Open: title x=21, actions end at x=380; clip at actual screen edge.
   static const double rowHeight = CourierSwipeAction.height;
   static const double revealWidth = CourierSwipeAction.reveal;
+  static const double closedLeft = 15;
+  static const double openLeft = -45;
+  static const double closedRight = 30;
+  static const double openRight = 10 + revealWidth;
   double? drag;
   double get shift => drag ?? (widget.opened ? revealWidth : 0);
+
+  @override
+  void didUpdateWidget(covariant _FolderProductRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.opened && !widget.opened) drag = null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,80 +136,108 @@ class _FolderProductRowState extends State<_FolderProductRow> {
     final price = product?['price'];
     final count = (widget.item['quantity'] as num?)?.toInt().clamp(1,999).toInt() ?? 1;
     final collected = widget.item['collected'] == true;
-    const textColor = SellerColors.brown;
-    return SizedBox(height: rowHeight, child: ClipRect(child: Stack(children: [
-      if (widget.opened || drag != null)
-        Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
-        CourierSwipeAction(collect: true, checked: collected, label: collected ? 'Снять отметку' : 'Собрано',
-          onTap: widget.busy ? null : widget.onCollected),
-        const SizedBox(width: CourierSwipeAction.gap),
-        CourierSwipeAction(remove: true, label: 'Удалить товар', onTap: widget.busy ? null : widget.onRemove),
-      ])),
-      Positioned.fill(child: TweenAnimationBuilder<double>(
-        tween: Tween(end: shift),
-        duration: drag == null ? SadohodMotion.standard : Duration.zero,
-        builder: (context, x, child) => Transform.translate(offset: Offset(-x, 0), child: child),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: widget.busy ? null : (_) => setState(() => drag = shift),
-          onHorizontalDragUpdate: widget.busy ? null : (d) => setState(() => drag = (shift - d.delta.dx).clamp(0.0, revealWidth).toDouble()),
-          onHorizontalDragEnd: widget.busy ? null : (d) {
-            final open = d.primaryVelocity != null && d.primaryVelocity!.abs() > 300
-                ? d.primaryVelocity! < 0 : shift > revealWidth / 2;
-            setState(() => drag = null);
-            widget.onReveal(open);
-          },
-          onHorizontalDragCancel: () => setState(() => drag = null),
-          child: AnimatedOpacity(
-            key: ValueKey('folder-item-opacity-${widget.item['product_id']}'),
-            opacity: collected ? 0.5 : 1.0,
-            duration: SadohodMotion.standard,
-            child: Container(
-            decoration: BoxDecoration(
-              color: widget.opened || drag != null ? const Color(0xffd9d9d9) : SellerColors.background,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(children: [
-              Expanded(child: InkWell(
-                onTap: () { if (widget.opened) { widget.onReveal(false); } else if (product != null) { widget.onOpen(); } },
+    const textColor = Color(0xff343434);
+    final id = widget.item['product_id'];
+    return SizedBox(height: rowHeight, child: TweenAnimationBuilder<double>(
+      tween: Tween(end: shift / revealWidth),
+      duration: drag == null ? SadohodMotion.standard : Duration.zero,
+      builder: (context, progress, _) {
+        final t = progress.clamp(0.0, 1.0).toDouble();
+        final left = closedLeft + (openLeft - closedLeft) * t;
+        final right = closedRight + (openRight - closedRight) * t;
+        return ClipRect(child: Stack(clipBehavior: Clip.hardEdge, children: [
+          if (t > 0.001)
+            Positioned(right: 10 - (1-t)*revealWidth, top: 0, bottom: 0,
+              child: IgnorePointer(ignoring: !widget.opened || drag != null || widget.busy,
                 child: Row(children: [
-                  ClipRRect(borderRadius: BorderRadius.circular(5),
-                    child: SizedBox(width: rowHeight,height: rowHeight,
-                      child: photo.isEmpty
+                  CourierSwipeAction(collect: true, checked: collected,
+                    label: collected ? 'Снять отметку' : 'Собрано',
+                    onTap: widget.busy ? null : widget.onCollected),
+                  const SizedBox(width: CourierSwipeAction.gap),
+                  CourierSwipeAction(remove: true, label: 'Удалить товар',
+                    onTap: widget.busy ? null : widget.onRemove),
+                ]))),
+          Positioned(left: left, right: right, top: 0, bottom: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.busy ? null : () {
+                if (widget.opened) { widget.onReveal(false); }
+                else if (product != null) { widget.onOpen(); }
+              },
+              onHorizontalDragStart: widget.busy ? null : (_) {
+                final start = shift;
+                setState(() => drag = start);
+                widget.onReveal(true);
+              },
+              onHorizontalDragUpdate: widget.busy ? null : (d) => setState(() =>
+                drag = (shift - d.delta.dx).clamp(0.0, revealWidth).toDouble()),
+              onHorizontalDragEnd: widget.busy ? null : (d) {
+                final velocity = d.primaryVelocity ?? 0;
+                final open = velocity.abs() > 300 ? velocity < 0 : shift > revealWidth / 2;
+                setState(() => drag = null);
+                widget.onReveal(open);
+              },
+              onHorizontalDragCancel: () {
+                setState(() => drag = null);
+                widget.onReveal(false);
+              },
+              child: DecoratedBox(
+                key: ValueKey('folder-item-surface-$id'),
+                decoration: BoxDecoration(
+                  color: Color.lerp(SellerColors.background, const Color(0xffd9d9d9), t),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: AnimatedOpacity(
+                  key: ValueKey('folder-item-opacity-$id'),
+                  opacity: collected ? 0.5 : 1.0,
+                  duration: SadohodMotion.standard,
+                  child: Row(children: [
+                    ClipRRect(borderRadius: BorderRadius.circular(5),
+                      child: SizedBox(
+                        key: ValueKey('folder-item-photo-$id'),
+                        width: rowHeight, height: rowHeight,
+                        child: photo.isEmpty
                           ? const ColoredBox(color: Color(0xffdeddd9), child: Icon(Icons.image_outlined, size: 22))
                           : SadohodProductPhoto(path: photo))),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontFamily: SadohodFont.family, fontSize: 14,
-                          color: textColor, height: 1.2)),
-                      if (price is num) Text(approximateRubles(price.toInt()),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: BuyerProductType.catalogPrice.copyWith(color: textColor)),
-                    ])),
-                ]),
-              )),
-              const SizedBox(width: 8),
-              if (!widget.opened && drag == null)
-                _quantity(count)
-              else const SizedBox(width: 96),
-            ]),
-          )),
-        ),
-      )),
-    ])));
+                    const SizedBox(width: 10),
+                    Expanded(child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
+                            key: ValueKey('folder-item-title-$id'),
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14,
+                              color: textColor, height: 1.2)),
+                          if (price is num) Text(approximateRubles(price.toInt()),
+                            key: ValueKey('folder-item-price-$id'),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12,
+                              fontWeight: FontWeight.w700, color: textColor)),
+                        ]),
+                    )),
+                    if (t < 0.15) ...[
+                      const SizedBox(width: 8),
+                      Opacity(opacity: (1 - t / .15).clamp(0.0, 1.0).toDouble(),
+                        child: IgnorePointer(ignoring: t > 0.001, child: _quantity(count))),
+                    ] else const SizedBox(width: 8),
+                  ]),
+                ),
+              ),
+            )),
+        ]));
+      },
+    ));
   }
 
   Widget _quantity(int count) => Container(
-    width: 96, height: 30,
+    width: 90, height: 31,
     decoration: BoxDecoration(color: SellerColors.blue,
       borderRadius: BorderRadius.circular(20)),
     child: Row(children: [
       _step('−', 'Уменьшить количество', count > 1 ? count-1 : null),
       Expanded(child: Text('$count', textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white))),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white))),
       _step('+', 'Увеличить количество', count < 999 ? count+1 : null),
     ]),
   );

@@ -748,12 +748,14 @@ class _CabinetState extends State<SadohodetsCabinet>
                         child: AbsorbPointer(
                           absorbing: busy,
                           child: ListView(
-                            padding: const EdgeInsets.fromLTRB(30, 12, 30, 24),
+                            padding: EdgeInsets.fromLTRB(folder != null ? 0 : 30, 12, folder != null ? 0 : 30, 24),
                             children: [
                               const SizedBox(height: 16),
                               if (settings) ...[
                                 action('Выйти из аккаунта', signOut),
                               ] else if (folder != null) ...[
+                                Padding(padding: const EdgeInsets.symmetric(horizontal: 30),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                                 Row(children: [
                                   Expanded(child: Text(
                                     (folder!['note'] ?? '').toString(),
@@ -792,6 +794,7 @@ class _CabinetState extends State<SadohodetsCabinet>
                                     viewingArchive = false;
                                   });
                                 }),
+                                  ])),
                                 const SizedBox(height: 46),
                                 CourierFolderItems(
                                   key: ValueKey(folder!['id']),
