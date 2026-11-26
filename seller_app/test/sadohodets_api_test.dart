@@ -47,4 +47,14 @@ void main() {
     expect(fake.calls.first['route'], '/sadohodets/me');
     expect(fake.calls.last['body'], {'published': true});
   });
+  test('quantity is independent of collected state', () async {
+    final fake = FakeApi();
+    final api = SadohodetsApi(fake);
+    await api.setQuantity('folder/a', 'item/b', 2);
+    expect(fake.calls.single, {
+      'route': '/sadohodets/me/folders/folder%2Fa/items/item%2Fb',
+      'method': 'PATCH', 'body': {'quantity': 2},
+    });
+  });
+
 }

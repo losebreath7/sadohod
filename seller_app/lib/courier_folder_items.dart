@@ -111,7 +111,8 @@ class _FolderProductRowState extends State<_FolderProductRow> {
     final collected = widget.item['collected'] == true;
     final textColor = collected ? SellerColors.muted : SellerColors.brown;
     return SizedBox(height: rowHeight, child: ClipRect(child: Stack(children: [
-      Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
+      if (widget.opened || drag != null)
+        Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
         _swipeButton(
           color: SellerColors.blue, label: collected ? 'Снять отметку' : 'Собрано',
           icon: collected ? Icons.check_box_outlined : Icons.check_box_outline_blank_rounded,
@@ -120,21 +121,21 @@ class _FolderProductRowState extends State<_FolderProductRow> {
         _swipeButton(color: SellerColors.burgundy, label: 'Удалить товар',
           icon: Icons.delete_outline, onTap: widget.onRemove),
       ])),
-      Positioned.fill(child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragStart: widget.busy ? null : (_) => setState(() => drag = shift),
-        onHorizontalDragUpdate: widget.busy ? null : (d) => setState(() => drag = (shift - d.delta.dx).clamp(0.0, revealWidth).toDouble()),
-        onHorizontalDragEnd: widget.busy ? null : (d) {
-          final open = d.primaryVelocity != null && d.primaryVelocity!.abs() > 300
-              ? d.primaryVelocity! < 0 : shift > revealWidth / 2;
-          setState(() => drag = null);
-          widget.onReveal(open);
-        },
-        onHorizontalDragCancel: () => setState(() => drag = null),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(end: shift),
-          duration: drag == null ? SadohodMotion.standard : Duration.zero,
-          builder: (context, x, child) => Transform.translate(offset: Offset(-x,0), child: child),
+      Positioned.fill(child: TweenAnimationBuilder<double>(
+        tween: Tween(end: shift),
+        duration: drag == null ? SadohodMotion.standard : Duration.zero,
+        builder: (context, x, child) => Transform.translate(offset: Offset(-x, 0), child: child),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: widget.busy ? null : (_) => setState(() => drag = shift),
+          onHorizontalDragUpdate: widget.busy ? null : (d) => setState(() => drag = (shift - d.delta.dx).clamp(0.0, revealWidth).toDouble()),
+          onHorizontalDragEnd: widget.busy ? null : (d) {
+            final open = d.primaryVelocity != null && d.primaryVelocity!.abs() > 300
+                ? d.primaryVelocity! < 0 : shift > revealWidth / 2;
+            setState(() => drag = null);
+            widget.onReveal(open);
+          },
+          onHorizontalDragCancel: () => setState(() => drag = null),
           child: Container(
             decoration: BoxDecoration(
               color: widget.opened || drag != null ? const Color(0xffdeddd9) : SellerColors.background,

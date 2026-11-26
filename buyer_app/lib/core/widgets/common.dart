@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/catalog_widgets.dart';
-import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:go_router/go_router.dart';
 
