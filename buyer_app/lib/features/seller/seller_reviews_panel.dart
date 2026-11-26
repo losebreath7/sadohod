@@ -154,11 +154,11 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     }
     final route = _route;
     final rows = <dynamic>[];
-    Map<String, dynamic>? first;
+    Map<String, dynamic> first = {};
     for (var offset = 0; ; offset += 100) {
       final page = await AccountStore.instance.request(
         '$route/reviews?limit=100&offset=$offset', method: 'GET');
-      first ??= page;
+      if (offset == 0) first = page;
       final items = page['items'] as List? ?? const [];
       rows.addAll(items);
       if (items.length < 100) break;
@@ -334,7 +334,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                 if (error != null)
                   Padding(padding: const EdgeInsets.only(top: 8),
                     child: Text(error!, style: const TextStyle(
-                      color: Color(0xff9b171b), fontSize: 12))),
+                      color: Color(0xff343434), fontSize: 12))),
                 const SizedBox(height: 14),
                 SizedBox(width: double.infinity, height: 44,
                   child: FilledButton(
@@ -443,7 +443,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
 
   bool _isOwnReview(Map<String, dynamic> item) =>
       _signedIn &&
-      _mine != null &&
+      _mine?['id'] != null &&
       item['id']?.toString() == _mine!['id']?.toString();
 
   Future<void> _report(String reviewId) async {
@@ -529,7 +529,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                 if (pending || rejected)
                   Text(rejected ? 'отзыв отклонен' : 'на модерации',
                     style: const TextStyle(fontSize: 8, height: 1.2,
-                      color: Color(0xff9b3030))),
+                      color: Color(0xff6c6c6c))),
                 if (reviewText.isNotEmpty)
                   Expanded(child: Text(reviewText,
                     maxLines: pending || rejected ? 3 : 4,
@@ -577,7 +577,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             Text((item['moderation_status'] == 'rejected' || item['moderation_status'] == 'hidden')
               ? 'отзыв отклонен' : 'на модерации',
               style: const TextStyle(fontSize: 12,
-                color: Color(0xff9b3030))),
+                color: Color(0xff6c6c6c))),
           const SizedBox(height: 8),
           Text(item['text']?.toString() ?? '',
             style: const TextStyle(fontSize: 13)),

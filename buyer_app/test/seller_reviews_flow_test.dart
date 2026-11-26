@@ -467,4 +467,22 @@ void main() {
     expect(tester.takeException(),isNull);
   });
 
+  testWidgets('Courier can delete the existing review and write a new one', (tester) async {
+    Map<String,dynamic>? own = {'id':'mine','name':'Я','rating':4,'text':'Мой отзыв','moderation_status':'pending'};
+    await mountReviews(tester,courier:true,signedIn:true,
+      public:() async => {'average':null,'items':[]},
+      mine:() async => {'item':own},
+      remove:() async { own = null; });
+    await tester.tap(find.byKey(const ValueKey('seller-review-mine')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('удалить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Удалить отзыв?'),findsOneWidget);
+    await tester.tap(find.text('удалить'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('seller-review-mine')),findsNothing);
+    expect(find.byKey(const ValueKey('seller-review-add')),findsOneWidget);
+    expect(tester.takeException(),isNull);
+  });
+
 }
