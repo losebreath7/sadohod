@@ -386,7 +386,7 @@ class _CabinetState extends State<SadohodetsCabinet>
               final result = snapshot.data!;
               final rows = result.products;
               if (rows.isEmpty && result.sellers.isEmpty)
-                return const Center(child: Text('Товары не найдены'));
+                return const Center(child: Text('Ничего не найдено'));
               return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 if(result.sellers.isNotEmpty) SellerSearchStrip(
                   sellers:result.sellers,ink:SellerColors.brown,

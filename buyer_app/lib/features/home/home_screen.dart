@@ -100,6 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _submitSearch(String text) {
     final value = text.trim();
     if (value.isNotEmpty) {
+      if (_pending) {
+        _debounce?.cancel();
+        setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(value); });
+      }
       FocusManager.instance.primaryFocus?.unfocus();
       context.push('/results?q=${Uri.encodeQueryComponent(value)}');
     }

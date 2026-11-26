@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 class SellerSearchHit {
   const SellerSearchHit({required this.id, required this.name, required this.pavilion});
@@ -26,7 +27,9 @@ class SellerSearchStrip extends StatelessWidget {
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
     Text('продавцы',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:ink)),
     const SizedBox(height:10),
-    SizedBox(height:133,child:ListView.separated(
+    SizedBox(height:133,child:ScrollConfiguration(
+      behavior:ScrollConfiguration.of(context).copyWith(dragDevices:{PointerDeviceKind.touch,PointerDeviceKind.mouse,PointerDeviceKind.trackpad,PointerDeviceKind.stylus}),
+      child:ListView.separated(
       scrollDirection:Axis.horizontal,itemCount:sellers.length,
       separatorBuilder:(_,__)=>const SizedBox(width:12),
       itemBuilder:(context,i){
@@ -47,7 +50,7 @@ class SellerSearchStrip extends StatelessWidget {
           ),
         );
       },
-    )),
+    ))),
     const SizedBox(height:20),
   ]);
 }

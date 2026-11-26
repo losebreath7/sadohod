@@ -55,8 +55,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _load() {
     _imageSearch = widget.query == null ? null : CatalogApi.instance.searchImage(widget.query!.bytes, crop: widget.query!.crop);
-    _allProducts = widget.query == null && widget.textQuery.trim().isNotEmpty
-      ? _searchAndRecord(widget.textQuery)
+    _allProducts = widget.query == null && _text.text.trim().isNotEmpty
+      ? _searchAndRecord(_text.text.trim())
       : CatalogApi.instance.searchCatalog('');
   }
 
