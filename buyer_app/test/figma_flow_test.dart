@@ -11,6 +11,7 @@ import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
 import 'package:sadohod/features/account/favorites_screen.dart';
 import 'package:sadohod/features/account/market_navigation_guide.dart';
+import 'package:sadohod/core/widgets/filters.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -193,7 +194,7 @@ void main() {
     expect(find.text('избранное'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('favorites navigation shortcut uses the profile icon and opens guide',
+  testWidgets('favorites location glyph opens tags, preserves selection, and stays on the same screen',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -201,16 +202,14 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final router = GoRouter(initialLocation: '/favorites', routes: [
       GoRoute(path: '/favorites',
-        builder: (_, _) => const Scaffold(
-          body: FavoritesNavigationButton(),
-        )),
+        builder: (_, _) => const Scaffold(body: FavoritesScreen())),
       GoRoute(path: '/navigation',
         builder: (_, _) => const MarketNavigationGuideScreen()),
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
-    final shortcut = find.byTooltip('Навигация');
+    final shortcut = find.byTooltip('Фильтры избранного');
     expect(shortcut, findsOneWidget);
     expect(find.descendant(
       of: shortcut,
@@ -219,10 +218,25 @@ void main() {
           widget.file == 'v082_menu_location',
       ),
     ), findsOneWidget);
-    expect(find.byTooltip('Фильтры избранного'), findsNothing);
     await tester.tap(shortcut);
     await tester.pumpAndSettle();
-    expect(find.byType(MarketNavigationGuideScreen), findsOneWidget);
+    expect(find.byType(MarketNavigationGuideScreen), findsNothing);
+    final panel = find.byType(MarketFilters);
+    expect(panel, findsOneWidget);
+    expect(find.text('один магазин'), findsOneWidget);
+    expect(find.text('корпус А'), findsOneWidget);
+    await tester.tap(find.text('корпус А'));
+    await tester.tap(find.text('один магазин'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<MarketFilters>(panel).selectedZones, contains('корпус А'));
+    expect(tester.widget<MarketFilters>(panel).oneStore, isTrue);
+    await tester.tap(find.descendant(of: panel, matching: find.byIcon(Icons.close)));
+    await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(tester.widget<MarketFilters>(panel).selectedZones, contains('корпус А'));
+    expect(tester.widget<MarketFilters>(panel).oneStore, isTrue);
     expect(tester.takeException(), isNull);
   });
 

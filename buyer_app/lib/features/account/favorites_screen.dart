@@ -8,15 +8,15 @@ import '../../data/account.dart';
 import '../../data/api.dart';
 import '../../data/catalog.dart';
 
-/// Reuse the exact icon from the buyer profile navigation menu.
-/// The shortcut is kept separate so its route can be tested offline.
-class FavoritesNavigationButton extends StatelessWidget {
-  const FavoritesNavigationButton({super.key});
+/// Keep the approved location glyph, but use it to open favourites filters.
+class FavoritesFilterButton extends StatelessWidget {
+  const FavoritesFilterButton({super.key, required this.onPressed});
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    onPressed: () => context.push('/navigation'),
-    tooltip: 'Навигация',
+    onPressed: onPressed,
+    tooltip: 'Фильтры избранного',
     icon: const SizedBox(
       width: 22, height: 22,
       child: DesignIcon('v082_menu_location'),
@@ -137,7 +137,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 Row(children: [
                   const Expanded(child: Text('избранное',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-                  const FavoritesNavigationButton(),
+                  FavoritesFilterButton(onPressed: () => setState(() => _filters = true)),
                 ]),
               SizedBox(height: widget.sellers ? 0 : 15),
               if (!a.signedIn)

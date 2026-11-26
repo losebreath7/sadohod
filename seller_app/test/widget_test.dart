@@ -246,6 +246,28 @@ void main() {
     expect(find.text('Незавершённый товар восстановлен'), findsNothing);
   });
 
+  testWidgets('Shop has only bulk select at the right edge and keeps pavilion selection',
+      (tester) async {
+    await openFrame(tester, '366:17044');
+    final selection = find.byKey(const ValueKey('seller-bulk-select'));
+    expect(selection, findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+    expect(find.bySemanticsLabel('Дополнительные действия'), findsNothing);
+    expect(tester.getTopRight(selection).dx, closeTo(360, 1));
+    final dynamic state = tester.state(find.byType(SellerV3));
+    final expectedPavilion = state.pavilion['id'].toString();
+    await tester.tap(selection);
+    await tester.pumpAndSettle();
+    expect(state.selecting, isTrue);
+    expect(state.selectionPavilionId, expectedPavilion);
+    expect(find.textContaining('выбрать все'), findsOneWidget);
+    await tester.tap(find.textContaining('выбрать все'));
+    await tester.pumpAndSettle();
+    expect(state.selected, isNotEmpty);
+    expect(find.byKey(const ValueKey('selection-actions-bar')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Shop search actually filters products', (tester) async {
     await openFrame(tester, '440:713');
     await tester.enterText(find.byType(TextField), 'несуществующий товар');

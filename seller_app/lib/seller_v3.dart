@@ -3101,6 +3101,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                   ),
                 tap(
                   SizedBox(
+                    key: const ValueKey('seller-bulk-select'),
                     width: 24,
                     height: 24,
                     child: Center(
@@ -3115,16 +3116,8 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
                         ? '${pavilion['id']}'
                         : null;
                   }),
+                  name: 'Выбрать товары',
                 ),
-                if (shop)
-                  tap(
-                    const SizedBox(width: 24, height: 24,
-                      child: Center(child: Icon(Icons.more_horiz, size: 22))),
-                    () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Функция в разработке'),
-                        duration: Duration(seconds: 2))),
-                    name: 'Дополнительные действия',
-                  ),
               ],
             ),
             if (!searching) ...[
