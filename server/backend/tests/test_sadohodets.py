@@ -172,3 +172,29 @@ def test_private_client_link_roundtrip_and_validation(setup):
     for invalid in ('javascript:alert(1)', 'https://', 'http://example.com', 'https://user@example.com', 'https://example.com/a b'):
         assert c.put(path, headers=a, json={'name': 'Клиент', 'client_link': invalid}).status_code == 422
     assert c.put(path, headers=a, json={'name': 'Клиент', 'client_link': ''}).json()['client_link'] == ''
+
+
+def test_folder_archive_is_private_and_reversible(setup):
+    c, codes, sessions = setup
+    a = login(c, codes, 'archive-a@example.com')
+    b = login(c, codes, 'archive-b@example.com')
+    for headers in (a, b):
+        assert c.put(ROOT, headers=headers, json={'name': 'Садоходец'}).status_code == 200
+    base = ROOT + '/folders'
+    r = c.post(base, headers=a, json={'name': 'Клиент', 'note': 'Сохранить', 'client_link': 'https://t.me/example_client'})
+    assert r.status_code == 201, r.text
+    folder_id = r.json()['id']
+    path = base + '/' + folder_id
+    assert r.json()['archived'] is False
+    assert c.patch(path+'/archive', headers=b, json={'archived': True}).status_code == 404
+    assert c.patch(path+'/archive', headers=a, json={'archived': 'yes'}).status_code == 422
+    assert c.patch(path+'/archive', headers=a, json={'archived': True}).json()['archived'] is True
+    assert c.get(base, headers=a).json()['items'] == []
+    assert c.get(base+'?archived=true', headers=b).json()['items'] == []
+    entry = c.get(base+'?archived=true', headers=a).json()['items'][0]
+    assert entry['id'] == folder_id and entry['note'] == 'Сохранить'
+    assert c.get(path, headers=a).json()['client_link'] == 'https://t.me/example_client'
+    assert c.put(path+'/items/unknown', headers=a).status_code == 409
+    assert c.patch(path+'/archive', headers=a, json={'archived': False}).json()['archived'] is False
+    assert c.get(base, headers=a).json()['items'][0]['id'] == folder_id
+    assert c.get(base+'?archived=true', headers=a).json()['items'] == []

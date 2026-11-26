@@ -169,6 +169,11 @@ class CreateFolderInput(FolderInput):
     product_id: str | None = Field(default=None, min_length=1, max_length=32)
 
 
+class FolderArchiveInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    archived: bool = Field(strict=True)
+
+
 class ItemUpdateInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     collected: bool | None = None
@@ -177,7 +182,7 @@ class ItemUpdateInput(BaseModel):
 
 
 def folder_data(row):
-    return {'id': row.id, 'name': row.name, 'note': row.note, 'client_link': row.client_link, 'created_at': row.created_at}
+    return {'id': row.id, 'name': row.name, 'note': row.note, 'client_link': row.client_link, 'archived': row.archived, 'created_at': row.created_at}
 
 
 def owned_folder(db, buyer_id, folder_id):
@@ -196,13 +201,14 @@ def touch_profile(db, buyer_id):
 
 @router.get('/me/folders')
 def list_folders(limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0),
+                 archived: bool = False,
                  buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     own_profile(db, buyer.id)
     count = func.count(SadohodetsFolderItem.product_id)
     done = func.coalesce(func.sum(case((SadohodetsFolderItem.collected.is_(True), 1), else_=0)), 0)
     rows = db.execute(select(SadohodetsFolder, count, done)
         .outerjoin(SadohodetsFolderItem, SadohodetsFolderItem.folder_id == SadohodetsFolder.id)
-        .where(SadohodetsFolder.owner_id == buyer.id)
+        .where(SadohodetsFolder.owner_id == buyer.id, SadohodetsFolder.archived == archived)
         .group_by(SadohodetsFolder.id)
         .order_by(SadohodetsFolder.created_at.desc(), SadohodetsFolder.id)
         .limit(limit).offset(offset)).all()
@@ -259,6 +265,14 @@ def update_folder(folder_id: str, body: FolderInput, buyer: Buyer = Depends(curr
     return folder_data(row)
 
 
+@router.patch('/me/folders/{folder_id}/archive')
+def archive_folder(folder_id: str, body: FolderArchiveInput, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
+    row = owned_folder(db, buyer.id, folder_id)
+    row.archived = body.archived
+    db.commit()
+    return folder_data(row)
+
+
 @router.delete('/me/folders/{folder_id}')
 def remove_folder(folder_id: str, buyer: Buyer = Depends(current_buyer), db: Session = Depends(get_db)):
     row = owned_folder(db, buyer.id, folder_id)
@@ -274,6 +288,8 @@ def add_folder_item(folder_id: str, product_id: str, buyer: Buyer = Depends(curr
     from .api import visible_products
     from .models import Product
     row = owned_folder(db, buyer.id, folder_id)
+    if row.archived:
+        raise HTTPException(409, 'Сначала верните папку из архива.')
     item = db.get(SadohodetsFolderItem, (row.id, product_id))
     added = item is None
     if added:

@@ -50,12 +50,12 @@ class SadohodetsApi {
 
   String folderPath(String id) => '$root/folders/${Uri.encodeComponent(id)}';
 
-  Future<List<Map<String, dynamic>>> folders() async {
+  Future<List<Map<String, dynamic>>> folders({bool archived = false}) async {
     final result = <Map<String, dynamic>>[];
     const limit = 100;
     for (var offset = 0; ; offset += limit) {
       final response = await api.call(
-        '$root/folders?limit=$limit&offset=$offset',
+        '$root/folders?limit=$limit&offset=$offset&archived=$archived',
       );
       final batch = (response['items'] as List).cast<Map<String, dynamic>>();
       result.addAll(batch);
@@ -91,6 +91,10 @@ class SadohodetsApi {
     method: 'PUT',
     body: {'name': name, 'note': note, if (clientLink != null) 'client_link': clientLink},
   );
+
+  Future<void> setArchived(String id, bool archived) async {
+    await api.call('${folderPath(id)}/archive', method: 'PATCH', body: {'archived': archived});
+  }
 
   Future<void> deleteFolder(String id) async {
     await api.call(folderPath(id), method: 'DELETE');

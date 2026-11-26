@@ -25,6 +25,7 @@ class SadohodetsFolder(Base):
     name: Mapped[str] = mapped_column(String(120))
     note: Mapped[str] = mapped_column(Text, default='')
     client_link: Mapped[str] = mapped_column(String(2048), default='', server_default='')
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
     created_at: Mapped[float] = mapped_column(Float)
 
 

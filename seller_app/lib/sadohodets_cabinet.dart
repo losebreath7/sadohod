@@ -15,6 +15,7 @@ import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'courier_product_screen.dart';
 import 'courier_folder_items.dart';
+import 'courier_folder_list.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'courier_navigation_guide.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
@@ -60,6 +61,35 @@ class _CabinetState extends State<SadohodetsCabinet>
   };
   Map<String, dynamic>? profile;
   List<Map<String, dynamic>> folders = [];
+  List<Map<String, dynamic>> archivedFolders = [];
+  bool viewingArchive = false;
+
+  Future<void> refreshFolders() async {
+    final lists = await Future.wait([api.folders(), api.folders(archived: true)]);
+    folders = lists[0];
+    archivedFolders = lists[1];
+  }
+
+  Future<void> archiveFolder(Map entry) async {
+    if (busy) return;
+    final archived = entry['archived'] != true;
+    await run(() async {
+      await api.setArchived(entry['id'].toString(), archived);
+      await refreshFolders();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(archived ? 'Папка в архиве' : 'Папка возвращена из архива'),
+      ));
+    });
+  }
+
+  Future<void> deleteClientFolder(Map entry) async {
+    if (busy || !await confirm('Удалить папку и все товары в ней?')) return;
+    if (!mounted) return;
+    await run(() async {
+      await api.deleteFolder(entry['id'].toString());
+      await refreshFolders();
+    });
+  }
   Map<String, dynamic>? folder;
   final media = <String, Uint8List>{};
   bool busy = true;
@@ -173,7 +203,7 @@ class _CabinetState extends State<SadohodetsCabinet>
   Future<void> addToFolder(String id, String product) async {
     final added = await api.addItem(id, product);
     if (folder?['id'] == id) folder = await api.folder(id);
-    folders = await api.folders();
+    await refreshFolders();
     if (mounted)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(added ? 'Товар добавлен' : 'Уже в папке')),
@@ -431,6 +461,7 @@ class _CabinetState extends State<SadohodetsCabinet>
     setState(() {
       selectedTab = index;
       folder = null;
+      viewingArchive = false;
       settings = false;
       editing = false;
     });
@@ -497,7 +528,7 @@ class _CabinetState extends State<SadohodetsCabinet>
         contacts[k]!.text = values[k]?.toString() ?? '';
       }
       secondPhone = contacts['phone2']!.text.isNotEmpty;
-      folders = await api.folders();
+      await refreshFolders();
       for (final kind in ['avatar', 'cover']) {
         if (p[kind] == null) continue;
         final response = await http
@@ -523,7 +554,7 @@ class _CabinetState extends State<SadohodetsCabinet>
       },
     );
     if (publish) profile = await api.publication(true);
-    folders = await api.folders();
+    await refreshFolders();
   });
   Future<void> pick(String kind) async {
     final image = await ImagePicker().pickImage(
@@ -619,14 +650,14 @@ class _CabinetState extends State<SadohodetsCabinet>
       await ensureProfile();
       if (existing == null) {
         await api.createFolder(client.trim(), note.trim(), productId: product, clientLink: clientContactUri(clientLink)?.toString() ?? '');
-        folders = await api.folders();
+        await refreshFolders();
         if (mounted && product != null)
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Добавлено в папку «${client.trim()}»')),
           );
       } else {
         await api.editFolder(existing['id'], client.trim(), note.trim(), clientLink: clientContactUri(clientLink)?.toString() ?? '');
-        folders = await api.folders();
+        await refreshFolders();
         folder = await api.folder(existing['id']);
       }
     });
@@ -675,7 +706,7 @@ class _CabinetState extends State<SadohodetsCabinet>
             : selectedTab == 2 && !editing && !settings
             ? profileMenu()
             : SafeArea(
-                top: !editing && folder == null,
+                top: !editing && folder == null && !viewingArchive,
                 bottom: false,
                 child: Column(
                   children: [
@@ -690,6 +721,10 @@ class _CabinetState extends State<SadohodetsCabinet>
                           if (!busy) setState(() => folder = null);
                         },
                       ),
+                    if (viewingArchive && folder == null && !editing)
+                      CourierFolderHeader(title: 'архив', onBack: () {
+                        if (!busy) setState(() => viewingArchive = false);
+                      }),
                     if (busy) const LinearProgressIndicator(),
                     if (error != null)
                       Padding(
@@ -747,7 +782,16 @@ class _CabinetState extends State<SadohodetsCabinet>
                                   ]),
                                 )),
                                 const SizedBox(height: 8),
-                                action('Добавить по ссылке', addLink),
+                                if (folder!['archived'] != true)
+                                  action('Добавить по ссылке', addLink)
+                                else action('Вернуть из архива', () async {
+                                  final entry = folder!;
+                                  await archiveFolder(entry);
+                                  if (mounted && error == null) setState(() {
+                                    folder = null;
+                                    viewingArchive = false;
+                                  });
+                                }),
                                 const SizedBox(height: 46),
                                 CourierFolderItems(
                                   key: ValueKey(folder!['id']),
@@ -763,29 +807,31 @@ class _CabinetState extends State<SadohodetsCabinet>
                                   onRemove: (item) => updateFolderItem(item, remove: true),
                                 ),
                               ] else if (showFolders) ...[
-                                action('Создать папку', () => editFolder()),
-                                for (final f in folders)
-                                  ListTile(
-                                    title: Text('${f['name']}'),
-                                    subtitle: Text(
-                                      '${f['note'] ?? ''} • ${f['collected_count']}/${f['count']}',
+                                if (!viewingArchive) ...[
+                                  action('Создать папку', () => editFolder()),
+                                  if (archivedFolders.isNotEmpty)
+                                    CourierArchiveEntry(
+                                      count: archivedFolders.length,
+                                      onTap: () => setState(() => viewingArchive = true),
                                     ),
-                                    onTap: () => run(() async {
-                                      folder = await api.folder('${f['id']}');
-                                    }),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.delete_outline),
-                                      onPressed: () async {
-                                        if (await confirm('Удалить папку?'))
-                                          await run(() async {
-                                            await api.deleteFolder(
-                                              '${f['id']}',
-                                            );
-                                            folders = await api.folders();
-                                          });
-                                      },
-                                    ),
+                                ],
+                                if (viewingArchive && archivedFolders.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 32),
+                                    child: Text('Архив пуст', textAlign: TextAlign.center,
+                                      style: TextStyle(color: SellerColors.muted)),
                                   ),
+                                CourierFolderList(
+                                  key: ValueKey(viewingArchive),
+                                  folders: viewingArchive ? archivedFolders : folders,
+                                  archived: viewingArchive,
+                                  busy: busy,
+                                  onOpen: (entry) => run(() async {
+                                    folder = await api.folder(entry['id'].toString());
+                                  }),
+                                  onArchive: archiveFolder,
+                                  onDelete: deleteClientFolder,
+                                ),
                               ] else ...[
                                 SizedBox(height:181,child:Stack(children:[
                                   GestureDetector(onTap:()=>pick('cover'),child:Container(height:150,width:double.infinity,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:SellerColors.brown,borderRadius:BorderRadius.circular(10)),child:media['cover']==null?const Center(child:Icon(Icons.add_a_photo_outlined,color:Colors.white)):Image.memory(media['cover']!,fit:BoxFit.cover))),
@@ -826,6 +872,8 @@ class _CabinetState extends State<SadohodetsCabinet>
                                           await api.deleteProfile();
                                           profile = null;
                                           folders = [];
+                                          archivedFolders = [];
+                                          viewingArchive = false;
                                           media.clear();
                                           selectedTab = 2;
                                           description.clear();
@@ -861,7 +909,7 @@ class _CabinetState extends State<SadohodetsCabinet>
         await api.setCollected(id, pid, collected);
       }
       folder = await api.folder(id);
-      folders = await api.folders();
+      await refreshFolders();
     });
   }
 }
