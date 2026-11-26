@@ -129,6 +129,33 @@ _TEXT_PROMPTS = (
 )
 
 
+def _broad_taxonomy_prompts(query: str) -> tuple[str, ...]:
+    """Use the complete broad taxonomy, not hand-picked query examples.
+
+    Map category-label words (including declined forms) to the existing
+    image-text prompts. English remains necessary for this CLIP checkpoint.
+    """
+    from .category_inference import PROMPTS, ROOT_TO_LEGACY
+    from .product_semantics import _stem_label
+
+    query_tokens = normalize(query).split()
+    if not query_tokens or len(query_tokens) > 2:
+        return ()
+    roots = []
+    for node_id, parent, name in NODES_V1:
+        if parent is not None or node_id not in ROOT_TO_LEGACY:
+            continue
+        tokens = normalize(name).split()
+        if any(len(q) >= 4 and _stem_label(q) == _stem_label(token)
+               for q in query_tokens for token in tokens):
+            roots.append(node_id)
+    if len(roots) != 1:
+        return ()
+    root = roots[0]
+    legacy_name = ROOT_TO_LEGACY[root]
+    return tuple(PROMPTS.get(legacy_name, ()))
+
+
 def visual_prompts(query: str) -> tuple[str, ...]:
     """Resolve every supported product type through one shared taxonomy.
 
@@ -181,6 +208,11 @@ def visual_prompts(query: str) -> tuple[str, ...]:
         return tuple(dict.fromkeys(((explicit,) if explicit else ()) + prompts))
     if explicit:
         return (explicit,)
+    # Broad category searches must also work for untitled products.
+    # The old path returned no neural prompts for e.g. "инструменты".
+    broad = _broad_taxonomy_prompts(q)
+    if broad:
+        return broad
     if re.fullmatch(r'[a-z0-9 -]{2,80}', q):
         return (f'a product photo of {q}',)
     return ()
