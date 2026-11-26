@@ -1,8 +1,5 @@
 """Open-vocabulary retrieval regressions without downloading model weights."""
 from io import BytesIO
-from types import SimpleNamespace
-
-import pytest
 from PIL import Image
 
 from backend.app import open_vocabulary as ov
@@ -45,3 +42,6 @@ def test_versioned_caption_model_does_not_replace_original_image_index():
     from backend.app.ml_clip import MODEL_ID
     assert ov.CAPTION_MODEL_ID != MODEL_ID
     assert len(ov.CAPTION_MODEL_ID) <= 140
+
+def test_english_unknown_product_phrase_needs_no_translation_weights():
+    assert ov.english_query("an unusual machine spare part") == "an unusual machine spare part"
