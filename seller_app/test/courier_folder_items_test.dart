@@ -37,7 +37,7 @@ void main() {
     expect(find.text('Б-08'), findsOneWidget);
     expect(find.text('≈ 3 890 ₽'), findsNWidgets(3));
     final address = tester.getRect(find.text('А-14'));
-    await tester.tap(find.bySemanticsLabel('Увеличить количество').first);
+    await tester.tap(find.byKey(const ValueKey('folder-quantity-Куртка-+')));
     expect(quantity,2);
     expect(opened,isNull);
     await tester.tap(find.text('Куртка'));
