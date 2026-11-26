@@ -20,6 +20,7 @@ import 'package:sadohod_shared_core/build_info.dart';
 import 'courier_navigation_guide.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'dart:convert';
+import 'dart:async';
 
 class SadohodetsCabinet extends StatefulWidget {
   const SadohodetsCabinet({
@@ -105,6 +106,9 @@ class _CabinetState extends State<SadohodetsCabinet>
   void openNavigation() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const Scaffold(body: MarketNavigationGuideScreen())));
 
   final search = TextEditingController();
+  Timer? _searchDebounce;
+  bool _searchPending = false;
+  int _searchRevision = 0;
   late Future<List<Map<String, dynamic>>> products = catalog();
   Future<List<Map<String, dynamic>>> catalog([String query = '']) async {
     final rows = <Map<String, dynamic>>[];
@@ -122,10 +126,42 @@ class _CabinetState extends State<SadohodetsCabinet>
     }
   }
 
+  // Typing uses the same ranked server endpoint as buyer text search.
+  void searchChanged(String value) {
+    _searchDebounce?.cancel();
+    final revision = ++_searchRevision;
+    final query = value.trim();
+    if (query.isEmpty) {
+      _requestCatalog('');
+      return;
+    }
+    setState(() => _searchPending = true);
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted || revision != _searchRevision) return;
+      _requestCatalog(query);
+    });
+  }
+
+  void _requestCatalog(String query) {
+    if (!mounted) return;
+    final request = catalog(query);
+    // Observe failures even if the user has switched away from FutureBuilder.
+    unawaited(request.then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+    setState(() {
+      _searchPending = false;
+      products = request;
+    });
+  }
+
   void searchFor(String q) {
+    _searchDebounce?.cancel();
+    ++_searchRevision;
     FocusManager.instance.primaryFocus?.unfocus();
-    search.text = q;
-    setState(() => products = catalog(q));
+    if (search.text != q) {
+      search.value = TextEditingValue(text: q,
+        selection: TextSelection.collapsed(offset: q.length));
+    }
+    _requestCatalog(q.trim());
   }
 
   Future<void> photoSearch() async {
@@ -137,6 +173,11 @@ class _CabinetState extends State<SadohodetsCabinet>
       );
       if (image == null || !mounted) return;
       final bytes = await image.readAsBytes();
+      if (!mounted) return;
+      _searchDebounce?.cancel();
+      ++_searchRevision;
+      search.clear();
+      FocusManager.instance.primaryFocus?.unfocus();
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${widget.api.baseUrl}/api/v1/search/image'),
@@ -155,7 +196,11 @@ class _CabinetState extends State<SadohodetsCabinet>
             .map((e) => (e['product'] as Map).cast<String, dynamic>())
             .toList();
       });
-      if (mounted) setState(() => products = result);
+      unawaited(result.then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+      if (mounted) setState(() {
+        _searchPending = false;
+        products = result;
+      });
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
     }
@@ -306,7 +351,7 @@ class _CabinetState extends State<SadohodetsCabinet>
         delegate: CourierHomeHeader(
           header: BuyerHeaderLayout.of(context),
           controller: search,
-          onChanged: (_) {},
+          onChanged: searchChanged,
           onSubmitted: searchFor,
           onPhotoTap: photoSearch,
           onLogoTap: () => searchFor(''),
@@ -326,6 +371,8 @@ class _CabinetState extends State<SadohodetsCabinet>
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: products,
             builder: (context, snapshot) {
+              if (_searchPending || snapshot.connectionState != ConnectionState.done)
+                return const Center(child: CircularProgressIndicator());
               if (snapshot.hasError)
                 return TextButton(
                   onPressed: () => searchFor(search.text),
@@ -482,6 +529,7 @@ class _CabinetState extends State<SadohodetsCabinet>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _searchDebounce?.cancel();
     search.dispose();
     name.dispose();
     email.dispose();
