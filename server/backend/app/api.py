@@ -1,4 +1,5 @@
 from threading import BoundedSemaphore
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -204,6 +205,16 @@ def search_text(q: str = Query(min_length=1, max_length=80),
         import logging
         try:
             semantic_ids = visual_product_ids(session, query, limit=limit)
+            if os.getenv('OPEN_VOCAB_SEARCH', '0') == '1':
+                # Caption-based matching handles terms outside the fixed taxonomy.
+                # Keep existing CLIP and exact-title matches as independent signals.
+                try:
+                    from .open_vocabulary import open_vocabulary_image_ids
+                    caption_ids = open_vocabulary_image_ids(session, query, limit=limit)
+                    semantic_ids = list(dict.fromkeys(semantic_ids + caption_ids))
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        'Open-vocabulary search unavailable')
             if semantic_ids:
                 extra = session.scalars(product_query().where(
                     Product.id.in_(semantic_ids)).where(

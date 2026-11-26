@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
 from threading import Event
 
 from fastapi import FastAPI
@@ -96,6 +97,17 @@ def _refresh_catalog(stop):
                 if first_pass or newly_indexed:
                     reclassify_indexed_products(session, stop)
                 first_pass = False
+                # A separate, versioned vector per image contains a model-
+                # generated open-vocabulary caption. Batch work bounds CPU/RAM.
+                if SEARCH_BACKEND == 'clip' and os.getenv('OPEN_VOCAB_SEARCH', '0') == '1':
+                    from .open_vocabulary import CAPTION_MODEL_ID, caption_embedding
+                    try:
+                        index_catalog_batch(
+                            session, embed=caption_embedding,
+                            model_id=CAPTION_MODEL_ID, batch_size=4)
+                    except Exception:
+                        session.rollback()
+                        logger.exception('Open-vocabulary caption indexing failed')
             if not stop.is_set():
                 logger.info('Catalog scan complete: %s new image embeddings', newly_indexed)
         except Exception:
@@ -148,7 +160,7 @@ app.include_router(sadohodets_router)
 def health():
     return {"status": "ok", **BUILD_INFO, "server_patch": BUILD_INFO['build_number'], "photo_categories": SEARCH_BACKEND == "clip", "demo": DEMO_SEED, "search_backend": SEARCH_BACKEND,
             "search_model": MODEL_ID if SEARCH_BACKEND == 'classic' else CLIP_MODEL_ID,
-            "catalog_search_pipeline": "r3-taxonomy-multiprompt"}
+            "catalog_search_pipeline": "r4-open-vocabulary-caption", "open_vocabulary": SEARCH_BACKEND == "clip" and os.getenv("OPEN_VOCAB_SEARCH", "0") == "1"}
 
 
 @app.middleware("http")

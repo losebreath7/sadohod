@@ -18,7 +18,7 @@ def index_catalog(session: Session, embed=embed_image, media=MEDIA, model_id=MOD
             return changed
 
 
-def index_catalog_batch(session, embed=embed_image, media=MEDIA, model_id=MODEL_ID):
+def index_catalog_batch(session, embed=embed_image, media=MEDIA, model_id=MODEL_ID, batch_size=INDEX_BATCH_SIZE):
     postgres = session.get_bind().dialect.name == 'postgresql'
     mirror_join = ''
     missing_mirror = ''
@@ -40,7 +40,7 @@ def index_catalog_batch(session, embed=embed_image, media=MEDIA, model_id=MODEL_
         WHERE e.image_id IS NULL OR json_array_length(e.embedding) <> :dim
               {missing_mirror}
         ORDER BY i.id LIMIT :batch_size
-    """), {'model': model_id, 'dim': DIM, 'batch_size': INDEX_BATCH_SIZE}).all()
+    """), {'model': model_id, 'dim': DIM, 'batch_size': batch_size}).all()
     changed = 0
     for image_id, filename, indexed_id, dimensions in candidates:
         if indexed_id is None:
