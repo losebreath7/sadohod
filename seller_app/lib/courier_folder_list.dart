@@ -79,8 +79,9 @@ class _SwipeFolderRow extends StatelessWidget {
     final counts = "${folder['collected_count'] ?? 0}/${folder['count'] ?? 0}";
     return CourierSwipeRow(
       opened: opened, busy: busy, onReveal: onReveal, onOpen: onOpen,
-      // A small left shift keeps the client name readable on narrow phones.
-      openLeft: -8,
+      // Folder rows reflow within their rounded surface, unlike products.
+      // This preserves padding and ellipsis in the revealed state.
+      fitContent: true,
       leadingAction: CourierSwipeAction(
         icon: archived ? Icons.unarchive_outlined : Icons.archive_outlined,
         label: archived ? 'Вернуть из архива' : 'В архив', onTap: busy ? null : onArchive),

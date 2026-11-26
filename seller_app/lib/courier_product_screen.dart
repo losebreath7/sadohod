@@ -8,17 +8,20 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'courier_buyer_design.dart';
+import 'courier_seller_screen.dart';
 
 class CourierProductScreen extends StatefulWidget {
- const CourierProductScreen({super.key,required this.api,required this.initial,required this.onFolder});
+ const CourierProductScreen({super.key,required this.api,required this.initial,required this.onFolder,this.onAddProduct,this.preferredSellerId});
  final SellerApi api;
  final Map<String,dynamic> initial;
  final Future<void> Function() onFolder;
+ final Future<void> Function(String)? onAddProduct;
+ final String? preferredSellerId;
  @override State<CourierProductScreen> createState()=>_CourierProductScreenState();
 }
 class _CourierProductScreenState extends State<CourierProductScreen>{
  late Future<Map<String,dynamic>> data=widget.api.call('/products/${Uri.encodeComponent(widget.initial['id'].toString())}');
- int index=0;
+ int? index;
  bool reporting=false;
  String absolute(String raw)=>raw.startsWith('/')?'${widget.api.baseUrl}$raw':raw;
  Future<void> report() async {
@@ -39,7 +42,9 @@ class _CourierProductScreenState extends State<CourierProductScreen>{
   if(s.hasError)return Center(child:TextButton(onPressed:()=>setState(()=>data=widget.api.call('/products/${Uri.encodeComponent(widget.initial['id'].toString())}')),child:const Text('Не удалось загрузить. Повторить')));
   final p=s.data??widget.initial;
   final offers=p['offers'] as List? ?? [];
-  final offer=offers.isEmpty?null:offers[index.clamp(0,offers.length-1).toInt()] as Map;
+  final preferred = offers.indexWhere((o) => o is Map && o['seller'] is Map && o['seller']['id']?.toString() == widget.preferredSellerId);
+  final selected = index ?? (preferred < 0 ? 0 : preferred);
+  final offer=offers.isEmpty?null:offers[selected.clamp(0,offers.length-1).toInt()] as Map;
   final seller=offer?['seller'] as Map? ?? {};
   final address=(offer?['pavilion']?['code']??seller['pavilion']??'').toString();
   final zone=(offer?['pavilion']?['zone']??seller['zone']??'').toString();
@@ -54,7 +59,13 @@ class _CourierProductScreenState extends State<CourierProductScreen>{
    const SizedBox(height:17),Row(children:[Expanded(child:Text('${p['title']??''}',maxLines:2,overflow:TextOverflow.ellipsis,style:BuyerProductType.detailTitle.copyWith(color:SellerColors.brown))),if(price is num)...[const SizedBox(width:10),Text(approximateRubles(price.toInt()),style:BuyerProductType.detailPrice.copyWith(color:SellerColors.brown))]]),
    const SizedBox(height:15),
    if(seller.isNotEmpty)...[
-    BuyerSellerIdentityRow(name:'${seller['name']??''}',saleModes:(offer?['sale_modes'] as List? ?? []).whereType<String>().toList(),onSellerTap:()=>showDialog<void>(context:context,builder:(ctx)=>AlertDialog(title:Text('${seller['name']??''}'),content:Text('${seller['pavilion']??''}\n${seller['contact']??''}'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Закрыть'))]))),
+    BuyerSellerIdentityRow(name:'${seller['name']??''}',saleModes:(offer?['sale_modes'] as List? ?? []).whereType<String>().toList(),onSellerTap:(){
+      final sellerId = seller['id']?.toString() ?? '';
+      if(sellerId.isEmpty) return;
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CourierSellerScreen(
+        api:widget.api, sellerId:sellerId, onAddProduct:widget.onAddProduct,
+      )));
+    }),
     Padding(padding:const EdgeInsets.only(left:34),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(final line in (seller['contact']??'').toString().split('\n').where((v)=>v.trim().isNotEmpty)) InkWell(onTap:() async {final target=contactLineTarget(line);if(target!=null){try{if(await launchUrl(target,mode:LaunchMode.externalApplication))return;}catch(_){}}await Clipboard.setData(ClipboardData(text:line));},child:Padding(padding:const EdgeInsets.symmetric(vertical:2),child:Text(contactLineDisplay(line),style:const TextStyle(fontSize:12,color:SellerColors.muted))))])),
    ],
    const SizedBox(height:16),Material(color:Colors.white,borderRadius:BorderRadius.circular(6),child:InkWell(onTap:()=>pickOffer(offers),child:Container(constraints:const BoxConstraints(minHeight:65),padding:const EdgeInsets.fromLTRB(26,10,15,10),child:Row(children:[Expanded(child:BuyerProductNavigationAddress(address:address,zone:zone)),const CircleAvatar(backgroundColor:SellerColors.brown,radius:17,child:Icon(Icons.arrow_forward_rounded,color:Colors.white,size:23))])))),

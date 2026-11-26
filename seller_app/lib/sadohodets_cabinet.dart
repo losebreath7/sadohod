@@ -341,7 +341,7 @@ class _CabinetState extends State<SadohodetsCabinet>
     );
   }
   Future<void> openProduct(Map p) async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CourierProductScreen(api:widget.api, initial:p.cast<String,dynamic>(), onFolder:()=>chooseFolder('${p['id']}'))));
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CourierProductScreen(api:widget.api, initial:p.cast<String,dynamic>(), onFolder:()=>chooseFolder('${p['id']}'), onAddProduct:chooseFolder)));
   }
 
   Widget home() => CustomScrollView(

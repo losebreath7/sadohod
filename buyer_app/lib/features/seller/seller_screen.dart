@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/public_seller_body.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -156,45 +157,20 @@ class _SellerScreenState extends State<SellerScreen> {
               ),
             ]),
           ),
-          Expanded(child: ListView(
-            padding: const EdgeInsets.fromLTRB(30, 10, 30, 30),
-            children: [
-              SizedBox(height: 134, child: Stack(clipBehavior: Clip.none, children: [
-                Container(height: 100, decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10))),
-                const Positioned(left: 15, top: 73, child: CircleAvatar(
-                  radius: 23, backgroundColor: Color(0xffdddddd),
-                  child: Icon(Icons.person, color: Color(0xff888888), size: 28))),
-              ])),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(seller.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ContactText(seller.contact),
-                ])),
-                const SizedBox(width: 10),
-                SizedBox(width: 104, child: Column(crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [for (final code in addresses)
-                    Text(code, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))])),
-              ]),
-              const SizedBox(height: 20),
-              // No product category description edited by a buyer. Only their
-              // private account note appears here; invisible to other users.
-              if (AccountStore.instance.signedIn && (_personalTag.isNotEmpty || AccountStore.instance.sellers.contains(widget.id)))
-                Row(children: [
-                  Expanded(child: _personalTag.isEmpty
-                    ? const Text('моя заметка', style: TextStyle(
-                      fontSize: 11, color: Color(0xffa5a5a5)))
-                    : Text(_personalTag, maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12))),
-                  InkWell(onTap: _changeTag,
-                    child: const Padding(padding: EdgeInsets.all(6),
-                      child: Icon(Icons.edit, size: 14))),
-                ]),
-              const SizedBox(height: 14),
-              SellerReviewsPanel(sellerId: seller.id, sellerName: seller.name),
-              const SizedBox(height: 14),
-              ProductGrid(products: page.products.map((p) => p.forSeller(seller.id)).toList()),
-            ],
+          Expanded(child: PublicSellerBody(
+            name: seller.name,
+            addresses: addresses,
+            contacts: ContactText(seller.contact),
+            note: AccountStore.instance.signedIn && (_personalTag.isNotEmpty || AccountStore.instance.sellers.contains(widget.id))
+              ? Row(children: [
+                Expanded(child: _personalTag.isEmpty
+                  ? const Text('моя заметка', style: TextStyle(fontSize: 11, color: Color(0xffa5a5a5)))
+                  : Text(_personalTag, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                InkWell(onTap: _changeTag,
+                  child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.edit, size: 14))),
+              ]) : null,
+            reviews: SellerReviewsPanel(sellerId: seller.id, sellerName: seller.name),
+            products: ProductGrid(products: page.products.map((p) => p.forSeller(seller.id)).toList()),
           )),
         ]);
       },

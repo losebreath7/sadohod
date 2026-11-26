@@ -16,6 +16,7 @@ class CourierSwipeRow extends StatefulWidget {
     this.closedRight = 0, this.actionInset = 0,
     this.travel = CourierSwipeAction.reveal,
     this.surfaceKey,
+    this.fitContent = false,
   });
   final bool opened, busy;
   final ValueChanged<bool> onReveal;
@@ -24,6 +25,7 @@ class CourierSwipeRow extends StatefulWidget {
   final Widget Function(double progress) content;
   final double closedLeft, openLeft, closedRight, actionInset, travel;
   final Key? surfaceKey;
+  final bool fitContent;
 
   @override
   State<CourierSwipeRow> createState() => _CourierSwipeRowState();
@@ -36,6 +38,28 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
   double target = 0;
   double dragOrigin = 0;
   double dragStartPosition = 0;
+  ScrollPosition? scrollPosition;
+
+  void closeOutside() {
+    if (!widget.opened && !dragging && position.value == 0) return;
+    if (dragging) setState(() => dragging = false);
+    settle(false);
+    widget.onReveal(false);
+  }
+
+  void onScroll() {
+    if (scrollPosition?.isScrollingNotifier.value == true) closeOutside();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = Scrollable.maybeOf(context)?.position;
+    if (next == scrollPosition) return;
+    scrollPosition?.isScrollingNotifier.removeListener(onScroll);
+    scrollPosition = next;
+    scrollPosition?.isScrollingNotifier.addListener(onScroll);
+  }
 
   @override
   void initState() {
@@ -111,6 +135,7 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
 
   @override
   void dispose() {
+    scrollPosition?.isScrollingNotifier.removeListener(onScroll);
     position.dispose();
     super.dispose();
   }
@@ -127,7 +152,9 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
+  Widget build(BuildContext context) => TapRegion(
+    onTapOutside: (_) => closeOutside(),
+    child: Listener(onPointerCancel: (_) => closeOutside(), child: SizedBox(
     height: CourierSwipeAction.height,
     child: LayoutBuilder(builder: (context, constraints) {
       final contentWidth = (constraints.maxWidth - widget.closedLeft -
@@ -178,11 +205,13 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
                   color: Color.lerp(SellerColors.background, const Color(0xffd9d9d9), t),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: ClipRect(child: OverflowBox(
-                  alignment: Alignment.centerLeft,
-                  minWidth: contentWidth, maxWidth: contentWidth,
-                  child: widget.content(t),
-                )),
+                child: widget.fitContent
+                    ? ClipRRect(borderRadius: BorderRadius.circular(15), child: widget.content(t))
+                    : ClipRect(child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: contentWidth, maxWidth: contentWidth,
+                        child: widget.content(t),
+                      )),
               ),
             ),
           ),
@@ -190,5 +219,5 @@ class _CourierSwipeRowState extends State<CourierSwipeRow>
       }),
       );
     }),
-  );
+  )));
 }
