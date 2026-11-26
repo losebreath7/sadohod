@@ -46,22 +46,6 @@ Widget _avatar(_Row p, {double radius = 30}) => CircleAvatar(
           ),
         ),
 );
-Widget _header(BuildContext context, String title) => Row(
-  children: [
-    IconButton(
-      onPressed: () => context.pop(),
-      icon: const Icon(Icons.arrow_back),
-    ),
-    Expanded(
-      child: Text(
-        title,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-      ),
-    ),
-    const SizedBox(width: 48),
-  ],
-);
 Future<void> contact(BuildContext context, String key, String value) async {
   final target = contactTarget(key, value);
   if (target == null) return;
