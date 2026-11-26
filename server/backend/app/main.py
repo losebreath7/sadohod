@@ -74,23 +74,34 @@ async def lifespan(app: FastAPI):
 
 
 def _refresh_catalog(stop):
+    """Keep images added after API startup searchable without restarting Docker.
+
+    Scan small batches of missing embeddings, then update taxonomy/search tags.
+    The first pass also repairs catalogs indexed by an earlier release.
+    """
     from .category_inference import reclassify_indexed_products
     from .ml_index import index_catalog_batch
+    logger = logging.getLogger(__name__)
+    first_pass = True
     while not stop.is_set():
         try:
             with SessionLocal() as session:
+                newly_indexed = 0
                 if SEARCH_BACKEND == 'clip':
                     while not stop.is_set():
-                        processed, _ = index_catalog_batch(session)
+                        processed, changed = index_catalog_batch(session)
+                        newly_indexed += changed
                         if processed == 0:
                             break
-                reclassify_indexed_products(session, stop)
+                if first_pass or newly_indexed:
+                    reclassify_indexed_products(session, stop)
+                first_pass = False
             if not stop.is_set():
-                logging.getLogger(__name__).info('Catalog refresh complete')
-            return
+                logger.info('Catalog scan complete: %s new image embeddings', newly_indexed)
         except Exception:
-            logging.getLogger(__name__).exception('Catalog refresh failed')
-            stop.wait(30)
+            logger.exception('Catalog refresh failed')
+        # Check again: sellers may publish products while this process is running.
+        stop.wait(30)
 
 
 async def _moderation_mail_loop():
