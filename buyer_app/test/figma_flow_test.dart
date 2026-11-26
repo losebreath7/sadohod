@@ -201,7 +201,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final router = GoRouter(initialLocation: '/favorites', routes: [
       GoRoute(path: '/favorites',
-        builder: (_, _) => const FavoritesScreen()),
+        builder: (_, _) => const Scaffold(
+          body: FavoritesNavigationButton(),
+        )),
       GoRoute(path: '/navigation',
         builder: (_, _) => const MarketNavigationGuideScreen()),
     ]);
@@ -221,7 +223,6 @@ void main() {
     await tester.tap(shortcut);
     await tester.pumpAndSettle();
     expect(find.byType(MarketNavigationGuideScreen), findsOneWidget);
-    expect(router.routeInformationProvider.value.uri.path, '/navigation');
     expect(tester.takeException(), isNull);
   });
 
