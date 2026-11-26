@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,8 @@ import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/core/widgets/common.dart';
 import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
+import 'package:sadohod/features/account/favorites_screen.dart';
+import 'package:sadohod/features/account/market_navigation_guide.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -190,6 +193,39 @@ void main() {
     expect(find.text('избранное'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('favorites navigation shortcut uses the profile icon and opens guide',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final router = GoRouter(initialLocation: '/favorites', routes: [
+      GoRoute(path: '/favorites',
+        builder: (_, _) => const Scaffold(
+          body: FavoritesNavigationButton(),
+        )),
+      GoRoute(path: '/navigation',
+        builder: (_, _) => const MarketNavigationGuideScreen()),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    final shortcut = find.byTooltip('Навигация');
+    expect(shortcut, findsOneWidget);
+    expect(find.descendant(
+      of: shortcut,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is DesignIcon &&
+          widget.file == 'v082_menu_location',
+      ),
+    ), findsOneWidget);
+    expect(find.byTooltip('Фильтры избранного'), findsNothing);
+    await tester.tap(shortcut);
+    await tester.pumpAndSettle();
+    expect(find.byType(MarketNavigationGuideScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('product push keeps navigation and back returns to catalogue', (
     tester,
   ) async {
