@@ -124,6 +124,60 @@ def products(category: str | None = None, q: str = "", limit: int = Query(defaul
     return {"items": [serialize_product(p) for p in items], "limit": limit, "offset": offset, "demo": True}
 
 
+def search_sellers(session: Session, query: str, limit: int = 30) -> list[dict]:
+    """Search public shop names and approved pavilion codes, independently of products.
+
+    Unicode casefold is intentionally done in Python: SQLite lower()/LIKE does
+    not reliably fold Cyrillic. Read only public metadata, not product images.
+    """
+    import time
+    import unicodedata
+    from .merchant_models import PavilionClaim, ShopMembership
+    from .moderation_enforcement_models import ShopRestriction, AccountRestriction
+
+    def normalized(value):
+        value = unicodedata.normalize('NFKC', value or '').casefold().replace('ё', 'е')
+        return ' '.join(value.replace('–', '-').replace('—', '-').split())
+
+    needle = normalized(query)
+    if not needle:
+        return []
+    now = time.time()
+    blocked_shops = select(ShopRestriction.seller_id).where(
+        ShopRestriction.active.is_(True),
+        or_(ShopRestriction.until.is_(None), ShopRestriction.until > now))
+    blocked_owners = select(ShopMembership.seller_id).join(
+        AccountRestriction, AccountRestriction.buyer_id == ShopMembership.buyer_id
+    ).where(ShopMembership.role == 'owner', AccountRestriction.active.is_(True),
+            or_(AccountRestriction.until.is_(None), AccountRestriction.until > now))
+    public = (Seller.id.not_in(blocked_shops), Seller.id.not_in(blocked_owners))
+    columns = (Seller.id, Seller.name, Pavilion.code, Pavilion.zone)
+    primary = select(*columns).join(Pavilion, Pavilion.id == Seller.pavilion_id).where(*public)
+    claims = select(*columns).join(PavilionClaim, PavilionClaim.seller_id == Seller.id).join(
+        Pavilion, Pavilion.id == PavilionClaim.pavilion_id).where(*public)
+    by_id = {}
+    for sid, name, code, zone in session.execute(primary.union(claims)):
+        entry = by_id.setdefault(sid, {'id': sid, 'name': name, 'addresses': set(), 'matches': []})
+        entry['addresses'].add(code)
+        fields = (normalized(name), normalized(code), normalized(f'{zone} {code}'))
+        # Exact shop name, then name prefix, then other literal matches.
+        rank = 0 if needle == fields[0] else 1 if fields[0].startswith(needle) else (
+            2 if needle == fields[1] else 3 if any(needle in field for field in fields) else None)
+        if rank is not None:
+            entry['matches'].append((rank, code, zone))
+    ranked = []
+    for entry in by_id.values():
+        if not entry['matches']:
+            continue
+        rank, code, zone = min(entry['matches'])
+        ranked.append((rank, normalized(entry['name']), entry['id'], {
+            'id': entry['id'], 'name': entry['name'], 'pavilion': code, 'zone': zone,
+            'pavilions': sorted(entry['addresses']),
+        }))
+    ranked.sort(key=lambda item: item[:3])
+    return [item[3] for item in ranked[:limit]]
+
+
 @router.get("/search/text")
 def search_text(q: str = Query(min_length=1, max_length=80),
                 limit: int = Query(default=60, ge=1, le=100),
@@ -135,7 +189,7 @@ def search_text(q: str = Query(min_length=1, max_length=80),
     """
     query = q.strip()
     if not query:
-        return {'items': [], 'ml_enabled': SEARCH_BACKEND == 'clip'}
+        return {'items': [], 'sellers': [], 'ml_enabled': SEARCH_BACKEND == 'clip'}
     query_leaves = precise_query_leaves(query)
     # Only one unambiguous primary type can exclude unrelated products.
     # Multi-type or broad queries remain inclusive.
@@ -166,6 +220,7 @@ def search_text(q: str = Query(min_length=1, max_length=80),
             logging.getLogger(__name__).exception(
                 'Semantic text search unavailable for query')
     return {'items': [serialize_product(p) for p in ordered],
+            'sellers': search_sellers(session, query),
             'ml_enabled': SEARCH_BACKEND == 'clip'}
 
 

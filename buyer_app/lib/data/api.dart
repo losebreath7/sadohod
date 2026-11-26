@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'catalog.dart';
+import 'package:sadohod_shared_core/catalog_search.dart';
 import 'package:sadohod_shared_core/api_base_url.dart';
 
 /// API_BASE_URL overrides the Android emulator (10.0.2.2) / web localhost default.
@@ -60,20 +61,26 @@ class CatalogApi {
 
   /// Server-backed title, taxonomy and optional image-semantic search.
   /// Local demo remains strictly text-only: no invented image recognition.
-  Future<List<DemoProduct>> searchText(String query) async {
+  Future<List<DemoProduct>> searchText(String query) async =>
+      (await searchCatalog(query)).products;
+
+  Future<CatalogSearchResults<DemoProduct>> searchCatalog(String query) async {
     final needle = query.trim();
-    if (needle.isEmpty) return products();
+    if (needle.isEmpty) return CatalogSearchResults(await products());
     if (localDemo) {
       final q = needle.toLowerCase();
-      return DemoCatalog.products.where((p) =>
-        '${p.title} ${p.category} ${p.pavilion}'
-          .toLowerCase().contains(q)).toList();
+      return CatalogSearchResults(
+        DemoCatalog.products.where((p) => '${p.title} ${p.category} ${p.pavilion}'.toLowerCase().contains(q)).toList(),
+        sellers: DemoCatalog.sellers.where((s) => '${s.name} ${s.pavilion}'.toLowerCase().contains(q))
+          .map((s) => SellerSearchHit(id:s.id,name:s.name,pavilion:s.pavilion)).toList(),
+      );
     }
     final route = '/api/v1/search/text?q=${Uri.encodeQueryComponent(needle)}&limit=100';
     final response = await _get(route);
-    return (response['items'] as List)
-      .map((v) => DemoProduct.fromJson(v as Map<String, dynamic>, baseUrl))
-      .toList();
+    return CatalogSearchResults(
+      (response['items'] as List).map((v) => DemoProduct.fromJson(v as Map<String,dynamic>,baseUrl)).toList(),
+      sellers: (response['sellers'] as List? ?? const []).whereType<Map>().map(SellerSearchHit.fromJson).toList(),
+    );
   }
 
   /// Personalized tags are returned only for signed-in buyers.

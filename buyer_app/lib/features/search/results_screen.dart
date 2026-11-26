@@ -1,4 +1,5 @@
-import 'dart:async' show unawaited;
+import 'dart:async';
+import 'package:sadohod_shared_core/catalog_search.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,7 +22,9 @@ class ResultsScreen extends StatefulWidget {
 
 class _ResultsScreenState extends State<ResultsScreen> {
   Future<ImageSearchResponse>? _imageSearch;
-  late Future<List<DemoProduct>> _allProducts;
+  late Future<CatalogSearchResults<DemoProduct>> _allProducts;
+  Timer? _debounce;
+  bool _pending = false;
   late final TextEditingController _text = TextEditingController(text: widget.textQuery);
   final Set<String> _zones = {};
   bool _filters = false;
@@ -32,9 +35,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     _load();
   }
 
-  Future<List<DemoProduct>> _searchAndRecord(String query) async {
-    final results = await CatalogApi.instance.searchText(query);
-    if (results.isNotEmpty && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
+  Future<CatalogSearchResults<DemoProduct>> _searchAndRecord(String query) async {
+    final results = await CatalogApi.instance.searchCatalog(query);
+    if (results.products.isNotEmpty && AccountStore.instance.signedIn && !CatalogApi.localDemo) {
       unawaited(_recordSearch(query));
     }
     return results;
@@ -54,27 +57,36 @@ class _ResultsScreenState extends State<ResultsScreen> {
     _imageSearch = widget.query == null ? null : CatalogApi.instance.searchImage(widget.query!.bytes, crop: widget.query!.crop);
     _allProducts = widget.query == null && widget.textQuery.trim().isNotEmpty
       ? _searchAndRecord(widget.textQuery)
-      : CatalogApi.instance.products();
+      : CatalogApi.instance.searchCatalog('');
   }
 
   @override
-  void dispose() { _text.dispose(); super.dispose(); }
+  void dispose() { _debounce?.cancel(); _text.dispose(); super.dispose(); }
 
   void _toggle(String zone) => setState(() => _zones.contains(zone) ? _zones.remove(zone) : _zones.add(zone));
 
   void _onSearchChanged(String value) {
-    if (value.isEmpty && widget.query == null) {
+    if (widget.query != null) return;
+    _debounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
       setState(() {
         _zones.clear();
         _filters = false;
-        _allProducts = CatalogApi.instance.products();
+        _pending = false;
+        _allProducts = CatalogApi.instance.searchCatalog('');
       });
+      return;
     }
+    setState(() => _pending = true);
+    _debounce = Timer(const Duration(milliseconds:300), () {
+      if (!mounted) return;
+      setState(() { _pending = false; _allProducts = CatalogApi.instance.searchCatalog(query); });
+    });
   }
 
   String get _resultHeading => widget.query != null ? 'похожие товары'
-      : _text.text.trim().isEmpty ? 'результат поиска' : widget.textQuery;
-
+      : _text.text.trim().isEmpty ? 'результат поиска' : _text.text.trim();
 
   Widget _listing(List<DemoProduct> products) {
     final list = products.where((p) => productInZones(p, _zones)).toList();
@@ -128,9 +140,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
               },
             )
           else
-            FutureBuilder<List<DemoProduct>>(
+            FutureBuilder<CatalogSearchResults<DemoProduct>>(
               future: _allProducts,
               builder: (context, snapshot) {
+                if (_pending || snapshot.connectionState != ConnectionState.done) return const LoadingCatalog();
                 if (!snapshot.hasData) {
                   if (snapshot.hasError) return ApiFailure(error: snapshot.error!, retry: () => setState(_load));
                   return const LoadingCatalog();
@@ -138,7 +151,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 // Server has already matched title, category hierarchy and
                 // available visual semantics. Re-filtering by title here
                 // would discard all photo-inferred results without a name.
-                return _listing(snapshot.data!);
+                final result = snapshot.data!;
+                final filtered = result.products.where((p) => productInZones(p,_zones)).toList();
+                return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  if(result.sellers.isNotEmpty) SellerSearchStrip(sellers:result.sellers,onOpen:(s)=>context.push('/seller/${Uri.encodeComponent(s.id)}')),
+                  if(result.sellers.isNotEmpty && filtered.isNotEmpty) const Padding(padding:EdgeInsets.only(bottom:12),child:Text('товары',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700))),
+                  if(filtered.isNotEmpty) ProductGrid(products:filtered)
+                  else if(result.sellers.isEmpty) const Center(child:Text('Ничего не найдено')),
+                ]);
               },
             ),
         ],

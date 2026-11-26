@@ -1,4 +1,6 @@
 import 'dart:ui' show PointerDeviceKind;
+import 'dart:async';
+import 'package:sadohod_shared_core/catalog_search.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -24,7 +26,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scroll = ScrollController();
   late final TextEditingController _query = TextEditingController(text: widget.initialQuery);
-  late Future<List<DemoProduct>> _products = CatalogApi.instance.products();
+  late Future<CatalogSearchResults<DemoProduct>> _products = CatalogApi.instance.searchCatalog(widget.initialQuery);
+  Timer? _debounce;
+  bool _pending = false;
+  void _loadQuery(String value) {
+    _debounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(''); });
+      return;
+    }
+    setState(() => _pending = true);
+    _debounce = Timer(const Duration(milliseconds:300), () {
+      if (!mounted) return;
+      setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(query); });
+    });
+  }
   late String _category = widget.initialCategory;
   static const _fallbackTags = <String>[
     'брюки', 'верхняя одежда', 'головные уборы', 'футболки', 'обувь',
@@ -61,13 +78,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialQuery != oldWidget.initialQuery) _query.text = widget.initialQuery;
+    if (widget.initialQuery != oldWidget.initialQuery) { _query.text = widget.initialQuery; _loadQuery(widget.initialQuery); }
     if (widget.initialCategory != oldWidget.initialCategory) _category = widget.initialCategory;
   }
 
   @override
   void dispose() {
     AccountStore.instance.removeListener(_onAccountChanged);
+    _debounce?.cancel();
     _scroll.dispose();
     _query.dispose();
     super.dispose();
@@ -99,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
           delegate: _SadoHomeHeader(
             header: BuyerHeaderLayout.of(context),
             controller: _query,
-            onChanged: (_) => setState(() {}),
+            onChanged: _loadQuery,
             onSubmitted: _submitSearch,
             onPhotoTap: () => context.push('/search'),
             onLogoTap: _backToTop,
@@ -110,19 +128,17 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(30, 21, 30, 30),
           sliver: SliverToBoxAdapter(
-            child: FutureBuilder<List<DemoProduct>>(
+            child: FutureBuilder<CatalogSearchResults<DemoProduct>>(
               future: _products,
               builder: (context, snapshot) {
+                if (_pending || snapshot.connectionState != ConnectionState.done) return const LoadingCatalog();
                 if (snapshot.hasError) {
-                  return ApiFailure(error: snapshot.error!, retry: () => setState(() => _products = CatalogApi.instance.products()));
+                  return ApiFailure(error: snapshot.error!, retry: () => setState(() => _products = CatalogApi.instance.searchCatalog(_query.text)));
                 }
                 if (!snapshot.hasData) return const LoadingCatalog();
-                final needle = _query.text.trim().toLowerCase();
-                final items = snapshot.data!.where((p) {
-                  final categoryMatches = _category == 'Все' || p.category == _category;
-                  final queryMatches = needle.isEmpty || '${p.title} ${p.category} ${p.pavilion}'.toLowerCase().contains(needle);
-                  return categoryMatches && queryMatches;
-                }).toList();
+                final result = snapshot.data!;
+                final sellers = result.sellers;
+                final items = result.products.where((p) => _category == 'Все' || p.category == _category).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -132,9 +148,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ActionChip(label: Text('$_category ×'), onPressed: () => setState(() => _category = 'Все')),
                       ),
                     ),
-                    if (items.isEmpty)
-                      const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: Text('Товары не найдены')))
-                    else ...[
+                    if (sellers.isNotEmpty) SellerSearchStrip(sellers:sellers,onOpen:(s)=>context.push('/seller/${Uri.encodeComponent(s.id)}')),
+                    if (sellers.isNotEmpty && items.isNotEmpty) const Padding(padding:EdgeInsets.only(bottom:12),child:Text('товары',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700))),
+                    if (items.isEmpty && sellers.isEmpty)
+                      const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: Text('Ничего не найдено')))
+                    else if (items.isNotEmpty) ...[
                       ProductGrid(products: items),
                    ],
                     if (CatalogApi.localDemo) const Padding(padding: EdgeInsets.only(top: 22), child: DemoNotice()),

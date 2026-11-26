@@ -14,6 +14,8 @@ import 'seller_settings.dart';
 import 'seller_telegram_chat.dart';
 import 'seller_notifications.dart';
 import 'courier_product_screen.dart';
+import 'courier_seller_screen.dart';
+import 'package:sadohod_shared_core/catalog_search.dart';
 import 'courier_folder_items.dart';
 import 'courier_folder_list.dart';
 import 'package:sadohod_shared_core/build_info.dart';
@@ -109,20 +111,21 @@ class _CabinetState extends State<SadohodetsCabinet>
   Timer? _searchDebounce;
   bool _searchPending = false;
   int _searchRevision = 0;
-  late Future<List<Map<String, dynamic>>> products = catalog();
-  Future<List<Map<String, dynamic>>> catalog([String query = '']) async {
+  late Future<CatalogSearchResults<Map<String,dynamic>>> products = catalog();
+  Future<CatalogSearchResults<Map<String,dynamic>>> catalog([String query = '']) async {
     final rows = <Map<String, dynamic>>[];
     if (query.trim().isNotEmpty) {
       final r = await widget.api.call(
         '/search/text?q=${Uri.encodeQueryComponent(query.trim())}&limit=100',
       );
-      return (r['items'] as List).cast<Map<String, dynamic>>();
+      return CatalogSearchResults((r['items'] as List).cast<Map<String,dynamic>>(),
+        sellers:(r['sellers'] as List? ?? const []).whereType<Map>().map(SellerSearchHit.fromJson).toList());
     }
     for (var offset = 0; ; offset += 500) {
       final r = await widget.api.call('/products?limit=500&offset=$offset');
       final batch = (r['items'] as List).cast<Map<String, dynamic>>();
       rows.addAll(batch);
-      if (batch.length < 500) return rows;
+      if (batch.length < 500) return CatalogSearchResults(rows);
     }
   }
 
@@ -185,16 +188,16 @@ class _CabinetState extends State<SadohodetsCabinet>
       request.files.add(
         http.MultipartFile.fromBytes('file', bytes, filename: 'query.jpg'),
       );
-      final result = Future<List<Map<String, dynamic>>>(() async {
+      final result = Future<CatalogSearchResults<Map<String,dynamic>>>(() async {
         final response = await http.Response.fromStream(
           await request.send().timeout(const Duration(seconds: 60)),
         );
         if (response.statusCode != 200)
           throw Exception('Поиск по фото недоступен');
         final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map;
-        return (data['items'] as List)
+        return CatalogSearchResults((data['items'] as List)
             .map((e) => (e['product'] as Map).cast<String, dynamic>())
-            .toList();
+            .toList());
       });
       unawaited(result.then<void>((_) {}, onError: (Object _, StackTrace __) {}));
       if (mounted) setState(() {
@@ -368,7 +371,7 @@ class _CabinetState extends State<SadohodetsCabinet>
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(30, 21, 30, 30),
         sliver: SliverToBoxAdapter(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
+          child: FutureBuilder<CatalogSearchResults<Map<String,dynamic>>>(
             future: products,
             builder: (context, snapshot) {
               if (_searchPending || snapshot.connectionState != ConnectionState.done)
@@ -380,13 +383,19 @@ class _CabinetState extends State<SadohodetsCabinet>
                 );
               if (!snapshot.hasData)
                 return const Center(child: CircularProgressIndicator());
-              final rows = snapshot.data!;
-              if (rows.isEmpty)
+              final result = snapshot.data!;
+              final rows = result.products;
+              if (rows.isEmpty && result.sellers.isEmpty)
                 return const Center(child: Text('Товары не найдены'));
-              return SadohodCatalogGrid(
-                itemCount: rows.length,
-                itemBuilder: (_, i) => productCard(rows[i]),
-              );
+              return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                if(result.sellers.isNotEmpty) SellerSearchStrip(
+                  sellers:result.sellers,ink:SellerColors.brown,
+                  onOpen:(seller)=>Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder:(_)=>CourierSellerScreen(api:widget.api,sellerId:seller.id,onAddProduct:chooseFolder)))),
+                if(result.sellers.isNotEmpty && rows.isNotEmpty) const Padding(padding:EdgeInsets.only(bottom:12),
+                  child:Text('товары',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:SellerColors.brown))),
+                if(rows.isNotEmpty) SadohodCatalogGrid(itemCount:rows.length,itemBuilder:(_,i)=>productCard(rows[i])),
+              ]);
             },
           ),
         ),
