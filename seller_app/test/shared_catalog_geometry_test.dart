@@ -33,6 +33,12 @@ void main() {
       }
       expect(find.text('≈ 3 890 ₽'), findsNWidgets(4));
       expect(find.text('А-14'), findsNWidgets(4));
+      final prices = find.text('≈ 3 890 ₽');
+      for (var i = 0; i < 4; i++) {
+        expect(tester.widget<Text>(prices.at(i)).textAlign, TextAlign.right);
+        expect(tester.getRect(prices.at(i)).right,
+            closeTo(tester.getRect(images.at(i)).right, 0.01));
+      }
       expect(tester.getCenter(find.text('А-14').first).dy,
           closeTo(tester.getCenter(find.text('≈ 3 890 ₽').first).dy, 1));
       expect(tester.takeException(), isNull);

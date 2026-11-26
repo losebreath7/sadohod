@@ -54,8 +54,9 @@ class SadohodCatalogTile extends StatelessWidget {
           )),
           if (price != null) ...[
             const SizedBox(width: 6),
-            Flexible(child: Text(
+            Expanded(child: Text(
               approximateRubles(price!), maxLines: 1,
+              textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
               style: BuyerProductType.catalogPrice.copyWith(color: ink),
             )),
