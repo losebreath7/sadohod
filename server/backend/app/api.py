@@ -183,54 +183,59 @@ def search_sellers(session: Session, query: str, limit: int = 30) -> list[dict]:
 def search_text(q: str = Query(min_length=1, max_length=80),
                 limit: int = Query(default=60, ge=1, le=100),
                 session: Session = Depends(get_db)):
-    """Merge exact title/taxonomy matches with model-backed photo similarities.
+    """Rank text/visual evidence, rejecting known category contradictions.
 
-    No arbitrary category is fabricated from a picture. Semantic results are
-    only returned if a real pretrained ML index is enabled and populated.
+    Broad categories cannot be padded by unrelated image neighbours. Items
+    without a category require independent model agreement unless their title
+    or search tags explicitly match the request.
     """
+    from .search_relevance import ranked_product_ids
+    import logging
+
     query = q.strip()
     if not query:
         return {'items': [], 'sellers': [], 'ml_enabled': SEARCH_BACKEND == 'clip'}
+
+    # Retain strict leaf disambiguation for specific product queries.
     query_leaves = precise_query_leaves(query)
-    # Only one unambiguous primary type can exclude unrelated products.
-    # Multi-type or broad queries remain inclusive.
     precise_type = query_leaves if len(query_leaves) == 1 else set()
+    # Do not pre-truncate at 'limit': re-ranking and root exclusion happen
+    # after all candidates have been collected.
+    candidate_limit = min(300, max(90, limit * 3))
     matched = session.scalars(product_query().where(
-        text_filter(query)).order_by(Product.id).limit(limit * 3)).unique().all()
-    ordered = [p for p in matched
-               if not primary_type_conflicts(p, precise_type)][:limit]
-    seen = {p.id for p in ordered}
-    if SEARCH_BACKEND == 'clip' and len(ordered) < limit:
-        # A neural model failure must not erase exact matches.
-        import logging
+        text_filter(query)).order_by(Product.id).limit(candidate_limit)).unique().all()
+    matched = [p for p in matched if not primary_type_conflicts(p, precise_type)]
+    text_ids = [p.id for p in matched]
+    clip_ids = []
+    caption_ids = []
+    if SEARCH_BACKEND == 'clip':
         try:
-            semantic_ids = visual_product_ids(session, query, limit=limit)
-            if os.getenv('OPEN_VOCAB_SEARCH', '0') == '1':
-                # Caption-based matching handles terms outside the fixed taxonomy.
-                # Keep existing CLIP and exact-title matches as independent signals.
-                try:
-                    from .open_vocabulary import open_vocabulary_image_ids
-                    caption_ids = open_vocabulary_image_ids(session, query, limit=limit)
-                    semantic_ids = list(dict.fromkeys(semantic_ids + caption_ids))
-                except Exception:
-                    logging.getLogger(__name__).exception(
-                        'Open-vocabulary search unavailable')
-            if semantic_ids:
-                extra = session.scalars(product_query().where(
-                    Product.id.in_(semantic_ids)).where(
-                    Product.id.not_in(seen))).unique().all()
-                by_id = {p.id: p for p in extra}
-                for pid in semantic_ids:
-                    if (pid in by_id and pid not in seen
-                            and not primary_type_conflicts(by_id[pid], precise_type)):
-                        ordered.append(by_id[pid])
-                        seen.add(pid)
-                        if len(ordered) == limit:
-                            break
+            clip_ids = visual_product_ids(session, query, limit=candidate_limit)
         except Exception:
-            logging.getLogger(__name__).exception(
-                'Semantic text search unavailable for query')
-    return {'items': [serialize_product(p) for p in ordered],
+            logging.getLogger(__name__).exception('CLIP semantic search unavailable')
+        if os.getenv('OPEN_VOCAB_SEARCH', '0') == '1':
+            try:
+                from .open_vocabulary import open_vocabulary_image_ids
+                caption_ids = open_vocabulary_image_ids(
+                    session, query, limit=candidate_limit)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    'Open-vocabulary caption search unavailable')
+
+    candidates = list(dict.fromkeys(text_ids + clip_ids + caption_ids))
+    product_by_id = {p.id: p for p in matched}
+    if candidates:
+        missing = [pid for pid in candidates if pid not in product_by_id]
+        if missing:
+            extras = session.scalars(product_query().where(
+                Product.id.in_(missing))).unique().all()
+            for product in extras:
+                if not primary_type_conflicts(product, precise_type):
+                    product_by_id[product.id] = product
+
+    ranked_ids = ranked_product_ids(text_ids, clip_ids, caption_ids,
+                                    product_by_id, query, limit)
+    return {'items': [serialize_product(product_by_id[pid]) for pid in ranked_ids],
             'sellers': search_sellers(session, query),
             'ml_enabled': SEARCH_BACKEND == 'clip'}
 
