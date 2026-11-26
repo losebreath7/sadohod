@@ -174,7 +174,9 @@ def test_clip_overlay_review_checks_every_photo_and_does_not_override_safety(mon
             return SimpleNamespace(embedding=embeds[key[0]])
     item = SimpleNamespace(title='Футболка', description='',
                            images=[image_a, image_b])
-    assert 'инфографика' in screening.assess(ImageDb(), item)
+    decision = screening.assess(ImageDb(), item)
+    assert 'инфографика' in decision and 'Фото №2' in decision
+    assert screening.screening_status(decision) == 'rejected'
     item.images = [image_a]
     assert screening.assess(ImageDb(), item) is None
     item.images = [image_b]
@@ -194,3 +196,47 @@ def test_clip_overlay_prompt_failure_stays_in_review(monkeypatch):
                            images=[SimpleNamespace(id='i')])
     db = SimpleNamespace(get=lambda *_: SimpleNamespace(embedding=vector))
     assert 'инфографики' in screening.assess(db, item)
+
+
+def test_strong_render_signal_rejects_ambiguous_signal_waits():
+    scores = [0.10] * len(screening.OVERLAY_PROMPTS) + [0.34]
+    reason = screening._overlay_review_reason(scores, [0.21], 2)
+    assert screening.screening_status(reason) == 'rejected'
+    assert 'Фото №2' in reason and 'рендер' in reason
+    scores[-1] = 0.25
+    assert screening.screening_status(screening._overlay_review_reason(scores, [0.23], 2)) == 'pending'
+
+
+def test_generated_png_refused_before_replacement(env):
+    from io import BytesIO
+    from PIL import Image, PngImagePlugin
+
+    client, auth, pavilion = setup_seller(env)
+    pid = client.post('/api/v1/merchant/products', headers=auth, json={}).json()['id']
+    route = f'/api/v1/merchant/products/{pid}/images'
+    original = client.post(route, headers=auth, files={'files': ('a.jpg', photo(), 'image/jpeg')})
+    images = original.json()['image_items']
+    png = BytesIO()
+    tags = PngImagePlugin.PngInfo()
+    tags.add_text('parameters', 'hat\nSteps: 25, Sampler: Euler, Seed: 12')
+    Image.new('RGB', (64, 64)).save(png, 'PNG', pnginfo=tags)
+    response = client.post(route, headers=auth, data={'replace_id': images[0]['id']},
+                           files={'files': ('a.png', png.getvalue(), 'image/png')})
+    assert response.status_code == 422 and 'генератора' in response.json()['detail']
+    assert client.get(route.removesuffix('/images'), headers=auth).json()['image_items'] == images
+
+
+def test_photo_rejection_unpublishes_listing_and_explains_reason(env, monkeypatch):
+    from test_contextual_product_screening import _new
+    client, auth, pavilion = setup_seller(env)
+    pid, body = _new(client, auth, pavilion, 'Набор', 'photo-policy-live')
+    path = f'/api/v1/merchant/products/{pid}'
+    assert client.put(path + '/save', headers=auth, json=body).json()['status'] == 'approved'
+    reason = screening._overlay_review_reason([0.36], [0.21], 2)
+    monkeypatch.setattr(screening, 'assess', lambda db, product: reason)
+    result = client.post(path + '/images', headers=auth, files={'files': ('b.jpg', photo(), 'image/jpeg')})
+    assert result.status_code == 201
+    assert result.json()['status'] == 'rejected'
+    assert result.json()['listings'][0]['status'] == 'rejected'
+    assert result.json()['note'] == reason
+    assert client.get(f'/api/v1/products/{pid}').status_code == 404

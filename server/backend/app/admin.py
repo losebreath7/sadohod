@@ -218,13 +218,21 @@ def visibility(pid: str, data: VisibilityInput, session: Session = Depends(get_d
     return serialize_product(product)
 
 
-def normalize_image(raw):
+def normalize_image(raw, photo_number=None):
     try:
         with Image.open(BytesIO(raw)) as source:
             if source.format not in ('JPEG','PNG','WEBP'):
                 raise ValueError('format')
             if source.width*source.height>20_000_000 or min(source.size)<24:
                 raise ValueError('size')
+            if photo_number is not None:
+                # Read provenance before JPEG normalization discards it.
+                software = str(source.getexif().get(305, '') or source.info.get('Software', '')).casefold()
+                parameters = str(source.info.get('parameters', ''))
+                generated = ('Steps:' in parameters and 'Sampler:' in parameters and 'Seed:' in parameters)
+                if generated or any(tool in software for tool in (
+                    'stable diffusion', 'comfyui', 'midjourney', 'dall-e', 'blender')):
+                    raise HTTPException(422, f'Фото №{photo_number}: файл содержит метку генератора или рендера. Загрузите обычную фотографию товара с телефона.')
             im=ImageOps.exif_transpose(source).convert('RGB')
             im.thumbnail((1800,1800), Image.Resampling.LANCZOS)
             out=BytesIO(); im.save(out,'JPEG',quality=92)
@@ -241,11 +249,11 @@ def upload_images(pid: str, files: list[UploadFile] = File(...), session: Sessio
         raise HTTPException(422,'За раз можно добавить до 6 фотографий; всего — до 12 на товар.')
     prepared=[]; written=[]
     try:
-        for f in files:
+        for number, f in enumerate(files, start=len(product.images) + 1):
             raw=f.file.read(MAX_UPLOAD_BYTES+1)
             if len(raw)>MAX_UPLOAD_BYTES:
                 raise HTTPException(413,'Каждая фотография должна быть не больше 8 МБ.')
-            clean=normalize_image(raw)
+            clean=normalize_image(raw, number)
             descriptor=descriptor_from_bytes(clean)
             vector=embed_image(clean) if SEARCH_BACKEND=='clip' else None
             if vector is not None and (len(vector)!=DIM or not all(math.isfinite(v) for v in vector)):

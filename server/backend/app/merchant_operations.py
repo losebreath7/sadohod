@@ -401,7 +401,7 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
     product.details.sizes = data.sizes
     from .category_inference import assign_category
     assign_category(db, product)
-    from .product_screening import assess
+    from .product_screening import assess, screening_status
     screening_reason = (None if content_unchanged else assess(db, product)) if data.submit else None
     for row in existing:
         if row.pavilion_id not in ids:
@@ -419,14 +419,14 @@ def save_product(pid: str, data: SaveInput, buyer: Buyer = Depends(current_buyer
             if screening_reason:
                 drop_offer(db, row)
                 if row.status != 'paused':
-                    row.status = 'pending'
+                    row.status = screening_status(screening_reason)
             elif row.status != 'paused':
                 m.publish_listing(db, row, screened=True)
         else:
             drop_offer(db, row)
             row.status = 'draft'
         row.note = screening_reason or ''
-    owner.status = ('pending' if screening_reason else 'approved') if data.submit else 'draft'
+    owner.status = (screening_status(screening_reason) if screening_reason else 'approved') if data.submit else 'draft'
     owner.note = screening_reason or ''
     refresh_visibility(db, product, owner)
     finish(db, shop, data, digest, {'id': pid})

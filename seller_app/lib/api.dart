@@ -95,7 +95,7 @@ class SellerApi extends ChangeNotifier {
     return data;
   }
 
-  Future<void> uploadProductImages(
+  Future<Map<String, dynamic>> uploadProductImages(
     String productId,
     List<XFile> images, {
     String? requestId,
@@ -135,6 +135,7 @@ class SellerApi extends ChangeNotifier {
             : 'Не удалось загрузить фотографию (${response.statusCode}). Повторите сохранение.',
       );
     }
+    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
   }
 
   Future<void> requestCode(String email) async {

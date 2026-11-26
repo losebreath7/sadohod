@@ -17,10 +17,11 @@ class ActionsApi extends SellerApi {
     return Map.of(current);
   }
   @override
-  Future<void> uploadProductImages(String id, List<XFile> images, {String? requestId, String? replaceId}) async {
+  Future<Map<String, dynamic>> uploadProductImages(String id, List<XFile> images, {String? requestId, String? replaceId}) async {
     keys.add(requestId!);
     current = {...current, 'image_items': [{'id': 'i1', 'url': '/photo.jpg'}], 'images': ['/photo.jpg']};
     if (loseUpload) { loseUpload = false; throw Exception('Response lost after server commit'); }
+    return Map.of(current);
   }
 }
 
@@ -55,6 +56,9 @@ void main() {
     expect(productSaveFeedback({
       'status': 'rejected', 'listings': [],
     }), 'Товар отклонён модерацией.');
+    expect(productSaveFeedback({
+      'status': 'rejected', 'note': 'Фото №2: инфографика.',
+    }), 'Фото №2: инфографика.');
     expect(productSaveFeedback({
       'status': 'approved', 'listings': [],
     }), 'Товар сохранён');

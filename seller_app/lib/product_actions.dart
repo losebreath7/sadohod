@@ -29,7 +29,10 @@ class ProductSaveSession {
 /// Always use the *returned server status*, never the HTTP 200 alone.
 String productSaveFeedback(ProductData saved) {
   final product = SellerProduct(saved);
-  if (product.status == SellerStatus.rejected) return 'Товар отклонён модерацией.';
+  if (product.status == SellerStatus.rejected) {
+    final reason = (saved['note'] ?? '').toString().trim();
+    return reason.isEmpty ? 'Товар отклонён модерацией.' : reason;
+  }
   if (product.awaitingReview) {
     if (product.catalogListing() != null) {
       return 'Товар опубликован в части павильонов. Есть предложения на проверке.';
@@ -159,19 +162,12 @@ class ProductActions {
         'Предложение на проверке. Обновите список после решения модератора.',
       );
     }
-    if (current.status == SellerStatus.approved) {
-      await api.call(
-        '/merchant/products/$id',
-        method: 'PUT',
-        body: metadata,
-      );
-    }
     // Upload replacements first: a bad new file must not delete the old image.
     for (final photo in photos) {
       if (session.finishedPhotos.contains(photo)) continue;
       final key = session.photoKeys.putIfAbsent(photo, operationId);
       await checkpoint?.call();
-      await api.uploadProductImages(
+      final uploaded = await api.uploadProductImages(
         id,
         [photo],
         requestId: key,
@@ -179,6 +175,11 @@ class ProductActions {
       );
       session.finishedPhotos.add(photo);
       await checkpoint?.call();
+      final status = SellerProduct(uploaded).status;
+      if (current.status == SellerStatus.approved &&
+          (status == SellerStatus.rejected || status == SellerStatus.pending)) {
+        throw SellerApiException(409, productSaveFeedback(uploaded));
+      }
     }
     final refreshed = await api.call('/merchant/products/$id');
     final existingIds = dataRows(refreshed['image_items'])
