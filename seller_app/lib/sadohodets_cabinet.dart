@@ -809,6 +809,7 @@ class _CabinetState extends State<SadohodetsCabinet>
                               ] else if (showFolders) ...[
                                 if (!viewingArchive) ...[
                                   action('Создать папку', () => editFolder()),
+                                  const SizedBox(height: 20),
                                   if (archivedFolders.isNotEmpty)
                                     CourierArchiveEntry(
                                       count: archivedFolders.length,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'courier_swipe_actions.dart';
 
 class CourierArchiveEntry extends StatelessWidget {
   const CourierArchiveEntry({super.key, required this.count, required this.onTap});
@@ -40,7 +41,7 @@ class _CourierFolderListState extends State<CourierFolderList> {
     for (final entry in widget.folders)
       Padding(
         key: ValueKey(entry['id']),
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 18),
         child: _SwipeFolderRow(
           folder: entry, archived: widget.archived, busy: widget.busy,
           opened: opened == entry['id'].toString(),
@@ -72,8 +73,8 @@ class _SwipeFolderRow extends StatefulWidget {
 }
 
 class _SwipeFolderRowState extends State<_SwipeFolderRow> {
-  static const double height = 56;
-  static const double reveal = 112;
+  static const double height = CourierSwipeAction.height;
+  static const double reveal = CourierSwipeAction.reveal;
   double? drag;
   double get shift => drag ?? (widget.opened ? reveal : 0);
   @override
@@ -83,14 +84,14 @@ class _SwipeFolderRowState extends State<_SwipeFolderRow> {
     return SizedBox(height: height, child: ClipRect(child: Stack(children: [
       if (widget.opened || drag != null)
         Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
-          action(SellerColors.blue, widget.archived ? Icons.unarchive_outlined : Icons.archive_outlined,
-            widget.archived ? 'Вернуть из архива' : 'В архив', widget.onArchive),
-          const SizedBox(width: 6),
-          action(SellerColors.burgundy, Icons.delete_outline, 'Удалить папку', widget.onDelete),
+          CourierSwipeAction(icon: widget.archived ? Icons.unarchive_outlined : Icons.archive_outlined,
+            label: widget.archived ? 'Вернуть из архива' : 'В архив', onTap: widget.busy ? null : widget.onArchive),
+          const SizedBox(width: CourierSwipeAction.gap),
+          CourierSwipeAction(remove: true, label: 'Удалить папку', onTap: widget.busy ? null : widget.onDelete),
         ])),
       Positioned.fill(child: TweenAnimationBuilder<double>(
         tween: Tween(end: shift), duration: drag == null ? SadohodMotion.standard : Duration.zero,
-        builder: (_, x, child) => Transform.translate(offset: Offset(-x, 0), child: child),
+        builder: (_, x, child) => Padding(padding: EdgeInsets.only(right: x), child: child),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onHorizontalDragStart: widget.busy ? null : (_) => setState(() => drag = shift),
@@ -103,13 +104,13 @@ class _SwipeFolderRowState extends State<_SwipeFolderRow> {
           },
           onHorizontalDragCancel: () => setState(() => drag = null),
           child: Material(
-            color: widget.opened || drag != null ? const Color(0xffdeddd9) : SellerColors.background,
-            borderRadius: BorderRadius.circular(14),
+            color: widget.opened || drag != null ? const Color(0xffd9d9d9) : SellerColors.background,
+            borderRadius: BorderRadius.circular(15),
             child: InkWell(
               onTap: widget.busy ? null : () {
                 if (widget.opened) { widget.onReveal(false); } else { widget.onOpen(); }
               },
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(15),
               child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -129,11 +130,4 @@ class _SwipeFolderRowState extends State<_SwipeFolderRow> {
     ])));
   }
 
-  Widget action(Color color, IconData icon, String label, VoidCallback callback) =>
-    Semantics(label: label, button: true, child: Material(
-      color: color, borderRadius: BorderRadius.circular(16),
-      child: InkWell(onTap: widget.busy ? null : callback,
-        borderRadius: BorderRadius.circular(16),
-        child: SizedBox(width: 53, height: height, child: Icon(icon, color: Colors.white, size: 23))),
-    ));
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
+import 'courier_swipe_actions.dart';
 
 /// Group by the actual offer's pavilion, not by the product name or seller.
 /// The catalogue API puts the default (lowest priced) offer first.
@@ -102,8 +103,8 @@ class _FolderProductRow extends StatefulWidget {
 }
 
 class _FolderProductRowState extends State<_FolderProductRow> {
-  static const double rowHeight = 56;
-  static const double revealWidth = 112;
+  static const double rowHeight = CourierSwipeAction.height;
+  static const double revealWidth = CourierSwipeAction.reveal;
   double? drag;
   double get shift => drag ?? (widget.opened ? revealWidth : 0);
 
@@ -122,13 +123,10 @@ class _FolderProductRowState extends State<_FolderProductRow> {
     return SizedBox(height: rowHeight, child: ClipRect(child: Stack(children: [
       if (widget.opened || drag != null)
         Positioned(right: 0, top: 0, bottom: 0, child: Row(children: [
-        _swipeButton(
-          color: SellerColors.blue, label: collected ? 'Снять отметку' : 'Собрано',
-          icon: collected ? Icons.check_box_outlined : Icons.check_box_outline_blank_rounded,
-          onTap: widget.onCollected),
-        const SizedBox(width: 6),
-        _swipeButton(color: SellerColors.burgundy, label: 'Удалить товар',
-          icon: Icons.delete_outline, onTap: widget.onRemove),
+        CourierSwipeAction(collect: true, checked: collected, label: collected ? 'Снять отметку' : 'Собрано',
+          onTap: widget.busy ? null : widget.onCollected),
+        const SizedBox(width: CourierSwipeAction.gap),
+        CourierSwipeAction(remove: true, label: 'Удалить товар', onTap: widget.busy ? null : widget.onRemove),
       ])),
       Positioned.fill(child: TweenAnimationBuilder<double>(
         tween: Tween(end: shift),
@@ -151,8 +149,8 @@ class _FolderProductRowState extends State<_FolderProductRow> {
             duration: SadohodMotion.standard,
             child: Container(
             decoration: BoxDecoration(
-              color: widget.opened || drag != null ? const Color(0xffdeddd9) : SellerColors.background,
-              borderRadius: BorderRadius.circular(14),
+              color: widget.opened || drag != null ? const Color(0xffd9d9d9) : SellerColors.background,
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Row(children: [
               Expanded(child: InkWell(
@@ -207,11 +205,4 @@ class _FolderProductRowState extends State<_FolderProductRow> {
           color: next == null ? Colors.white54 : Colors.white, height: 1)))),
     ),
   );
-  Widget _swipeButton({required Color color, required String label, required IconData icon, required VoidCallback onTap}) =>
-    Semantics(button: true, label: label, child: InkWell(
-      onTap: widget.busy ? null : onTap,
-      child: Container(width: 53, height: rowHeight,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-        child: Icon(icon, color: Colors.white, size: 23)),
-    ));
 }
