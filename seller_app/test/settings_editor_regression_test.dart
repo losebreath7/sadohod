@@ -95,6 +95,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('shop selection button opens bulk actions', (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await setUpPreview(tester, '366:17044');
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Выбрать товары'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('выбрать все'), findsOneWidget);
+  });
+
   testWidgets('editor uses Figma visibility eye and pavilion code once',
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);

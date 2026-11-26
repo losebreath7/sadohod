@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +9,6 @@ import 'package:sadohod/core/widgets/common.dart';
 import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
 import 'package:sadohod/features/account/favorites_screen.dart';
-import 'package:sadohod/features/account/market_navigation_guide.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -193,24 +191,14 @@ void main() {
     expect(find.text('избранное'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('favorites navigation shortcut uses the profile icon and opens guide',
+  testWidgets('favorites location icon opens and closes zone filters',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final router = GoRouter(initialLocation: '/favorites', routes: [
-      GoRoute(path: '/favorites',
-        builder: (_, _) => const Scaffold(
-          body: FavoritesNavigationButton(),
-        )),
-      GoRoute(path: '/navigation',
-        builder: (_, _) => const MarketNavigationGuideScreen()),
-    ]);
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
-    final shortcut = find.byTooltip('Навигация');
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: FavoritesScreen())));
+    final shortcut = find.byTooltip('Фильтры избранного');
     expect(shortcut, findsOneWidget);
     expect(find.descendant(
       of: shortcut,
@@ -219,10 +207,19 @@ void main() {
           widget.file == 'v082_menu_location',
       ),
     ), findsOneWidget);
-    expect(find.byTooltip('Фильтры избранного'), findsNothing);
     await tester.tap(shortcut);
-    await tester.pumpAndSettle();
-    expect(find.byType(MarketNavigationGuideScreen), findsOneWidget);
+    await tester.pump();
+    await tester.tap(find.text('корпус А'));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.close).first);
+    await tester.pump();
+    expect(shortcut, findsOneWidget);
+    await tester.tap(shortcut);
+    await tester.pump();
+    final chip = tester.widget<ActionChip>(find.widgetWithText(ActionChip, 'корпус А'));
+    expect(chip.backgroundColor, Colors.black);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 13));
     expect(tester.takeException(), isNull);
   });
 
