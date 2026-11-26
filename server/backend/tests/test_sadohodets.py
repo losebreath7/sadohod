@@ -125,7 +125,11 @@ def test_directory_and_moderated_reviews(setup, monkeypatch):
     assert c.put(path, headers=admin, json={'status': 'approved'}).status_code == 200
     assert c.get(base).json()['items'][0]['id'] == pid
     assert c.get(base+'?min_rating=5').json()['items'][0]['review_count'] == 1
-    assert c.get(base+'/'+pid+'/reviews').json()['items'][0]['rating'] == 5
+    public_review = c.get(base+'/'+pid+'/reviews').json()['items'][0]
+    assert public_review['rating'] == 5
+    own_review = c.get(review, headers=b).json()['item']
+    assert public_review['id'] == own_review['id']
+    assert public_review['id'] != bid
     assert c.put(review, headers=b, json={'rating': 4}).status_code == 200
     assert c.get(base+'/'+pid+'/reviews').json()['items'] == []
     assert c.delete(review, headers=b).status_code == 200

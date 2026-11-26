@@ -328,7 +328,7 @@ class ProfileScreen extends StatelessWidget {
         ('34999', 'профиль', '/profile', 30, 30),
         ('3134f', 'избранные товары', '/favorites', 24, 24),
         ('045c1', 'любимые продавцы', '/favorite-sellers', 24, 24),
-        ('045c1', 'садоходцы', '/sadohodtsy', 24, 24),
+        ('v082_menu_courier', 'садоходцы', '/sadohodtsy', 19, 21),
         ('57599', 'поддержка', '/support', 24, 24),
         ('e6ee6', 'настройки', '/settings', 24, 24),
         ('v082_menu_location', 'навигация', '/navigation', 24, 24),

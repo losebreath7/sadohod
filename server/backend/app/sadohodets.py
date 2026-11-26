@@ -1,5 +1,6 @@
 """Authenticated Sadohodets profile lifecycle; publication is explicit."""
 import re
+import hashlib
 import time
 import uuid
 from typing import Literal
@@ -402,7 +403,8 @@ class ReviewInput(BaseModel):
 
 
 def review_data(row, name):
-    return {'rating': row.rating, 'text': row.body, 'name': (name or '').strip() or 'Пользователь',
+    review_id = hashlib.sha256(f'courier-review:{row.profile_id}:{row.reviewer_id}'.encode()).hexdigest()
+    return {'id': review_id, 'rating': row.rating, 'text': row.body, 'name': (name or '').strip() or 'Пользователь',
             'created_at': row.created_at, 'moderation_status': row.moderation_status}
 
 

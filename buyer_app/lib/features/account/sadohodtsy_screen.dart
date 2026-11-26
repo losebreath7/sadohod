@@ -6,6 +6,7 @@ import '../../core/widgets/design.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/account.dart';
 import '../../data/api.dart';
+import '../seller/seller_reviews_panel.dart';
 
 typedef _Row = Map<String, dynamic>;
 Future<_Row> _request(String route, {String method = 'GET', _Row? body}) =>
@@ -265,14 +266,6 @@ class _ProfileState extends State<SadohodetsScreen> {
   late Future<_Row> data = load();
   Future<_Row> load() async {
     final p = await _request(route);
-    final reviews = <_Row>[];
-    for (var offset = 0; ; offset += 100) {
-      final batch = _items(
-        await _request('$route/reviews?limit=100&offset=$offset'),
-      );
-      reviews.addAll(batch);
-      if (batch.length < 100) break;
-    }
     if (AccountStore.instance.signedIn) {
       final account = await AccountStore.instance.request(
         '/account',
@@ -280,48 +273,10 @@ class _ProfileState extends State<SadohodetsScreen> {
       );
       saved = (account['couriers'] as List? ?? []).contains(widget.id);
     }
-    return {...p, 'reviews': reviews};
+    return p;
   }
 
   void refresh() => setState(() => data = load());
-  Future<void> review() async {
-    if (!AccountStore.instance.signedIn) {
-      context.push('/account');
-      return;
-    }
-    try {
-      final own = await _request('$route/my-review');
-      if (!mounted) return;
-      final previous = own['item'] as Map?;
-      final result = await showDialog<_Row>(
-        context: context,
-        builder: (_) => _ReviewDialog(previous: previous),
-      );
-      if (result == null || !mounted) return;
-      if (result['delete'] == true) {
-        await _request('$route/my-review', method: 'DELETE');
-      } else {
-        await _request('$route/my-review', method: 'PUT', body: result);
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['delete'] == true
-                ? 'Отзыв удалён'
-                : 'Отзыв отправлен на проверку',
-          ),
-        ),
-      );
-      refresh();
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final header = BuyerHeaderLayout.of(context);
@@ -363,14 +318,13 @@ class _ProfileState extends State<SadohodetsScreen> {
               final contacts = (p['contacts'] as Map? ?? {}).entries
                   .where((e) => e.value?.toString().trim().isNotEmpty == true)
                   .toList();
-              final reviews = (p['reviews'] as List? ?? []);
               return PublicSellerBody(
                 name: p['name']?.toString() ?? '',
                 addresses: const [],
                 coverImage: p['cover'] == null ? null : NetworkImage(_url(p['cover'])),
                 avatarImage: p['avatar'] == null ? null : NetworkImage(_url(p['avatar'])),
                 subtitle: Text(
-                  [_rating(p), _active(p)].where((v) => v.isNotEmpty).join(' · '),
+                  _active(p),
                   style: const TextStyle(fontSize: 11, color: Color(0xff6c6c6c))),
                 contacts: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,25 +354,10 @@ class _ProfileState extends State<SadohodetsScreen> {
                       ),
                   ],
                 ),
-                reviews: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Отзывы', style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-                    TextButton(
-                      onPressed: review,
-                      child: const Text('Оставить или изменить отзыв')),
-                    for (final r in reviews)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text("${r['name']} · ★ ${r['rating']}"),
-                        subtitle: Text("${r['text']}"),
-                      ),
-                    if (reviews.isEmpty)
-                      const Text('Пока нет отзывов',
-                        style: TextStyle(fontSize: 12,
-                          color: Color(0xff6c6c6c))),
-                  ],
+                reviews: SellerReviewsPanel(
+                  sellerId: widget.id,
+                  sellerName: p['name']?.toString() ?? '',
+                  courier: true,
                 ),
                 products: const SizedBox.shrink(),
               );
@@ -430,64 +369,3 @@ class _ProfileState extends State<SadohodetsScreen> {
   }
 }
 
-class _ReviewDialog extends StatefulWidget {
-  const _ReviewDialog({this.previous});
-  final Map? previous;
-  @override
-  State<_ReviewDialog> createState() => _ReviewDialogState();
-}
-
-class _ReviewDialogState extends State<_ReviewDialog> {
-  late int rating = widget.previous?['rating'] as int? ?? 5;
-  late final text = TextEditingController(
-    text: widget.previous?['text']?.toString() ?? '',
-  );
-  @override
-  void dispose() {
-    text.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Отзыв'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Wrap(
-          children: [
-            for (var i = 1; i <= 5; i++)
-              IconButton(
-                onPressed: () => setState(() => rating = i),
-                icon: Icon(i <= rating ? Icons.star : Icons.star_border),
-              ),
-          ],
-        ),
-        TextField(
-          controller: text,
-          maxLines: 4,
-          maxLength: 2000,
-          decoration: const InputDecoration(hintText: 'Ваш отзыв'),
-        ),
-      ],
-    ),
-    actions: [
-      if (widget.previous != null)
-        TextButton(
-          onPressed: () => Navigator.pop(context, {'delete': true}),
-          child: const Text('Удалить'),
-        ),
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Отмена'),
-      ),
-      TextButton(
-        onPressed: () => Navigator.pop(context, {
-          'rating': rating,
-          'text': text.text.trim(),
-        }),
-        child: const Text('Отправить'),
-      ),
-    ],
-  );
-}

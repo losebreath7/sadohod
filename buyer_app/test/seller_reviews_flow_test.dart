@@ -13,6 +13,8 @@ void main() {
     Future<Map<String, dynamic>> Function()? mine,
     Future<void> Function(int, String, List<String>)? save,
     bool signedIn = false,
+    bool courier = false,
+    Future<void> Function()? remove,
     bool frame = false,
     double width = 390,
     double height = 844,
@@ -36,6 +38,8 @@ void main() {
           myLoader: mine,
           submitOverride: save,
           loggedIn: signedIn,
+          courier: courier,
+          deleteOverride: remove,
         ),
       ),
     )));
@@ -418,4 +422,49 @@ void main() {
     expect(find.text('нет отзывов'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('Courier uses the same review cards, flowers and text editor', (tester) async {
+    final own = {'id':'mine','name':'Я','rating':5,'text':'Мой отзыв','moderation_status':'approved'};
+    final other = {'id':'other','name':'Другой','rating':4,'text':'Хорошо','moderation_status':'approved'};
+    await mountReviews(tester, courier:true, signedIn:true,
+      public: () async => {'average':4.5,'items':[other,own]},
+      mine: () async => {'item':own});
+    final myCard = find.byKey(const ValueKey('seller-review-mine'));
+    final otherCard = find.byKey(const ValueKey('seller-review-other'));
+    expect(myCard,findsOneWidget);
+    expect(tester.getSize(myCard),const Size(135,85));
+    expect(tester.getTopLeft(myCard).dx,lessThan(tester.getTopLeft(otherCard).dx));
+    expect(find.byType(ReviewRatingFlowers),findsOneWidget);
+    await tester.tap(otherCard);
+    await tester.pumpAndSettle();
+    expect(find.text('пожаловаться'),findsNothing);
+    await tester.tap(find.text('закрыть'));
+    await tester.pumpAndSettle();
+    await tester.tap(myCard);
+    await tester.pumpAndSettle();
+    expect(find.text('удалить'),findsOneWidget);
+    await tester.tap(find.text('редактировать'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('review-compose-sheet')),findsOneWidget);
+    expect(find.byTooltip('Добавить фото к отзыву (0/3)'),findsNothing);
+    await tester.tap(find.byTooltip('Закрыть отзыв'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(),isNull);
+  });
+
+  testWidgets('Courier with no reviews shows the identical add card', (tester) async {
+    await mountReviews(tester,courier:true,signedIn:true,
+      public:() async => {'average':null,'items':[]},
+      mine:() async => {'item':null});
+    expect(find.text('нет отзывов'),findsOneWidget);
+    final card=find.byKey(const ValueKey('seller-review-add'));
+    expect(tester.getSize(card),const Size(135,85));
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('review-compose-sheet')),findsOneWidget);
+    expect(find.byType(ReviewFlower),findsNWidgets(5));
+    await tester.tap(find.byTooltip('Закрыть отзыв'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(),isNull);
+  });
+
 }

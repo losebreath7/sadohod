@@ -33,6 +33,7 @@ class SellerReviewsPanel extends StatefulWidget {
   const SellerReviewsPanel({
     required this.sellerId, required this.sellerName, super.key,
     this.publicLoader, this.myLoader, this.submitOverride, this.loggedIn,
+    this.courier = false, this.deleteOverride,
   });
   final String sellerId;
   final String sellerName;
@@ -40,6 +41,8 @@ class SellerReviewsPanel extends StatefulWidget {
   final Future<Map<String, dynamic>> Function()? myLoader;
   final Future<void> Function(int, String, List<String>)? submitOverride;
   final bool? loggedIn;
+  final bool courier;
+  final Future<void> Function()? deleteOverride;
 
 
   @override
@@ -53,6 +56,9 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   bool _mineChecked = false;
   String? _activeToken;
   bool get _signedIn => widget.loggedIn ?? AccountStore.instance.signedIn;
+  String get _route => widget.courier
+      ? '/sadohodets/${Uri.encodeComponent(widget.sellerId)}'
+      : '/sellers/${Uri.encodeComponent(widget.sellerId)}';
   bool _loading = true;
   String? _error;
 
@@ -79,7 +85,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
   @override
   void didUpdateWidget(covariant SellerReviewsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sellerId != widget.sellerId) {
+    if (oldWidget.sellerId != widget.sellerId || oldWidget.courier != widget.courier) {
       _mine = null;
       _mineChecked = false;
       _loading = true;
@@ -96,6 +102,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
 
   Future<void> _load() async {
     final sellerId = widget.sellerId;
+    final courier = widget.courier;
     final accountToken = AccountStore.instance.token;
     if (mounted) setState(() {
       _loading = true;
@@ -103,15 +110,14 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     });
     try {
       final result = await (widget.publicLoader?.call() ??
-        AccountStore.instance.request(
-          '/sellers/${widget.sellerId}/reviews', method: 'GET'));
+        _loadPublic());
       Map<String, dynamic>? mine;
       var mineChecked = !_signedIn;
       if (_signedIn) {
         try {
           final own = await (widget.myLoader?.call() ??
             AccountStore.instance.request(
-              '/sellers/${widget.sellerId}/my-review', method: 'GET'));
+              '$_route/my-review', method: 'GET'));
           if (own['item'] is Map) {
             mine = Map<String, dynamic>.from(own['item'] as Map);
             mine['hidden'] = own['hidden'] == true;
@@ -122,7 +128,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
           // The existing public reviews can still be displayed.
         }
       }
-      if (!mounted || widget.sellerId != sellerId ||
+      if (!mounted || widget.sellerId != sellerId || widget.courier != courier ||
           AccountStore.instance.token != accountToken) return;
       setState(() {
         _data = result;
@@ -132,13 +138,62 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
         _error = mineChecked ? null : 'Не удалось проверить ваш отзыв';
       });
     } catch (_) {
-      if (!mounted || widget.sellerId != sellerId ||
+      if (!mounted || widget.sellerId != sellerId || widget.courier != courier ||
           AccountStore.instance.token != accountToken) return;
       setState(() {
         _loading = false;
         _mineChecked = false;
         _error = 'Не удалось загрузить отзывы';
       });
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadPublic() async {
+    if (!widget.courier) {
+      return AccountStore.instance.request('$_route/reviews', method: 'GET');
+    }
+    final route = _route;
+    final rows = <dynamic>[];
+    Map<String, dynamic>? first;
+    for (var offset = 0; ; offset += 100) {
+      final page = await AccountStore.instance.request(
+        '$route/reviews?limit=100&offset=$offset', method: 'GET');
+      first ??= page;
+      final items = page['items'] as List? ?? const [];
+      rows.addAll(items);
+      if (items.length < 100) break;
+    }
+    return {'average': first['rating'], 'count': first['review_count'], 'items': rows};
+  }
+
+  Future<void> _deleteOwn() async {
+    if (!widget.courier || !_signedIn || _mine == null) return;
+    final route = _route;
+    final token = AccountStore.instance.token;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('Удалить отзыв?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('отмена', style: TextStyle(color: Colors.black))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('удалить', style: TextStyle(color: Colors.black))),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || token != AccountStore.instance.token || route != _route) return;
+    try {
+      if (widget.deleteOverride != null) {
+        await widget.deleteOverride!();
+      } else {
+        await AccountStore.instance.request('$route/my-review', method: 'DELETE');
+      }
+      if (mounted) await _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось удалить отзыв')));
     }
   }
 
@@ -150,7 +205,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     // New review requires no existing record. Editing updates the same
     // seller/buyer record, which the server enforces with a unique constraint.
     if (_loading || !_mineChecked || (_mine != null && !editing)) return;
-    if (editing && _mine == null) return;
+    if (editing && (_mine == null || (widget.courier && _mine!['moderation_status'] == 'hidden'))) return;
     final current = _mine;
     var rating = (current?['rating'] as num?)?.toInt() ?? 0;
     final comment = TextEditingController(text: current?['text']?.toString() ?? '');
@@ -242,7 +297,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                   ),
                   // The existing optional photo attachment remains available
                   // via a small control inside the text area.
-                  Positioned(right: 1, bottom: 1,
+                  if (!widget.courier) Positioned(right: 1, bottom: 1,
                     child: IconButton(
                       tooltip: 'Добавить фото к отзыву (${photos.length}/3)',
                       icon: const Icon(Icons.add_photo_alternate_outlined,
@@ -297,9 +352,12 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                       try {
                         if (widget.submitOverride != null) {
                           await widget.submitOverride!(rating, comment.text.trim(), photos);
+                        } else if (widget.courier) {
+                          await AccountStore.instance.request('$_route/my-review', method: 'PUT',
+                            body: {'rating': rating, 'text': comment.text.trim()});
                         } else {
                           await AccountStore.instance.request(
-                            '/sellers/${widget.sellerId}/reviews',
+                            '$_route/reviews',
                             body: {'rating': rating, 'text': comment.text.trim(),
                               'photos': photos});
                         }
@@ -357,10 +415,11 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: Color(0xff777777))),
           const SizedBox(height: 11),
-          const Text('После проверки он появится в карточке продавца\n'
-            'и будет учитываться в рейтинге.',
+          Text(widget.courier
+            ? 'После проверки он появится в карточке садоходца\nи будет учитываться в рейтинге.'
+            : 'После проверки он появится в карточке продавца\nи будет учитываться в рейтинге.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, height: 1.3,
+            style: const TextStyle(fontSize: 12, height: 1.3,
               color: Color(0xffaaaaaa))),
           const Spacer(),
           SizedBox(width: double.infinity, height: 44,
@@ -389,7 +448,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
 
   Future<void> _report(String reviewId) async {
     // Client-side safeguard. The API also rejects direct self-report requests.
-    if (_signedIn && _mine?['id']?.toString() == reviewId) return;
+    if (widget.courier || (_signedIn && _mine?['id']?.toString() == reviewId)) return;
     if (!AccountStore.instance.signedIn) { context.go('/account'); return; }
     var draft = '';
     final reason = await showDialog<String>(
@@ -515,7 +574,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             rating: (item['rating'] as num?)?.toDouble() ?? 0),
           const SizedBox(height: 12),
           if (ownUnpublished)
-            Text(item['moderation_status'] == 'rejected'
+            Text((item['moderation_status'] == 'rejected' || item['moderation_status'] == 'hidden')
               ? 'отзыв отклонен' : 'на модерации',
               style: const TextStyle(fontSize: 12,
                 color: Color(0xff9b3030))),
@@ -541,7 +600,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
         ],
       ),
       actions: [
-        if (isOwn)
+        if (isOwn && (!widget.courier || item['moderation_status'] != 'hidden'))
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -549,7 +608,10 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
             },
             child: const Text('редактировать',
               style: TextStyle(color: Colors.black))),
-        if (!isOwn && !ownUnpublished)
+        if (isOwn && widget.courier)
+          TextButton(onPressed: () { Navigator.pop(ctx); _deleteOwn(); },
+            child: const Text('удалить', style: TextStyle(color: Colors.black))),
+        if (!widget.courier && !isOwn && !ownUnpublished)
           TextButton(onPressed: () {
             Navigator.pop(ctx);
             _report(item['id'].toString());
@@ -635,7 +697,7 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
                 pending: entries[index]['id']?.toString() == ownId &&
                     status == 'pending',
                 rejected: entries[index]['id']?.toString() == ownId &&
-                    status == 'rejected'),
+                    (status == 'rejected' || status == 'hidden')),
             ],
           ],
         ),
