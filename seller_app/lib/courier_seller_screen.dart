@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -121,11 +122,10 @@ class _CourierSellerScreenState extends State<CourierSellerScreen> {
   Widget build(BuildContext context) {
     final header=BuyerHeaderLayout.of(context);
     return Scaffold(backgroundColor:SellerColors.background,body:Column(children:[
-      Container(height:header.height,padding:EdgeInsets.fromLTRB(30,header.contentTop,30,BuyerHeaderLayout.gap),
+      Container(height:header.height,padding:EdgeInsets.fromLTRB(14,header.contentTop,30,BuyerHeaderLayout.gap),
         decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(bottom:Radius.circular(36))),
         child:Row(children:[
-          Semantics(label:'Назад',button:true,child:InkWell(onTap:()=>Navigator.pop(context),
-            child:const SizedBox(width:30,height:28,child:Icon(Icons.chevron_left,size:27,color:SellerColors.brown)))),
+          SadohodBackButton(onBack:()=>Navigator.pop(context),color:SellerColors.brown),
           const Spacer(),
         ])),
       Expanded(child:FutureBuilder<Map<String,dynamic>>(future:page,builder:(context,snapshot){

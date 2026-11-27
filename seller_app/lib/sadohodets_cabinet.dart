@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
 import 'package:sadohod_shared_core/catalog_widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -991,27 +992,18 @@ class CourierFolderHeader extends StatelessWidget {
       key: const ValueKey('courier-folder-header'),
       height: layout.height,
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(30, layout.contentTop, 30, BuyerHeaderLayout.gap),
+      padding: EdgeInsets.fromLTRB(14, layout.contentTop, 14, BuyerHeaderLayout.gap),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
       ),
       child: Row(children: [
-        Semantics(
-          label: 'Назад', button: true,
-          child: InkWell(
-            onTap: onBack,
-            borderRadius: BorderRadius.circular(20),
-            child: const SizedBox(width: 30, height: 28,
-              child: Center(child: Icon(Icons.chevron_left,
-                size: 27, color: SellerColors.brown))),
-          ),
-        ),
+        SadohodBackButton(onBack: onBack, color: SellerColors.brown),
         Expanded(child: Text(title,
           maxLines: 1, overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: BuyerProductType.detailAddress.copyWith(color: SellerColors.brown))),
-        const SizedBox(width: 30),
+        const SizedBox(width: SadohodBackButton.width),
       ]),
     );
   }

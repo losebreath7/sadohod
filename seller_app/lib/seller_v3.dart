@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
 import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
@@ -185,11 +186,8 @@ class V3Header extends StatelessWidget {
             )),
           ),
           Positioned(
-            left: 18, bottom: 4, width: 44, height: 44,
-            child: tap(
-              const Center(child: Icon(Icons.chevron_left, size: 27)),
-              back, name: 'Назад',
-            ),
+            left: 14, bottom: 4, width: 32, height: 44,
+            child: Center(child: SadohodBackButton(onBack: back, color: brown)),
           ),
           if (trailing != null)
             Positioned(
@@ -1793,7 +1791,7 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
       case 'sellerChat':
         return Column(
           children: [
-            SadohodChatHeader(title: activeChatSection, onBack: back),
+            SadohodChatHeader(title: activeChatSection, onBack: back, backColor: brown),
             Expanded(
               child: SellerTelegramChat(
                 key: ValueKey(activeChatSection),

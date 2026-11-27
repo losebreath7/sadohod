@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/display_format.dart';
 import 'package:sadohod_shared_core/product_gallery.dart';
@@ -53,7 +54,7 @@ class _CourierProductScreenState extends State<CourierProductScreen>{
   if(photos.isEmpty&&p['image'] is String)photos.add(absolute(p['image'] as String));
   final header=BuyerHeaderLayout.of(context);
   return Column(children:[
-   Container(height:header.height,padding:EdgeInsets.fromLTRB(30,header.contentTop,30,BuyerHeaderLayout.gap),decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(bottom:Radius.circular(36))),child:Row(children:[InkWell(onTap:()=>Navigator.pop(context),child:const SizedBox(width:30,height:28,child:Icon(Icons.chevron_left,size:27))),Expanded(child:Text(address,textAlign:TextAlign.center,style:BuyerProductType.detailAddress.copyWith(color:SellerColors.brown))),InkWell(onTap:widget.onFolder,child:const SizedBox(width:30,height:25,child:Icon(Icons.folder_outlined,color:SellerColors.brown)))])),
+   Container(height:header.height,padding:EdgeInsets.fromLTRB(14,header.contentTop,14,BuyerHeaderLayout.gap),decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(bottom:Radius.circular(36))),child:Row(children:[SizedBox(width:48,child:Align(alignment:Alignment.centerLeft,child:SadohodBackButton(onBack:()=>Navigator.pop(context),color:SellerColors.brown))),Expanded(child:Text(address,textAlign:TextAlign.center,style:BuyerProductType.detailAddress.copyWith(color:SellerColors.brown))),SizedBox(width:48,child:Padding(padding:const EdgeInsets.only(right:16),child:InkWell(onTap:widget.onFolder,child:const SizedBox(width:30,height:25,child:Icon(Icons.folder_outlined,color:SellerColors.brown)))))])),
    Expanded(child:ListView(padding:const EdgeInsets.fromLTRB(30,8,30,25),children:[
    PhotoGallery(photos,radius:20,onTap:(i)=>showDialog<void>(context:context,barrierColor:Colors.black,builder:(_)=>_FullGallery(photos:photos,initialPage:i))),
    const SizedBox(height:17),Row(children:[Expanded(child:Text('${p['title']??''}',maxLines:2,overflow:TextOverflow.ellipsis,style:BuyerProductType.detailTitle.copyWith(color:SellerColors.brown))),if(price is num)...[const SizedBox(width:10),Text(approximateRubles(price.toInt()),style:BuyerProductType.detailPrice.copyWith(color:SellerColors.brown))]]),
@@ -238,8 +239,8 @@ class _FullGalleryState extends State<_FullGallery> {
               : Image.asset(url, fit: BoxFit.contain));
         },
       ),
-      Positioned(top: 10, left: 18, child: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context))),
+      Positioned(top: 10, left: 18, child: SadohodBackButton(
+         color: Colors.white, onBack: () => Navigator.pop(context))),
       Positioned(top: 10, right: 18, child: IconButton(
         icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))),
       Positioned(bottom: 40, left: 0, right: 0, child: Column(children: [

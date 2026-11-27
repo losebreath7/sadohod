@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -211,16 +212,7 @@ class _GuideShell extends StatelessWidget {
             Center(child: Text(title, style: _GuideText.header)),
             Align(
               alignment: Alignment.centerLeft,
-              child: Semantics(
-                label: 'Назад',
-                button: true,
-                child: InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(24),
-                  child: const SizedBox(width: 32, height: 28,
-                    child: Center(child: Icon(Icons.chevron_left, size: 27))),
-                ),
-              ),
+              child: SadohodBackButton(onBack: () => Navigator.of(context).pop(), color: SellerColors.brown),
             ),
           ]),
         ),

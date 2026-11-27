@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'design_tokens.dart';
+import 'header_back_button.dart';
 
 /// Shared presentation for all four Sadohod chats. The account API, message
 /// polling and Telegram routing remain independent in the two applications.
@@ -27,10 +28,12 @@ class SadohodChatHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.onBack,
+    this.backColor = Colors.black,
   });
 
   final String title;
   final VoidCallback onBack;
+  final Color backColor;
 
   @override
   Widget build(BuildContext context) {
@@ -57,17 +60,7 @@ class SadohodChatHeader extends StatelessWidget {
           ),
           Positioned(
             left: 14, top: 0, bottom: 0,
-            child: Semantics(
-              button: true, label: 'Назад',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: onBack,
-                child: const SizedBox(
-                  width: 46, height: 44,
-                  child: Center(child: Icon(Icons.chevron_left, size: 29)),
-                ),
-              ),
-            ),
+            child: Center(child: SadohodBackButton(onBack: onBack, color: backColor)),
           ),
         ],
       ),
