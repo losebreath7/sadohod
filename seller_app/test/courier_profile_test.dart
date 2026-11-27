@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sadohod_seller/api.dart';
 import 'package:sadohod_seller/sadohodets_cabinet.dart';
@@ -18,6 +19,8 @@ void main(){
   await tester.pumpAndSettle();
   await tester.tap(find.bySemanticsLabel('Профиль').last);await tester.pumpAndSettle();
   for(final label in ['профиль','поддержка','уведомления','настройки','навигация','сотрудничество']){expect(find.text(label),findsOneWidget);}
+  expect(find.textContaining(SadohodBuild.fullVersion), findsNothing);
+  expect(find.textContaining(SadohodBuild.releaseId), findsNothing);
   await tester.tap(find.text('профиль'));await tester.pumpAndSettle();
   expect(find.text('Авито'),findsNothing);expect(find.text('сайт'),findsNothing);
   await tester.scrollUntilVisible(find.text('email'),160,scrollable:find.byType(Scrollable).first);

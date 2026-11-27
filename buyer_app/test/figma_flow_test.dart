@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/build_info.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sadohod_shared_core/product_photo.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,7 @@ import 'package:sadohod/data/catalog.dart';
 import 'package:sadohod/core/widgets/common.dart';
 import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/account/account_screen.dart';
+import 'package:sadohod/features/account/profile_features.dart';
 import 'package:sadohod/features/account/favorites_screen.dart';
 import 'package:sadohod/features/account/market_navigation_guide.dart';
 import 'package:sadohod/core/widgets/filters.dart';
@@ -262,4 +264,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TextField), findsOneWidget);
   });
+  testWidgets('buyer about page does not expose internal build labels', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuyerInfoScreen('about'))));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Поиск товаров и павильонов рынка Садовод.'), findsOneWidget);
+    expect(find.textContaining(SadohodBuild.fullVersion), findsNothing);
+    expect(find.textContaining(SadohodBuild.releaseId), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
 }

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:sadohod_shared_core/design_tokens.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -480,8 +479,8 @@ class _BuyerInfoScreenState extends State<BuyerInfoScreen> {
       _BuyerPageTop(title),
       Expanded(child: ListView(padding: const EdgeInsets.all(30), children: [
         if (!legal)
-          Text('Садоход · ${SadohodBuild.label}\\Поиск товаров и павильонов рынка Садовод.',
-            style: const TextStyle(fontSize: 14, height: 1.5))
+          const Text('Садоход\n\nПоиск товаров и павильонов рынка Садовод.',
+            style: TextStyle(fontSize: 14, height: 1.5))
         else FutureBuilder<String>(
           future: document,
           builder: (context, snapshot) {

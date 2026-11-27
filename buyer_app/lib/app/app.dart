@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 import '../core/widgets/device_preview_lab.dart';
 import 'package:go_router/go_router.dart';
 
@@ -116,7 +115,7 @@ class SadohodApp extends StatelessWidget {
   const SadohodApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-    title: 'Садоход — ${SadohodBuild.label}',
+    title: 'Садоход',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
     routerConfig: appRouter,

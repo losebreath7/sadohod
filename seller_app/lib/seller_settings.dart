@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:sadohod_shared_core/api_base_url.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 
 import 'api.dart';
 
@@ -224,8 +223,8 @@ class _SellerSettingsInfoPageState extends State<SellerSettingsInfoPage> {
     padding: const EdgeInsets.all(30),
     children: [
       if (widget.kind == 'about')
-        Text('Садоход · ${SadohodBuild.label}\n\nПриложение для продавцов рынка Садовод.',
-          style: const TextStyle(
+        const Text('Садоход\n\nПриложение для продавцов рынка Садовод.',
+          style: TextStyle(
             fontFamily: SadohodFont.family, fontSize: 14,
             color: Color(0xFF2C1B15), height: 1.5))
       else FutureBuilder<String>(

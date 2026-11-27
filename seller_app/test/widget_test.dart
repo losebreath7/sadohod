@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/build_info.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sadohod_seller/api.dart';
@@ -365,6 +366,8 @@ void main() {
 
   testWidgets('System back returns from connected support chat', (tester) async {
     await openFrame(tester, '366:15805');
+    expect(find.textContaining(SadohodBuild.fullVersion), findsNothing);
+    expect(find.textContaining(SadohodBuild.releaseId), findsNothing);
     await tester.tap(find.text('поддержка'));
     await tester.pumpAndSettle();
     // Support now opens the real chat rather than the old design placeholder.

@@ -19,7 +19,6 @@ import 'courier_seller_screen.dart';
 import 'package:sadohod_shared_core/catalog_search.dart';
 import 'courier_folder_items.dart';
 import 'courier_folder_list.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 import 'courier_navigation_guide.dart';
 import 'package:sadohod_shared_core/product_share_actions.dart';
 import 'dart:convert';
@@ -462,8 +461,6 @@ class _CabinetState extends State<SadohodetsCabinet>
         ('cdb5f.svg','навигация',openNavigation),
         ('1aa37.svg','сотрудничество',()=>openPage('сотрудничество',SellerTelegramChat(api:widget.api,kind:'cooperation'))),
       ]) InkWell(onTap:item.$3,child:SizedBox(height:44,child:Row(children:[SizedBox(width:30,height:30,child:Center(child:asset(item.$1,width:item.$2=='профиль'?30:24,height:item.$2=='профиль'?30:24))),const SizedBox(width:14),Text(item.$2,style:const TextStyle(fontSize:14,color:Color(0xff2c1b15)))]))),
-      const SizedBox(height:24),
-      Text(SadohodBuild.label,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,color:SellerColors.muted)),
     ],
   );
   Widget tabBar() => ColoredBox(

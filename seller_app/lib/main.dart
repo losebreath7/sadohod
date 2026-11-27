@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/device_preview_shell.dart';
 import 'api.dart';
@@ -17,7 +16,7 @@ class SellerApp extends StatelessWidget {
   final SellerApi api;
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Садоход — продавец · ${SadohodBuild.label}',
+    title: 'Садоход — продавец',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,

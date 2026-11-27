@@ -5,7 +5,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:sadohod_shared_core/header_back_button.dart';
-import 'package:sadohod_shared_core/build_info.dart';
 import 'package:sadohod_shared_core/market_addresses.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_shared_core/display_format.dart';
@@ -2205,8 +2204,6 @@ class _SellerV3State extends State<SellerV3> with WidgetsBindingObserver {
               }
             },
           ),
-        const SizedBox(height: 24),
-        label(SadohodBuild.label, 10, color: muted),
         const SizedBox(height: 12),
       ],
     ),
