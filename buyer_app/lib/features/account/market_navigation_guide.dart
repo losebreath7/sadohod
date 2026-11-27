@@ -212,16 +212,7 @@ class _GuideShell extends StatelessWidget {
             Center(child: Text(title, style: _GuideText.header)),
             Align(
               alignment: Alignment.centerLeft,
-              child: Semantics(
-                label: 'Назад',
-                button: true,
-                child: InkWell(
-                  onTap: () => context.pop(),
-                  borderRadius: BorderRadius.circular(24),
-                  child: const SizedBox(width: 32, height: 28,
-                    child: Center(child: Icon(Icons.chevron_left, size: 27))),
-                ),
-              ),
+              child: RoundBack(fallback: '/account'),
             ),
           ]),
         ),

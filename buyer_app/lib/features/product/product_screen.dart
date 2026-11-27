@@ -296,14 +296,16 @@ class _ProductScreenState extends State<ProductScreen> {
           Container(
             height: header.height,
             padding: EdgeInsets.fromLTRB(
-              30, header.contentTop, 30, BuyerHeaderLayout.gap),
+              14, header.contentTop, 14, BuyerHeaderLayout.gap),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [
-              const RoundBack(),
-              Expanded(child: Text(address, textAlign: TextAlign.center,
-                style: BuyerProductType.detailAddress)),
-              SizedBox(width: 30, height: 25, child: FavoriteButton(p.id)),
+              const SizedBox(width: 48, child: Align(alignment: Alignment.centerLeft, child: RoundBack())),
+               Expanded(child: Text(address, textAlign: TextAlign.center,
+                 style: BuyerProductType.detailAddress)),
+               SizedBox(width: 48, child: Padding(padding: const EdgeInsets.only(right: 16),
+                 child: Align(alignment: Alignment.centerRight,
+                   child: SizedBox(width: 30, height: 25, child: FavoriteButton(p.id))))),
             ]),
           ),
           Expanded(child: ListView(
@@ -542,8 +544,8 @@ class _FullGalleryState extends State<_FullGallery> {
               : Image.asset(url, fit: BoxFit.contain));
         },
       ),
-      Positioned(top: 10, left: 18, child: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context))),
+      Positioned(top: 10, left: 18, child: SadohodBackButton(
+         color: Colors.white, onBack: () => Navigator.pop(context))),
       Positioned(top: 10, right: 18, child: IconButton(
         icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))),
       Positioned(bottom: 40, left: 0, right: 0, child: Column(children: [

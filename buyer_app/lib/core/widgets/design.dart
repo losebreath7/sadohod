@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
+export 'package:sadohod_shared_core/header_back_button.dart';
 export 'package:sadohod_shared_core/product_gallery.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -288,14 +290,12 @@ class _SearchCapsuleState extends State<SearchCapsule> {
 }
 
 class RoundBack extends StatelessWidget {
-  const RoundBack({super.key});
+  const RoundBack({super.key, this.onBack, this.fallback = '/home'});
+  final VoidCallback? onBack;
+  final String fallback;
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Назад', button: true,
-    child: InkWell(
-      onTap: () => context.canPop() ? context.pop() : context.go('/home'),
-      child: const SizedBox(width: 25, height: 25, child: DesignIcon('83594')),
-    ),
+  Widget build(BuildContext context) => SadohodBackButton(
+    onBack: onBack ?? () => context.canPop() ? context.pop() : context.go(fallback),
   );
 }
 
@@ -382,12 +382,9 @@ class BuyerTopBar extends StatelessWidget {
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
     child: Padding(
       padding: EdgeInsets.fromLTRB(
-        30, header.contentTop, 30, BuyerHeaderLayout.gap),
+        14, header.contentTop, 30, BuyerHeaderLayout.gap),
       child: Row(children: [
-        GestureDetector(onTap: onBack,
-          child: const SizedBox(width: 25, height: 25,
-            child: CircleAvatar(backgroundColor: Colors.black,
-              child: Icon(Icons.arrow_back, color: Colors.white, size: 17)))),
+        RoundBack(onBack: onBack),
         if (showSearch) ...[
           const SizedBox(width: 38),
           Expanded(child: SizedBox(height: 25,

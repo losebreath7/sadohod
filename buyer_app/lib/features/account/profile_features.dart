@@ -37,15 +37,7 @@ class _BuyerAdaptiveChatHeader extends StatelessWidget {
         ))),
         Align(
           alignment: Alignment.centerLeft,
-          child: Semantics(
-            button: true, label: 'Назад',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: onBack,
-              child: const SizedBox(width: 32, height: 28,
-                child: Center(child: Icon(Icons.chevron_left, size: 27))),
-            ),
-          ),
+          child: RoundBack(onBack: onBack),
         ),
       ]),
     );
@@ -63,9 +55,9 @@ class _BuyerPageTop extends StatelessWidget {
     decoration: const BoxDecoration(color: Colors.white,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
     padding: EdgeInsets.fromLTRB(
-      30, header.contentTop, 30, BuyerHeaderLayout.gap),
+      14, header.contentTop, 14, BuyerHeaderLayout.gap),
     child: Row(children: [
-      const RoundBack(),
+      const RoundBack(fallback: '/account'),
       Expanded(child: Text(title, textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
       const SizedBox(width: 32),

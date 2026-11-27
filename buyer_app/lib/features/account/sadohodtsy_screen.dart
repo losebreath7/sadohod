@@ -130,25 +130,25 @@ class _DirectoryState extends State<SadohodtsyScreen> {
         Container(
           height: header.height,
           padding: EdgeInsets.fromLTRB(
-            30, header.contentTop, 30, BuyerHeaderLayout.gap),
+            14, header.contentTop, 14, BuyerHeaderLayout.gap),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
           ),
           child: Row(children: [
-            const SizedBox(width: 30, height: 25, child: Align(
-              alignment: Alignment.centerLeft, child: RoundBack())),
+            const SizedBox(width: 48, child: Align(
+              alignment: Alignment.centerLeft, child: RoundBack(fallback: '/account'))),
             const Expanded(child: Text('садоходцы',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-            SizedBox(width: 30, height: 25, child: IconButton(
+            SizedBox(width: 48, child: Padding(padding: const EdgeInsets.only(right: 16), child: IconButton(
               key: const ValueKey('courier-directory-favorites'),
               tooltip: onlySaved ? 'Все садоходцы' : 'Любимые садоходцы',
               onPressed: loadingFavorites ? null : toggleFavorites,
               padding: EdgeInsets.zero,
               icon: SizedBox(width: 23, height: 21,
                 child: FavoriteHeartGlyph(filled: onlySaved)),
-            )),
+            ))),
           ]),
         ),
         Padding(
@@ -307,16 +307,16 @@ class _ProfileState extends State<SadohodetsScreen> {
         Container(
           height: header.height,
           padding: EdgeInsets.fromLTRB(
-            30, header.contentTop, 30, BuyerHeaderLayout.gap),
+            14, header.contentTop, 14, BuyerHeaderLayout.gap),
           decoration: const BoxDecoration(color: Colors.white,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
           child: Row(children: [
-            const SizedBox(width: 30, height: 25, child: Align(
-              alignment: Alignment.centerLeft, child: RoundBack())),
+            const SizedBox(width: 48, child: Align(
+              alignment: Alignment.centerLeft, child: RoundBack(fallback: '/account'))),
             const Expanded(child: Text('садоходец',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-            SizedBox(width: 30, height: 25, child: ListenableBuilder(
+            SizedBox(width: 48, child: Padding(padding: const EdgeInsets.only(right: 16), child: ListenableBuilder(
               listenable: account,
               builder: (context, _) {
                 final saved = account.courierFavoritesReady && account.couriers.contains(widget.id);
@@ -329,7 +329,7 @@ class _ProfileState extends State<SadohodetsScreen> {
                     child: FavoriteHeartGlyph(filled: saved)),
                 );
               },
-            )),
+            ))),
           ]),
         ),
         Expanded(

@@ -139,7 +139,7 @@ class _SellerScreenState extends State<SellerScreen> {
           Container(
             height: header.height,
             padding: EdgeInsets.fromLTRB(
-              30, header.contentTop, 30, BuyerHeaderLayout.gap),
+              14, header.contentTop, 30, BuyerHeaderLayout.gap),
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             child: Row(children: [

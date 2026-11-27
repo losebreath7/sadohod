@@ -34,17 +34,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
         DesignHeader(
           child: Row(
             children: [
-              IconButton(
-                tooltip: 'Главная',
-                onPressed: () => context.go('/home'),
-                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-                padding: EdgeInsets.zero,
-                icon: const SizedBox(
-                  width: 25,
-                  height: 25,
-                  child: DesignIcon('f4579'),
-                ),
-              ),
+              const RoundBack(),
               const SizedBox(width: 15),
               Expanded(
                 child: SearchCapsule(

@@ -170,10 +170,8 @@ class PageChrome extends StatelessWidget {
         title,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded),
-        onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
-      ),
+      leading: const Center(child: RoundBack()),
+      centerTitle: true,
       titleSpacing: 0,
     ),
     body: SafeArea(top: false, child: child),

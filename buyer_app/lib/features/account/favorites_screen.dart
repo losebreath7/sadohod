@@ -99,10 +99,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             decoration: const BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
             padding: EdgeInsets.fromLTRB(
-              0, header.contentTop, 0, BuyerHeaderLayout.gap),
-            alignment: Alignment.center,
-            child: const Text('любимые продавцы', style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.bold)),
+              14, header.contentTop, 14, BuyerHeaderLayout.gap),
+            child: const Row(children: [
+              RoundBack(fallback: '/account'),
+              Expanded(child: Text('любимые продавцы', textAlign: TextAlign.center,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+              SizedBox(width: SadohodBackButton.width),
+            ]),
           ) else Container(
             height: header.height,
             decoration: const BoxDecoration(color: Colors.white,
