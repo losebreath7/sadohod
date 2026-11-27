@@ -78,14 +78,14 @@ class _DirectoryState extends State<SadohodtsyScreen> {
       context.push('/account');
       return;
     }
-    if (favoritesOnly) {
+    if (favoritesOnly && account.courierFavoritesReady) {
       setState(() => favoritesOnly = false);
       return;
     }
     if (loadingFavorites) return;
     setState(() => loadingFavorites = true);
     try {
-      if (!account.courierFavoritesReady) await account.refreshCourierFavorites();
+      await account.refreshCourierFavorites();
       if (mounted && account.courierFavoritesReady) {
         setState(() => favoritesOnly = true);
       }
@@ -178,7 +178,14 @@ class _DirectoryState extends State<SadohodtsyScreen> {
                 onRefresh: () async {
                   refresh();
                   await data;
-                  if (account.signedIn) await account.refreshCourierFavorites();
+                  if (account.signedIn) {
+                    try {
+                      await account.refreshCourierFavorites();
+                    } catch (_) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Не удалось обновить любимых садоходцев')));
+                    }
+                  }
                 },
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(30, 12, 30, 24),
