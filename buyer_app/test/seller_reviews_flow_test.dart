@@ -485,4 +485,21 @@ void main() {
     expect(tester.takeException(),isNull);
   });
 
+  for (final courier in [false,true]) {
+    for (final average in <double?>[null,4.5]) {
+      testWidgets('review heading gap is eight pixels (courier=$courier, rating=$average)', (tester) async {
+        await mountReviews(tester,courier:courier,
+          public:() async => {'average':average,'items':[
+            if(average != null) {'id':'published','name':'Покупатель','rating':4,'text':'Хорошо'},
+          ]});
+        final strip=find.byKey(const ValueKey('seller-reviews-list'));
+        final heading=find.text(average == null ? 'нет отзывов' : '4.5');
+        expect(tester.getRect(strip).top-tester.getRect(heading).bottom,closeTo(8,.1));
+        final card=find.byKey(ValueKey(average == null ? 'seller-review-add' : 'seller-review-published'));
+        expect(tester.getSize(card),const Size(135,85));
+        expect(tester.takeException(),isNull);
+      });
+    }
+  }
+
 }

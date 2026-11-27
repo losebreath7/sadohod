@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sadohod_shared_core/design_tokens.dart';
 import 'package:sadohod_seller/courier_folder_items.dart';
 
 Map item(String id, String address, {String? pavilion, int quantity = 1}) => {
@@ -149,5 +150,38 @@ void main() {
       });
     }
   }
+
+  testWidgets('folder caption is compact and centered relative to the photo', (tester) async {
+    tester.view.physicalSize = const Size(390,844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final noPrice = item('Без цены','А-14');
+    (noPrice['product'] as Map).remove('price');
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: CourierFolderItems(
+      items:[item('Куртка','А-14'), item('Верхняя одежда · образец 121','А-14'), noPrice],
+      baseUrl:'https://example.com', onOpen:(_) async {},
+      onQuantity:(_,_) async {}, onCollected:(_) async {}, onRemove:(_) async {},
+    ))));
+    for (final id in ['Куртка','Верхняя одежда · образец 121']) {
+      final title=find.byKey(ValueKey('folder-item-title-$id'));
+      final price=find.byKey(ValueKey('folder-item-price-$id'));
+      final photo=find.byKey(ValueKey('folder-item-photo-$id'));
+      final titleRect=tester.getRect(title);
+      final priceRect=tester.getRect(price);
+      expect(priceRect.top-titleRect.bottom,closeTo(4,2));
+      expect((titleRect.top+priceRect.bottom)/2,closeTo(tester.getCenter(photo).dy,1.5));
+      expect(tester.widget<Text>(title).style!.fontSize,14);
+      expect(tester.widget<Text>(title).style!.fontWeight,FontWeight.w500);
+      expect(tester.widget<Text>(title).style!.color,SellerColors.brown);
+      expect(tester.widget<Text>(price).style!.fontSize,13);
+      expect(tester.widget<Text>(price).style!.fontWeight,FontWeight.w600);
+    }
+    final title=find.byKey(const ValueKey('folder-item-title-Без цены'));
+    expect(tester.getCenter(title).dy,closeTo(tester.getCenter(
+      find.byKey(const ValueKey('folder-item-photo-Без цены'))).dy,1));
+    expect(find.byKey(const ValueKey('folder-item-price-Без цены')),findsNothing);
+    expect(tester.takeException(),isNull);
+  });
 
 }

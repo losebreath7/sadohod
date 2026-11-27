@@ -13,12 +13,13 @@ final product = <String,dynamic>{
 };
 class SellerNavigationApi extends SellerApi {
   final calls=<String>[];
+  bool rated = false;
   @override
   Future<Map<String,dynamic>> call(String route,{String method='GET',Map<String,dynamic>? body}) async {
     calls.add(route);
     if(route=='/products/product-1') return product;
     if(route=='/sellers/seller-1') return {...seller,'products':[product],'pavilions':[{'code':'А-14'}]};
-    if(route=='/sellers/seller-1/reviews') return {'average':null,'items':[]};
+    if(route=='/sellers/seller-1/reviews') return rated ? {'average':4.5,'items':[{'name':'Покупатель','rating':4,'text':'Хорошо'}]} : {'average':null,'items':[]};
     throw StateError('Unexpected route $route');
   }
 }
@@ -50,4 +51,13 @@ void main(){
     expect(find.text('Контур 01'),findsOneWidget);
     expect(tester.takeException(),isNull);
   });
+  testWidgets('read-only seller reviews keep the same eight pixel gap', (tester) async {
+    final api=SellerNavigationApi()..rated=true;
+    await tester.pumpWidget(MaterialApp(home:CourierSellerScreen(api:api,sellerId:'seller-1')));
+    await tester.pumpAndSettle();
+    final strip=find.byKey(const ValueKey('courier-seller-reviews-list'));
+    expect(tester.getRect(strip).top-tester.getRect(find.text('4.5')).bottom,closeTo(8,.1));
+    expect(tester.takeException(),isNull);
+  });
+
 }
