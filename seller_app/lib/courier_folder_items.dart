@@ -115,7 +115,6 @@ class _FolderProductRow extends StatelessWidget {
     final price = product?['price'];
     final count = (item['quantity'] as num?)?.toInt().clamp(1,999).toInt() ?? 1;
     final collected = item['collected'] == true;
-    const textColor = Color(0xff343434);
     final id = item['product_id'];
     return CourierSwipeRow(
       opened: opened, busy: busy, onReveal: onReveal,
@@ -142,27 +141,45 @@ class _FolderProductRow extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Align(
-                alignment: Alignment.topLeft,
-                child: Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
-                  key: ValueKey('folder-item-title-$id'),
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 14,
-                    color: textColor, height: 1.12)),
-              )),
-              if (price is num)
-                SizedBox(height: 16, child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.bottomLeft,
-                    child: Text(approximateRubles(price.toInt()),
-                      key: ValueKey('folder-item-price-$id'),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontFamily: SadohodFont.family, fontSize: 12,
-                        height: 1.1, fontWeight: FontWeight.w700, color: textColor)),
-                  ),
-                )),
-            ]),
+            child: LayoutBuilder(builder: (context, constraints) {
+              const titleStyle = TextStyle(fontFamily: SadohodFont.family,
+                fontSize: 14, fontWeight: FontWeight.w500,
+                color: SellerColors.brown, height: 1.12);
+              final line = TextPainter(
+                text: const TextSpan(text: 'А', style: titleStyle),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+              );
+              final lineHeight = line.preferredLineHeight;
+              line.dispose();
+              // Preserve fixed swipe geometry, prioritizing the price
+              // when enlarged system text cannot fit two title lines.
+              final available = constraints.maxHeight - (price is num ? 20 : 0);
+              final maxLines = available + .01 >= 2 * lineHeight ? 2 : 1;
+              return Center(child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(child: SizedBox(width: double.infinity,
+                    child: Text(name.isEmpty ? (product == null ? 'Товар недоступен' : 'Без названия') : name,
+                      key: ValueKey('folder-item-title-$id'),
+                      maxLines: maxLines, overflow: TextOverflow.ellipsis,
+                      style: titleStyle))),
+                  if (price is num) ...[
+                    const SizedBox(height: 4),
+                    SizedBox(height: 16, width: double.infinity,
+                      child: Align(alignment: Alignment.centerLeft,
+                        child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                          child: Text(approximateRubles(price.toInt()),
+                            key: ValueKey('folder-item-price-$id'),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontFamily: SadohodFont.family,
+                              fontSize: 13, height: 1.1, fontWeight: FontWeight.w600,
+                              color: SellerColors.brown))))),
+                  ],
+                ],
+              ));
+            }),
           )),
           const SizedBox(width: 8),
           // Reserve counter geometry even while it fades: no text reflow.

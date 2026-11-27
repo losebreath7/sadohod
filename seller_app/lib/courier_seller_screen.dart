@@ -90,13 +90,9 @@ class _CourierSellerScreenState extends State<CourierSellerScreen> {
     final average = (snapshot.data?['average'] as num?)?.toDouble();
     final items = (snapshot.data?['items'] as List? ?? const []).whereType<Map>().toList();
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      SizedBox(height:28,child:average == null
-        ? const Align(alignment:Alignment.bottomLeft,child:Text('нет отзывов',style:TextStyle(fontSize:12,fontWeight:FontWeight.w700)))
-        : Align(alignment:Alignment.topLeft,child:Row(children:[
-          Text(average.toStringAsFixed(1),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700)),
-          const SizedBox(width:8),ReviewRatingFlowers(rating:average,size:12),
-        ]))),
-      if(items.isNotEmpty) SizedBox(height:85,child:ListView.separated(
+      ReviewStripHeading(average: average),
+      if(items.isNotEmpty) const SizedBox(height: ReviewStripHeading.cardGap),
+      if(items.isNotEmpty) SizedBox(key:const ValueKey('courier-seller-reviews-list'),height:85,child:ListView.separated(
         scrollDirection:Axis.horizontal,itemCount:items.length,
         separatorBuilder:(_,__)=>const SizedBox(width:10),
         itemBuilder:(_,i){

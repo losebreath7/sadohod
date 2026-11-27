@@ -645,21 +645,8 @@ class _SellerReviewsPanelState extends State<SellerReviewsPanel> {
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // The Figma card strip begins at the same Y in both states. The text
-      // label sits lower when the public rating is absent.
-      SizedBox(height: 28, child: Stack(children: [
-        if (average == null)
-          const Positioned(left: 0, bottom: 0,
-            child: Text('нет отзывов', style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w700)))
-        else
-          Positioned(left: 0, top: 0, child: Row(children: [
-            Text(average.toStringAsFixed(1), style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(width: 8),
-            ReviewRatingFlowers(rating: average, size: 12),
-          ])),
-      ])),
+      ReviewStripHeading(average: average),
+      const SizedBox(height: ReviewStripHeading.cardGap),
       if (_loading)
         const LinearProgressIndicator(minHeight: 1, color: Colors.black),
       if (_error != null)

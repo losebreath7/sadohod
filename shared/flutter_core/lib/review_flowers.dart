@@ -75,3 +75,27 @@ class ReviewRatingFlowers extends StatelessWidget {
     )),
   );
 }
+
+/// Common heading geometry for public seller and courier reviews.
+class ReviewStripHeading extends StatelessWidget {
+  const ReviewStripHeading({super.key, required this.average});
+  final double? average;
+  static const double cardGap = 8;
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 28),
+    child: Align(
+      alignment: Alignment.bottomLeft,
+      heightFactor: 1,
+      child: average == null
+        ? const Text('нет отзывов', style: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w700))
+        : Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(average!.toStringAsFixed(1), style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            ReviewRatingFlowers(rating: average!, size: 12),
+          ]),
+    ),
+  );
+}
