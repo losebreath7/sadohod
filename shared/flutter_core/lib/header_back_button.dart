@@ -14,11 +14,14 @@ class SadohodBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     label: 'Назад', button: true,
-    child: InkWell(
-      onTap: onBack,
-      borderRadius: BorderRadius.circular(24),
-      child: SizedBox(width: width, height: height,
-        child: Center(child: Icon(Icons.chevron_left, size: iconSize, color: color))),
+    child: Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onBack,
+        borderRadius: BorderRadius.circular(24),
+        child: SizedBox(width: width, height: height,
+          child: Center(child: Icon(Icons.chevron_left, size: iconSize, color: color))),
+      ),
     ),
   );
 }

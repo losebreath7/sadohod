@@ -35,7 +35,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
           child: Row(
             children: [
               const RoundBack(),
-              const SizedBox(width: 15),
+              const SizedBox(width: 19),
               Expanded(
                 child: SearchCapsule(
                   height: 25,

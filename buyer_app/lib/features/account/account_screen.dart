@@ -224,7 +224,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
-          const SizedBox(width: 44),
+          const SizedBox(width: SadohodBackButton.width),
         ],
       ),
       Text(

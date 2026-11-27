@@ -10,6 +10,8 @@ import 'package:sadohod_seller/seller_v3.dart';
 import 'package:sadohod_seller/seller_catalog_caption.dart';
 import 'package:sadohod_shared_core/chat_widgets.dart';
 import 'package:sadohod_shared_core/design_tokens.dart';
+import 'package:sadohod_shared_core/header_back_button.dart';
+import 'package:sadohod_seller/sadohodets_cabinet.dart';
 
 void main() {
   setUpAll(() async {
@@ -266,6 +268,31 @@ void main() {
     expect(state.selected, isNotEmpty);
     expect(find.byKey(const ValueKey('selection-actions-bar')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+
+  testWidgets('seller and courier headers share the brown navigation chevron',
+      (tester) async {
+    var taps=0;
+    for (final header in <Widget>[
+      V3Header(title:'магазин',back:()=>taps++),
+      CourierFolderHeader(title:'папка',onBack:()=>taps++),
+      SadohodChatHeader(title:'поддержка',onBack:()=>taps++,backColor:SellerColors.brown),
+    ]) {
+      await tester.pumpWidget(MaterialApp(home:Scaffold(body:Column(children:[header]))));
+      await tester.pumpAndSettle();
+      final arrow=find.byType(SadohodBackButton);
+      expect(arrow,findsOneWidget);
+      expect(tester.getSize(arrow),const Size(32,28));
+      expect(tester.getTopLeft(arrow).dx,14);
+      final icon=tester.widget<Icon>(find.descendant(of:arrow,matching:find.byIcon(Icons.chevron_left)));
+      expect(icon.size,27);
+      expect(icon.color,SellerColors.brown);
+      await tester.tap(arrow);
+      await tester.pump();
+      expect(tester.takeException(),isNull);
+    }
+    expect(taps,3);
   });
 
   testWidgets('Shop search actually filters products', (tester) async {

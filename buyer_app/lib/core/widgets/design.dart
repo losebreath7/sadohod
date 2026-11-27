@@ -356,7 +356,7 @@ class DesignHeader extends StatelessWidget {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(
-            22, header.contentTop, 22, BuyerHeaderLayout.gap),
+            14, header.contentTop, 22, BuyerHeaderLayout.gap),
           child: child,
         ),
       ],
@@ -386,7 +386,7 @@ class BuyerTopBar extends StatelessWidget {
       child: Row(children: [
         RoundBack(onBack: onBack),
         if (showSearch) ...[
-          const SizedBox(width: 38),
+          const SizedBox(width: 47),
           Expanded(child: SizedBox(height: 25,
             child: SearchCapsule(controller: controller, onChanged: onChanged, onSubmitted: onSubmitted))),
         ] else const Spacer(),

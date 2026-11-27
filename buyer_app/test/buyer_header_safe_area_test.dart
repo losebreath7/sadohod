@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sadohod/features/account/favorites_screen.dart';
+import 'package:sadohod/features/account/market_navigation_guide.dart';
 import 'package:sadohod/app/app.dart';
 import 'package:sadohod/core/widgets/design.dart';
 import 'package:sadohod/features/home/home_screen.dart';
@@ -120,4 +123,43 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+  testWidgets('favorite sellers header uses the navigation chevron and returns to profile',
+      (tester) async {
+    tester.view.physicalSize = const Size(390,844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final router = GoRouter(initialLocation:'/account',routes:[
+      GoRoute(path:'/account',builder:(_,_)=>Scaffold(body:Builder(
+        builder:(context)=>Column(children:[
+          TextButton(onPressed:()=>context.push('/favorite-sellers'),child:const Text('open sellers')),
+          TextButton(onPressed:()=>context.push('/navigation'),child:const Text('open guide')),
+        ])))),
+      GoRoute(path:'/favorite-sellers',builder:(_,_)=>const Scaffold(body:FavoritesScreen(sellers:true))),
+      GoRoute(path:'/navigation',builder:(_,_)=>const Scaffold(body:MarketNavigationGuideScreen())),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig:router));
+    await tester.tap(find.text('open guide'));
+    await tester.pumpAndSettle();
+    final arrow = find.byType(SadohodBackButton);
+    expect(arrow,findsOneWidget);
+    final guideRect = tester.getRect(arrow);
+    expect(guideRect.size,const Size(32,28));
+    final glyph = find.descendant(of:arrow,matching:find.byIcon(Icons.chevron_left));
+    expect(tester.widget<Icon>(glyph).size,27);
+    expect(tester.widget<Icon>(glyph).color,Colors.black);
+    await tester.tap(arrow);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open sellers'));
+    await tester.pumpAndSettle();
+    expect(arrow,findsOneWidget);
+    expect(tester.getRect(arrow),guideRect);
+    expect(tester.getCenter(find.text('любимые продавцы')).dx,closeTo(195,0.1));
+    await tester.tap(arrow);
+    await tester.pumpAndSettle();
+    expect(find.text('open sellers'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+  });
+
 }

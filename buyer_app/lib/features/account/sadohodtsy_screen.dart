@@ -113,7 +113,10 @@ class _DirectoryState extends State<SadohodtsyScreen> {
     }
   }
 
-  void refresh() => setState(() => data = load());
+  void refresh() {
+    final next = load();
+    setState(() { data = next; });
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -297,7 +300,10 @@ class _ProfileState extends State<SadohodetsScreen> {
     return p;
   }
 
-  void refresh() => setState(() => data = load());
+  void refresh() {
+    final next = load();
+    setState(() { data = next; });
+  }
   @override
   Widget build(BuildContext context) {
     final header = BuyerHeaderLayout.of(context);
