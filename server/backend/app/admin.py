@@ -214,6 +214,9 @@ def visibility(pid: str, data: VisibilityInput, session: Session = Depends(get_d
         product.details=ProductDetails(active=data.active,sizes=[])
     else:
         product.details.active=data.active
+    if data.active:
+        from .feed import record_publication
+        record_publication(session, pid)
     session.commit()
     return serialize_product(product)
 

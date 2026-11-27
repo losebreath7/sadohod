@@ -53,6 +53,8 @@ def record_product_view(db, buyer_id, product_id, engaged):
         Offer.product_id == product_id, ShopMembership.buyer_id == buyer_id)
     if db.scalar(own.limit(1)):
         return
+    if not db.scalar(select(Product.id).where(Product.id == product_id, *public_conditions(time.time()))):
+        return
     day = int(time.time() // 86400)
     stmt = _insert(db, FeedView).values(buyer_id=buyer_id, product_id=product_id,
                                        day=day, engaged=engaged)
@@ -203,13 +205,18 @@ def candidates(db, buyer_id, category_filter, now):
     day = int(now // 86400)
     direct, shops = _interest(db, buyer_id, day)
     # Count distinct accounts, not clicks. Owner's views are not recorded.
+    blocked_buyers = select(AccountRestriction.buyer_id).where(AccountRestriction.active.is_(True),
+        or_(AccountRestriction.until.is_(None), AccountRestriction.until > now))
     views = dict(db.execute(select(FeedView.product_id, func.count(func.distinct(FeedView.buyer_id)))
-                           .where(FeedView.day >= day - WINDOW_DAYS).group_by(FeedView.product_id)).all())
+                           .where(FeedView.day >= day - WINDOW_DAYS, FeedView.buyer_id.not_in(blocked_buyers)).group_by(FeedView.product_id)).all())
     engaged = dict(db.execute(select(FeedView.product_id, func.count(func.distinct(FeedView.buyer_id)))
-                             .where(FeedView.day >= day - WINDOW_DAYS, FeedView.engaged.is_(True))
+                             .where(FeedView.day >= day - WINDOW_DAYS, FeedView.engaged.is_(True), FeedView.buyer_id.not_in(blocked_buyers))
                              .group_by(FeedView.product_id)).all())
+    own_favorite = select(Offer.id).join(ShopMembership, ShopMembership.seller_id == Offer.seller_id).where(
+        Offer.product_id == Favorite.item, ShopMembership.buyer_id == Favorite.buyer).exists()
     favorites = dict(db.execute(select(Favorite.item, func.count(func.distinct(Favorite.buyer)))
-                   .where(Favorite.kind == 'product').group_by(Favorite.item)).all())
+                   .where(Favorite.kind == 'product', ~own_favorite, Favorite.buyer.not_in(blocked_buyers))
+                   .group_by(Favorite.item)).all())
     reviews = {sid:(count, avg) for sid,count,avg in db.execute(
         select(SellerReview.seller, func.count(SellerReview.id), func.avg(SellerReview.rating))
         .where(SellerReview.hidden.is_(False), SellerReview.moderation_status == 'approved')

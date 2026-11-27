@@ -306,7 +306,7 @@ class AccountStore extends ChangeNotifier {
         );
       }
       syncError = null;
-      if (!seller && signedIn) interestViewed();
+      if (signedIn && token == sessionToken) interestViewed();
     } catch (_) {
       if (token == sessionToken) {
         was ? set.add(id) : set.remove(id);

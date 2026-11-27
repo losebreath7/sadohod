@@ -198,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       final next = CatalogApi.instance.searchCatalog(_query.text);
       setState(() { _pending = false; _products = next; });
-      await next;
+      try { await next; } catch (_) { /* FutureBuilder displays the error. */ }
     }
   }
 
