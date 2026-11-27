@@ -103,7 +103,11 @@ void main() {
     final price = find.byKey(const ValueKey('folder-item-price-Куртка'));
     final photo = find.byKey(const ValueKey('folder-item-photo-Куртка'));
     final address = tester.getRect(find.text('А-14'));
+    final counterRight = find.byKey(const ValueKey('folder-quantity-Куртка-+'));
+    final surface = find.byKey(const ValueKey('folder-item-surface-Куртка'));
     expect(tester.getTopLeft(photo).dx,15);
+    expect(tester.getBottomRight(counterRight).dx,375);
+    expect(tester.getRect(surface).right,375);
     expect(tester.getTopLeft(title).dx,81);
     expect(tester.getTopLeft(price).dx,81);
     await tester.drag(title,const Offset(-135,0));
@@ -113,9 +117,11 @@ void main() {
     expect(tester.getTopLeft(price).dx,21);
     expect(tester.getRect(find.text('А-14')),address);
     expect(tester.getBottomRight(find.bySemanticsLabel('Удалить товар')).dx,380);
+    expect(tester.getRect(surface).right,268);
     await tester.drag(find.text('Брюки'),const Offset(-135,0));
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(title).dx,81);
+    expect(tester.getBottomRight(counterRight).dx,375);
     expect(find.bySemanticsLabel('Удалить товар'),findsOneWidget);
     expect(tester.takeException(),isNull);
   });

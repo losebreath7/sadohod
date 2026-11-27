@@ -119,8 +119,8 @@ class _FolderProductRow extends StatelessWidget {
     return CourierSwipeRow(
       opened: opened, busy: busy, onReveal: onReveal,
       onOpen: () { if (product != null) onOpen(); },
-      // Preserve the approved 390px logical geometry (Figma 804:1072/1092).
-      closedLeft: 15, openLeft: -45, closedRight: 30, actionInset: 10,
+      // Symmetric 15px closed gutters; preserve the approved open swipe endpoints.
+      closedLeft: 15, openLeft: -45, closedRight: 15, actionInset: 10,
       travel: 60,
       surfaceKey: ValueKey('folder-item-surface-$id'),
       leadingAction: CourierSwipeAction(collect: true, checked: collected,
