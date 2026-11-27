@@ -44,6 +44,15 @@ class _CabinetState extends State<SadohodetsCabinet>
   final name = TextEditingController();
   final email = TextEditingController();
   bool secondPhone = false;
+  bool _showContactWarning = false;
+
+  bool get _hasContact => contacts.values.any((c) => c.text.trim().isNotEmpty);
+
+  void _contactChanged() {
+    if (_showContactWarning && _hasContact && mounted) {
+      setState(() => _showContactWarning = false);
+    }
+  }
   final description = TextEditingController();
   final contacts = {
     for (final k in [
@@ -530,6 +539,9 @@ class _CabinetState extends State<SadohodetsCabinet>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     name.text = widget.initialName;
+    for (final c in contacts.values) {
+      c.addListener(_contactChanged);
+    }
     load();
   }
 
@@ -599,19 +611,26 @@ class _CabinetState extends State<SadohodetsCabinet>
     }
     loaded = true;
   });
-  Future<void> save({bool publish = false}) => run(() async {
-    profile = await api.saveProfile(
-      name: name.text.trim(),
-      description: description.text.trim(),
-      contacts: {
-        for (final e in contacts.entries)
-          if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
-      },
-    );
-    if (publish) profile = await api.publication(true);
-    await refreshFolders();
-  });
+  Future<void> save({bool publish = false}) async {
+    if (publish && !_hasContact) {
+      setState(() => _showContactWarning = true);
+      return;
+    }
+    await run(() async {
+      profile = await api.saveProfile(
+        name: name.text.trim(),
+        description: description.text.trim(),
+        contacts: {
+          for (final e in contacts.entries)
+            if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+        },
+      );
+      if (publish) profile = await api.publication(true);
+      await refreshFolders();
+    });
+  }
   Future<void> pick(String kind) async {
+    if (kind != 'avatar') return;
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1200,
@@ -893,7 +912,7 @@ class _CabinetState extends State<SadohodetsCabinet>
                                 ),
                               ] else ...[
                                 SizedBox(height:181,child:Stack(children:[
-                                  GestureDetector(onTap:()=>pick('cover'),child:Container(height:150,width:double.infinity,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:SellerColors.brown,borderRadius:BorderRadius.circular(10)),child:media['cover']==null?const Center(child:Icon(Icons.add_a_photo_outlined,color:Colors.white)):Image.memory(media['cover']!,fit:BoxFit.cover))),
+                                  Container(height:150,width:double.infinity,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:SellerColors.brown,borderRadius:BorderRadius.circular(10)),child:media['cover']==null?null:Image.memory(media['cover']!,fit:BoxFit.cover)),
                                   Positioned(top:88,left:0,right:0,child:Center(child:GestureDetector(onTap:()=>pick('avatar'),child:CircleAvatar(radius:46.5,backgroundColor:Colors.white,backgroundImage:media['avatar']==null?null:MemoryImage(media['avatar']!),child:media['avatar']==null?const Icon(Icons.add_a_photo_outlined,size:30,color:SellerColors.brown):null)))),
                                 ])),
                                 const SizedBox(height:15),
@@ -905,9 +924,13 @@ class _CabinetState extends State<SadohodetsCabinet>
                                 for (final k in ['telegram','vk','whatsapp']) field(labels[k]!, contacts[k]!),
                                 V3Field('email', email, readOnly: true),
                                 const SizedBox(height: 20),
-                                const Text(
-                                  'Для публикации нужен хотя бы один контакт.',
-                                ),
+                                if (_showContactWarning) ...[
+                                  const Text(
+                                    'Для публикации нужен хотя бы один контакт.',
+                                    style: TextStyle(color: SellerColors.danger),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                                 action('Сохранить', () => save()),
                                 if (profile?['published'] == true)
                                   action(
@@ -920,28 +943,6 @@ class _CabinetState extends State<SadohodetsCabinet>
                                   action(
                                     'Опубликовать',
                                     () => save(publish: true),
-                                  ),
-                                if (profile != null)
-                                  TextButton(
-                                    onPressed: () async {
-                                      if (await confirm(
-                                        'Удалить анкету и папки клиентов?',
-                                      ))
-                                        await run(() async {
-                                          await api.deleteProfile();
-                                          profile = null;
-                                          folders = [];
-                                          archivedFolders = [];
-                                          viewingArchive = false;
-                                          media.clear();
-                                          selectedTab = 2;
-                                          description.clear();
-                                          for (final c in contacts.values) {
-                                            c.clear();
-                                          }
-                                        });
-                                    },
-                                    child: const Text('Удалить анкету'),
                                   ),
                               ],
                             ],
