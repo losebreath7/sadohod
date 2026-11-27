@@ -202,3 +202,31 @@ def test_folder_archive_is_private_and_reversible(setup):
     assert c.patch(path+'/archive', headers=a, json={'archived': False}).json()['archived'] is False
     assert c.get(base, headers=a).json()['items'][0]['id'] == folder_id
     assert c.get(base+'?archived=true', headers=a).json()['items'] == []
+
+
+def test_courier_favorites_are_persisted_and_isolated(setup):
+    c, codes, sessions = setup
+    owner = login(c, codes, 'favorite-courier-owner@example.com')
+    buyer = login(c, codes, 'favorite-courier-buyer@example.com')
+    other = login(c, codes, 'favorite-courier-other@example.com')
+    profile = c.put(ROOT, headers=owner, json={
+        'name': 'Анна', 'contacts': {'phone': '+79991234567'},
+    }).json()
+    pid = profile['id']
+    assert c.put(ROOT+'/publication', headers=owner, json={'published': True}).status_code == 200
+    favorite = '/api/v1/account/favorite'
+    account = '/api/v1/account'
+    payload = {'kind': 'courier', 'id': pid, 'saved': True}
+    for _ in range(2):
+        response = c.post(favorite, headers=buyer, json=payload)
+        assert response.status_code == 200, response.text
+        assert response.json()['saved'] is True
+    assert c.get(account, headers=buyer).json()['couriers'] == [pid]
+    assert c.get(account, headers=other).json()['couriers'] == []
+    assert c.get(account, headers=buyer).json()['products'] == []
+    assert c.get(account, headers=buyer).json()['sellers'] == []
+    # A new request/session reads the same persisted record.
+    again = login(c, codes, 'favorite-courier-buyer@example.com')
+    assert c.get(account, headers=again).json()['couriers'] == [pid]
+    assert c.post(favorite, headers=again, json={**payload, 'saved': False}).json()['saved'] is False
+    assert c.get(account, headers=again).json()['couriers'] == []

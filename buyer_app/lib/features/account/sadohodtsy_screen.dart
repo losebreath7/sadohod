@@ -69,7 +69,33 @@ class SadohodtsyScreen extends StatefulWidget {
 class _DirectoryState extends State<SadohodtsyScreen> {
   final TextEditingController _search = TextEditingController();
   bool favoritesOnly = false;
+  bool loadingFavorites = false;
+  final account = AccountStore.instance;
   late Future<List<_Row>> data = load();
+
+  Future<void> toggleFavorites() async {
+    if (!account.signedIn) {
+      context.push('/account');
+      return;
+    }
+    if (favoritesOnly) {
+      setState(() => favoritesOnly = false);
+      return;
+    }
+    if (loadingFavorites) return;
+    setState(() => loadingFavorites = true);
+    try {
+      if (!account.courierFavoritesReady) await account.refreshCourierFavorites();
+      if (mounted && account.courierFavoritesReady) {
+        setState(() => favoritesOnly = true);
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось загрузить любимых садоходцев')));
+    } finally {
+      if (mounted) setState(() => loadingFavorites = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -79,19 +105,10 @@ class _DirectoryState extends State<SadohodtsyScreen> {
 
   Future<List<_Row>> load() async {
     final all = <_Row>[];
-    final saved = favoritesOnly
-        ? Set<String>.from(
-            (await AccountStore.instance.request(
-              '/account', method: 'GET',
-            ))['couriers'] ?? [],
-          )
-        : null;
     const filters = 'sort=rating';
     for (var offset = 0; ; offset += 100) {
       final batch = _items(await _request('?$filters&limit=100&offset=$offset'));
-      all.addAll(saved == null
-          ? batch
-          : batch.where((p) => saved.contains(p['id'])));
+      all.addAll(batch);
       if (batch.length < 100) return all;
     }
   }
@@ -99,8 +116,14 @@ class _DirectoryState extends State<SadohodtsyScreen> {
   void refresh() => setState(() => data = load());
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: account,
+    builder: (context, _) => _buildDirectory(context),
+  );
+
+  Widget _buildDirectory(BuildContext context) {
     final header = BuyerHeaderLayout.of(context);
+    final onlySaved = favoritesOnly && account.signedIn && account.courierFavoritesReady;
     return ColoredBox(
       color: const Color(0xfff1f1f1),
       child: Column(children: [
@@ -112,9 +135,21 @@ class _DirectoryState extends State<SadohodtsyScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
           ),
-          alignment: Alignment.center,
-          child: const Text('садоходцы',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          child: Row(children: [
+            const SizedBox(width: 30, height: 25, child: Align(
+              alignment: Alignment.centerLeft, child: RoundBack())),
+            const Expanded(child: Text('садоходцы',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+            SizedBox(width: 30, height: 25, child: IconButton(
+              key: const ValueKey('courier-directory-favorites'),
+              tooltip: onlySaved ? 'Все садоходцы' : 'Любимые садоходцы',
+              onPressed: loadingFavorites ? null : toggleFavorites,
+              padding: EdgeInsets.zero,
+              icon: SizedBox(width: 23, height: 21,
+                child: FavoriteHeartGlyph(filled: onlySaved)),
+            )),
+          ]),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(30, 14, 30, 3),
@@ -123,24 +158,6 @@ class _DirectoryState extends State<SadohodtsyScreen> {
             onChanged: (_) => setState(() {}),
           ),
         ),
-        if (AccountStore.instance.signedIn)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 26),
-              child: TextButton.icon(
-                onPressed: () {
-                  favoritesOnly = !favoritesOnly;
-                  refresh();
-                },
-                icon: Icon(favoritesOnly
-                    ? Icons.favorite : Icons.favorite_border, size: 16),
-                label: Text(favoritesOnly ? 'все садоходцы' : 'любимые',
-                  style: const TextStyle(fontSize: 11)),
-                style: TextButton.styleFrom(foregroundColor: Colors.black),
-              ),
-            ),
-          ),
         Expanded(
           child: FutureBuilder<List<_Row>>(
             future: data,
@@ -154,23 +171,25 @@ class _DirectoryState extends State<SadohodtsyScreen> {
               }
               final query = _search.text.trim().toLowerCase();
               final rows = (snapshot.data ?? [])
-                  .where((p) => (p['name']?.toString() ?? '')
-                    .toLowerCase().contains(query))
+                  .where((p) => (!onlySaved || account.couriers.contains(p['id']?.toString())) &&
+                    (p['name']?.toString() ?? '').toLowerCase().contains(query))
                   .toList();
               return RefreshIndicator(
                 onRefresh: () async {
                   refresh();
                   await data;
+                  if (account.signedIn) await account.refreshCourierFavorites();
                 },
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(30, 12, 30, 24),
                   children: [
                     if (rows.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 30),
-                        child: Text('Садоходцы не найдены',
+                      Padding(
+                        padding: const EdgeInsets.only(top: 30),
+                        child: Text(onlySaved && query.isEmpty
+                          ? 'Пока нет любимых садоходцев' : 'Садоходцы не найдены',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12)),
+                          style: const TextStyle(fontSize: 12)),
                       ),
                     LayoutBuilder(builder: (context, constraints) {
                       final width = (constraints.maxWidth - 30) / 2;
@@ -237,28 +256,23 @@ class SadohodetsScreen extends StatefulWidget {
 }
 
 class _ProfileState extends State<SadohodetsScreen> {
-  bool saved = false;
-  bool saving = false;
+  final account = AccountStore.instance;
+  bool loadingFavorite = false;
+
   Future<void> toggle() async {
-    if (!AccountStore.instance.signedIn) {
+    if (!account.signedIn) {
       context.push('/account');
       return;
     }
-    if (saving) return;
-    setState(() => saving = true);
+    if (loadingFavorite || account.courierFavoriteBusy(widget.id)) return;
+    setState(() => loadingFavorite = true);
     try {
-      await AccountStore.instance.request(
-        '/account/favorite',
-        body: {'kind': 'courier', 'id': widget.id, 'saved': !saved},
-      );
-      if (mounted) setState(() => saved = !saved);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      await account.toggleCourier(widget.id);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось сохранить. Попробуйте ещё раз.')));
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) setState(() => loadingFavorite = false);
     }
   }
 
@@ -266,12 +280,12 @@ class _ProfileState extends State<SadohodetsScreen> {
   late Future<_Row> data = load();
   Future<_Row> load() async {
     final p = await _request(route);
-    if (AccountStore.instance.signedIn) {
-      final account = await AccountStore.instance.request(
-        '/account',
-        method: 'GET',
-      );
-      saved = (account['couriers'] as List? ?? []).contains(widget.id);
+    if (account.signedIn && !account.courierFavoritesReady) {
+      try {
+        await account.refreshCourierFavorites();
+      } catch (_) {
+        // Failure to load favourites must not hide an otherwise public profile.
+      }
     }
     return p;
   }
@@ -290,16 +304,24 @@ class _ProfileState extends State<SadohodetsScreen> {
           decoration: const BoxDecoration(color: Colors.white,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(36))),
           child: Row(children: [
-            const RoundBack(),
+            const SizedBox(width: 30, height: 25, child: Align(
+              alignment: Alignment.centerLeft, child: RoundBack())),
             const Expanded(child: Text('садоходец',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-            SizedBox(width: 32, child: IconButton(
-              padding: EdgeInsets.zero,
-              tooltip: saved ? 'Убрать из любимых' : 'В любимые',
-              onPressed: saving ? null : toggle,
-              icon: Icon(saved ? Icons.favorite : Icons.favorite_border,
-                size: 25),
+            SizedBox(width: 30, height: 25, child: ListenableBuilder(
+              listenable: account,
+              builder: (context, _) {
+                final saved = account.courierFavoritesReady && account.couriers.contains(widget.id);
+                return IconButton(
+                  key: const ValueKey('courier-profile-favorite'),
+                  padding: EdgeInsets.zero,
+                  tooltip: saved ? 'Убрать из любимых' : 'В любимые',
+                  onPressed: loadingFavorite || account.courierFavoriteBusy(widget.id) ? null : toggle,
+                  icon: SizedBox(width: 23, height: 21,
+                    child: FavoriteHeartGlyph(filled: saved)),
+                );
+              },
             )),
           ]),
         ),

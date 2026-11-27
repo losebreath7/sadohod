@@ -23,6 +23,64 @@ class AccountStore extends ChangeNotifier {
   final _secure = const FlutterSecureStorage();
   final products = <String>{};
   final sellers = <String>{};
+  final couriers = <String>{};
+  String? _courierToken;
+  int _courierRevision = 0;
+  bool get courierFavoritesReady => signedIn && _courierToken == token;
+  bool courierFavoriteBusy(String id) => _saving.contains('courier:$id');
+
+  void _clearCourierFavorites() {
+    couriers.clear();
+    _courierToken = null;
+    _courierRevision++;
+  }
+
+  void _applyCourierFavorites(Map<String, dynamic> data, String? session, int revision) {
+    if (session == null || token != session || revision != _courierRevision ||
+        _saving.any((key) => key.startsWith('courier:'))) return;
+    couriers
+      ..clear()
+      ..addAll((data['couriers'] as List? ?? const []).whereType<String>());
+    _courierToken = session;
+  }
+
+  Future<void> refreshCourierFavorites() async {
+    final session = token;
+    if (session == null) return;
+    final revision = _courierRevision;
+    final data = await request('/account', method: 'GET');
+    _applyCourierFavorites(data, session, revision);
+    if (token == session) notifyListeners();
+  }
+
+  /// One account-backed source for the profile heart and directory filter.
+  Future<void> toggleCourier(String id) async {
+    final session = token;
+    if (session == null) throw const AuthStorageUnavailable('Войдите в аккаунт');
+    if (!courierFavoritesReady) await refreshCourierFavorites();
+    if (token != session || !courierFavoritesReady) return;
+    final key = 'courier:$id';
+    if (!_saving.add(key)) return;
+    final was = couriers.contains(id);
+    _courierRevision++;
+    was ? couriers.remove(id) : couriers.add(id);
+    notifyListeners();
+    try {
+      final response = await request('/account/favorite', body: {
+        'kind': 'courier', 'id': id, 'saved': !was,
+      });
+      if (response['saved'] != !was) throw StateError('Сервер не подтвердил сохранение');
+    } catch (_) {
+      if (token == session) {
+        was ? couriers.add(id) : couriers.remove(id);
+      }
+      rethrow;
+    } finally {
+      _saving.remove(key);
+      _courierRevision++;
+      notifyListeners();
+    }
+  }
   final _saving = <String>{};
   String? token;
   String email = '', name = '';
@@ -140,6 +198,7 @@ class AccountStore extends ChangeNotifier {
       avatar = null; cover = null;
       products.clear();
       sellers.clear();
+      _clearCourierFavorites();
       await _secure.delete(key: 'session');
       notifyListeners();
     }
@@ -154,7 +213,11 @@ class AccountStore extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    final session = token;
+    final revision = _courierRevision;
     final data = await request('/account', method: 'GET');
+    if (token != session) return;
+    _applyCourierFavorites(data, session, revision);
     email = data['email'];
     name = data['name'];
     products
@@ -184,6 +247,7 @@ class AccountStore extends ChangeNotifier {
       '/auth/verify',
       body: {'email': address, 'code': code},
     );
+    _clearCourierFavorites();
     token = data['token'] as String;
     syncError = null;
 
@@ -289,6 +353,7 @@ class AccountStore extends ChangeNotifier {
     avatar = null; cover = null;
     products.clear();
     sellers.clear();
+    _clearCourierFavorites();
     await _secure.delete(key: 'session');
     notifyListeners();
   }
