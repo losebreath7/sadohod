@@ -12,12 +12,14 @@ import '../../data/catalog.dart';
 import '../../data/api.dart';
 import '../../data/account.dart';
 
-/// Buyer feed: the opening artwork and the compact search share one scroll view.
-/// No second catalogue page, no hard transition, no forced scroll reset.
+/// Buyer feed: server-ranked pages and the existing independent search.
+typedef FeedLoader = Future<FeedPage> Function({String? token, String? cursor, required String category});
+
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.initialQuery = '', this.initialCategory = 'Все'});
+  const HomeScreen({super.key, this.initialQuery = '', this.initialCategory = 'Все', this.feedLoader});
   final String initialQuery;
   final String initialCategory;
+  final FeedLoader? feedLoader;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -26,22 +28,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scroll = ScrollController();
   late final TextEditingController _query = TextEditingController(text: widget.initialQuery);
-  late Future<CatalogSearchResults<DemoProduct>> _products = CatalogApi.instance.searchCatalog(widget.initialQuery);
+  Future<CatalogSearchResults<DemoProduct>>? _products;
   Timer? _debounce;
   bool _pending = false;
-  void _loadQuery(String value) {
-    _debounce?.cancel();
-    final query = value.trim();
-    if (query.isEmpty) {
-      setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(''); });
-      return;
-    }
-    setState(() => _pending = true);
-    _debounce = Timer(const Duration(milliseconds:300), () {
-      if (!mounted) return;
-      setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(query); });
-    });
-  }
+  final List<DemoProduct> _feed = [];
+  String? _cursor;
+  bool _feedLoading = false;
+  Object? _feedError;
+  int _generation = 0;
+  bool _interestsChanged = false;
+  bool get _feedMode => _query.text.trim().isEmpty;
   late String _category = widget.initialCategory;
   static const _fallbackTags = <String>[
     'брюки', 'верхняя одежда', 'головные уборы', 'футболки', 'обувь',
@@ -53,8 +49,79 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _lastToken = AccountStore.instance.token;
+    _scroll.addListener(_nearEnd);
     AccountStore.instance.addListener(_onAccountChanged);
+    if (_feedMode) {
+      unawaited(_reloadFeed());
+    } else {
+      _products = CatalogApi.instance.searchCatalog(_query.text);
+    }
     _onAccountChanged();
+  }
+
+  Future<void> _reloadFeed() async {
+    _generation++;
+    setState(() {
+      _pending = false;
+      _feed.clear();
+      _cursor = null;
+      _feedLoading = false;
+      _feedError = null;
+      _interestsChanged = false;
+    });
+    await _loadPage(first: true);
+  }
+
+  Future<void> _loadPage({bool first = false}) async {
+    if (!_feedMode || _feedLoading || (!first && _cursor == null)) return;
+    final generation = _generation;
+    final token = AccountStore.instance.token;
+    final cursor = first ? null : _cursor;
+    final category = _category;
+    setState(() { _feedLoading = true; _feedError = null; });
+    try {
+      final loader = widget.feedLoader ?? CatalogApi.instance.feedPage;
+      final page = await loader(token:token,cursor:cursor,category:category);
+      if (!mounted || generation != _generation || !_feedMode ||
+          token != AccountStore.instance.token) return;
+      final seen = _feed.map((p)=>p.id).toSet();
+      setState(() {
+        _feed.addAll(page.items.where((p)=>seen.add(p.id)));
+        _cursor = page.nextCursor == cursor ? null : page.nextCursor;
+        _feedLoading = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _nearEnd();
+      });
+    } catch (e) {
+      if (!mounted || generation != _generation) return;
+      setState(() { _feedError = e; _feedLoading = false; });
+    }
+  }
+
+  void _nearEnd() {
+    if (_feedMode && !_feedLoading && _feedError == null && _cursor != null &&
+        _scroll.hasClients && _scroll.position.hasContentDimensions &&
+        _scroll.position.extentAfter < 480) {
+      unawaited(_loadPage());
+    }
+  }
+
+  void _loadQuery(String value) {
+    _debounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      unawaited(_reloadFeed());
+      return;
+    }
+    _generation++;
+    setState(() { _pending = true; _feedLoading = false; });
+    _debounce = Timer(const Duration(milliseconds:300), () {
+      if (!mounted) return;
+      final next = CatalogApi.instance.searchCatalog(query);
+      setState(() { _pending = false; _products = next; });
+    });
   }
 
   void _onAccountChanged() {
@@ -62,24 +129,49 @@ class _HomeScreenState extends State<HomeScreen> {
     final revision = AccountStore.instance.interestRevision;
     if (_lastToken == token && _lastInterestRevision == revision) return;
     final changedAccount = _lastToken != token;
+    final hadRevision = _lastInterestRevision >= 0;
     _lastToken = token;
     _lastInterestRevision = revision;
-    if (changedAccount && mounted) setState(() => _tags = _fallbackTags);
+    if (changedAccount && mounted) {
+      setState(() => _tags = _fallbackTags);
+      if (_feedMode) unawaited(_reloadFeed());
+    } else if (hadRevision) {
+      // Never rearrange a feed while the buyer is scrolling it.
+      _interestsChanged = true;
+    }
     if (token == null) {
       if (mounted) setState(() => _tags = _fallbackTags);
       return;
     }
     CatalogApi.instance.recommendedTags(token).then((items) {
-      if (!mounted || _lastToken != token) return;
+      if (!mounted || _lastToken != token || _lastInterestRevision != revision) return;
       if (items.isNotEmpty) setState(() => _tags = items);
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final current = ModalRoute.of(context)?.isCurrent ?? true;
+    if (current && _interestsChanged && _feedMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_feedMode || !_interestsChanged || _feedLoading) return;
+        if (!_scroll.hasClients || _scroll.offset <= 1) unawaited(_reloadFeed());
+      });
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialQuery != oldWidget.initialQuery) { _query.text = widget.initialQuery; _loadQuery(widget.initialQuery); }
-    if (widget.initialCategory != oldWidget.initialCategory) _category = widget.initialCategory;
+    final categoryChanged = widget.initialCategory != oldWidget.initialCategory;
+    if (categoryChanged) _category = widget.initialCategory;
+    if (widget.initialQuery != oldWidget.initialQuery) {
+      _query.text = widget.initialQuery;
+      _loadQuery(widget.initialQuery);
+    } else if (categoryChanged && _feedMode) {
+      unawaited(_reloadFeed());
+    }
   }
 
   @override
@@ -91,10 +183,28 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _backToTop() {
+  Future<void> _backToTop() async {
+    final refresh = _feedMode && (_interestsChanged ||
+        !_scroll.hasClients || _scroll.offset <= 1);
     if (_scroll.hasClients) {
-      _scroll.animateTo(0, duration: const Duration(milliseconds: 480), curve: Curves.easeOutCubic);
+      await _scroll.animateTo(0, duration: const Duration(milliseconds:480), curve: Curves.easeOutCubic);
     }
+    if (mounted && refresh && _feedMode && !_feedLoading) await _reloadFeed();
+  }
+
+  Future<void> _refresh() async {
+    if (_feedMode) {
+      await _reloadFeed();
+    } else {
+      final next = CatalogApi.instance.searchCatalog(_query.text);
+      setState(() { _pending = false; _products = next; });
+      await next;
+    }
+  }
+
+  void _clearCategory() {
+    setState(() => _category = 'Все');
+    if (_feedMode) unawaited(_reloadFeed());
   }
 
   void _submitSearch(String text) {
@@ -102,19 +212,62 @@ class _HomeScreenState extends State<HomeScreen> {
     if (value.isNotEmpty) {
       if (_pending) {
         _debounce?.cancel();
-        setState(() { _pending = false; _products = CatalogApi.instance.searchCatalog(value); });
+        final next = CatalogApi.instance.searchCatalog(value);
+        setState(() { _pending = false; _products = next; });
       }
       FocusManager.instance.primaryFocus?.unfocus();
       context.push('/results?q=${Uri.encodeQueryComponent(value)}');
     }
   }
 
+  Widget _categoryChip() => Padding(
+    padding: const EdgeInsets.only(bottom:10),
+    child: Align(alignment:Alignment.centerLeft,
+      child:ActionChip(label:Text('$_category ×'),onPressed:_clearCategory)),
+  );
+
+  List<Widget> _feedSlivers() => [
+    if (_category != 'Все') SliverPadding(
+      padding:const EdgeInsets.fromLTRB(30,21,30,0),
+      sliver:SliverToBoxAdapter(child:_categoryChip())),
+    if (_feed.isNotEmpty)
+      SliverPadding(
+        padding:const EdgeInsets.fromLTRB(30,21,30,30),
+        sliver:SliverLayoutBuilder(builder:(context,constraints) {
+          // Same geometry as SadohodCatalogGrid, now lazy in the outer scroll.
+          final width = constraints.crossAxisExtent;
+          final count = width >= 780 ? 4 : width >= 520 ? 3 : 2;
+          final tileWidth = (width - (count - 1)*16)/count;
+          return SliverGrid(
+            gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount:count, mainAxisSpacing:20, crossAxisSpacing:16,
+              childAspectRatio:tileWidth/(tileWidth+66)),
+            delegate:SliverChildBuilderDelegate((context,index)=>ProductTile(
+              key:ValueKey('feed-product-${_feed[index].id}'),product:_feed[index]),
+              childCount:_feed.length),
+          );
+        })),
+    if (_feedLoading) const SliverToBoxAdapter(child:LoadingCatalog()),
+    if (_feedError != null) SliverToBoxAdapter(child:Padding(
+      padding:const EdgeInsets.all(30),
+      child:ApiFailure(error:_feedError!,retry:()=>unawaited(_reloadFeed())))),
+    if (_feed.isEmpty && !_feedLoading && _feedError == null)
+      const SliverToBoxAdapter(child:Padding(padding:EdgeInsets.symmetric(vertical:40),
+        child:Center(child:Text('Ничего не найдено')))),
+    if (CatalogApi.localDemo) const SliverToBoxAdapter(child:Padding(
+      padding:EdgeInsets.fromLTRB(30,0,30,30),child:DemoNotice())),
+  ];
+
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: const Color(0xfff1f1f1),
-    child: CustomScrollView(
+    child: RefreshIndicator(
+      color:Colors.black,
+      onRefresh:_refresh,
+      child:CustomScrollView(
       key: const PageStorageKey('buyer-home-feed'),
       controller: _scroll,
+      physics:const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverPersistentHeader(
           pinned: true,
@@ -129,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tags: _tags,
           ),
         ),
-        SliverPadding(
+        if (_feedMode) ..._feedSlivers() else SliverPadding(
           padding: const EdgeInsets.fromLTRB(30, 21, 30, 30),
           sliver: SliverToBoxAdapter(
             child: FutureBuilder<CatalogSearchResults<DemoProduct>>(
@@ -137,7 +290,10 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context, snapshot) {
                 if (_pending || snapshot.connectionState != ConnectionState.done) return const LoadingCatalog();
                 if (snapshot.hasError) {
-                  return ApiFailure(error: snapshot.error!, retry: () => setState(() => _products = CatalogApi.instance.searchCatalog(_query.text)));
+                  return ApiFailure(error: snapshot.error!, retry: () {
+                    final next = CatalogApi.instance.searchCatalog(_query.text);
+                    setState(() { _products = next; });
+                  });
                 }
                 if (!snapshot.hasData) return const LoadingCatalog();
                 final result = snapshot.data!;
@@ -146,20 +302,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_category != 'Все') Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Align(alignment: Alignment.centerLeft,
-                        child: ActionChip(label: Text('$_category ×'), onPressed: () => setState(() => _category = 'Все')),
-                      ),
-                    ),
+                    if (_category != 'Все') _categoryChip(),
                     if (sellers.isNotEmpty) SellerSearchStrip(sellers:sellers,onOpen:(s)=>context.push('/seller/${Uri.encodeComponent(s.id)}')),
                     if (sellers.isNotEmpty && items.isNotEmpty) const Padding(padding:EdgeInsets.only(bottom:12),child:Text('товары',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700))),
                     if (items.isEmpty && sellers.isEmpty)
-                      const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: Text('Ничего не найдено')))
-                    else if (items.isNotEmpty) ...[
-                      ProductGrid(products: items),
-                   ],
-                    if (CatalogApi.localDemo) const Padding(padding: EdgeInsets.only(top: 22), child: DemoNotice()),
+                      const Padding(padding:EdgeInsets.symmetric(vertical:40),child:Center(child:Text('Ничего не найдено')))
+                    else if (items.isNotEmpty) ProductGrid(products:items),
+                    if (CatalogApi.localDemo) const Padding(padding:EdgeInsets.only(top:22),child:DemoNotice()),
                   ],
                 );
               },
@@ -167,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    ),
+    )),
   );
 }
 

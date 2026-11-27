@@ -46,6 +46,36 @@ class CatalogApi {
     }
   }
 
+  /// A server-ranked snapshot page. The cursor preserves order across requests.
+  Future<FeedPage> feedPage({String? token, String? cursor, String category = 'Все'}) async {
+    if (localDemo) {
+      final items = DemoCatalog.products.where((p) => category == 'Все' || p.category == category).toList();
+      final offset = int.tryParse(cursor ?? '') ?? 0;
+      final page = items.skip(offset).take(20).toList();
+      return FeedPage(page, offset + page.length < items.length ? '${offset + page.length}' : null);
+    }
+    final uri = Uri.parse('$baseUrl/api/v1/feed').replace(queryParameters: {
+      'category': category,
+      if (cursor != null) 'cursor': cursor,
+    });
+    try {
+      final res = await _client.get(uri, headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+      }).timeout(const Duration(seconds: 12));
+      if (res.statusCode == 410) throw const ApiException('Лента устарела. Обновите главную страницу.');
+      if (res.statusCode != 200) throw ApiException('Ошибка сервера: ${res.statusCode}');
+      final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String,dynamic>;
+      return FeedPage(
+        (data['items'] as List).map((v) => DemoProduct.fromJson(v as Map<String,dynamic>,baseUrl)).toList(),
+        data['next_cursor'] as String?,
+      );
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('Не удалось загрузить товары. Проверьте соединение.');
+    }
+  }
+
   Future<List<DemoProduct>> products() async {
     if (localDemo) return DemoCatalog.products;
     final items = <DemoProduct>[];
@@ -202,6 +232,12 @@ class CatalogApi {
       );
     }
   }
+}
+
+class FeedPage {
+  const FeedPage(this.items, this.nextCursor);
+  final List<DemoProduct> items;
+  final String? nextCursor;
 }
 
 class ApiException implements Exception {
