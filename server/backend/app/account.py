@@ -344,6 +344,8 @@ def remove_account(buyer: Buyer = Depends(current_buyer), db: Session = Depends(
                    'Для безопасного удаления обратитесь в поддержку.',
         )
     from .buyer_interests_models import BuyerCategoryInterest
+    from .feed_models import FeedView
+    db.execute(delete(FeedView).where(FeedView.buyer_id == buyer.id))
     db.execute(delete(BuyerCategoryInterest).where(BuyerCategoryInterest.buyer_id == buyer.id))
     db.execute(delete(Favorite).where(Favorite.buyer == buyer.id))
     db.execute(delete(BuyerSession).where(BuyerSession.buyer == buyer.id))

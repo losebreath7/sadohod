@@ -151,8 +151,11 @@ def record_view(body: ViewEvent, buyer: Buyer = Depends(current_buyer),
         raise HTTPException(404, 'Товар недоступен')
     if product.details is not None and not product.details.active:
         raise HTTPException(404, 'Товар недоступен')
+    from .feed import record_product_view
+    record_product_view(db, buyer.id, product.id, body.engaged)
     category = category_for(db, product)
     if not category:
+        db.commit()
         return {'tracked': False}
     add_interest(db, buyer.id, category, 2 if body.engaged else 1)
     return {'tracked': True}

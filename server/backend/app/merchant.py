@@ -755,6 +755,8 @@ def publish_listing(db, row, *, screened=False, moderator_approved=False):
         db.add(offer)
         db.flush()  # FK target must exist before assigning merchant_listings.offer_id.
         row.offer_id = offer.id
+        from .feed import record_publication
+        record_publication(db, row.product_id)
     row.status = 'approved'; row.note = ''
 
 
